@@ -39,7 +39,7 @@ def lane_visibility(gray_roi: np.ndarray) -> tuple[float, int]:
         return 0.0, 0
     n = 0
     total_len = 0.0
-    for x1, y1, x2, y2 in lines[:, 0]:
+    for x1, y1, x2, y2 in np.asarray(lines).reshape(-1, 4):   # OpenCV 4: (N,1,4), OpenCV 5: (N,4)
         ang = abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
         if 20 <= ang <= 70:                          # 원근으로 기운 차선 각도
             n += 1
