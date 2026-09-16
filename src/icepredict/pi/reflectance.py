@@ -47,8 +47,9 @@ def lane_visibility(gray_roi: np.ndarray) -> tuple[float, int]:
     score = min(1.0, 0.5 * min(1.0, n / 6.0) + 0.5 * min(1.0, total_len / (gray_roi.shape[0] * 2.0)))
     return score, n
 
-def analyze(img_bgr: np.ndarray) -> ReflectanceResult:
-    roi = road_roi(img_bgr)
+def analyze(img_bgr: np.ndarray, use_roi: bool = True) -> ReflectanceResult:
+    """use_roi=False: 이미 노면만 잘라낸 입력(RSCD 패치 등)일 때."""
+    roi = road_roi(img_bgr) if use_roi else img_bgr
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY) if roi.ndim == 3 else roi
     gray = cv2.GaussianBlur(gray, (5, 5), 0)
     spec, bf, pr = specular_score(gray)
