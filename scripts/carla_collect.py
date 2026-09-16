@@ -106,10 +106,12 @@ while saved < a.target:
             if not cq or not sq: continue
             # 주기적으로 앞쪽에 새 패치를 배치 (없거나 지나쳤으면)
             if patch is None or remain <= 0:
-                if patch is not None:
-                    try: patch.actor.destroy()
+                if patch is not None and patch.actor is not None:
+                    try:
+                        if patch.actor.is_alive: patch.actor.destroy()
                     except Exception: pass
                     if patch.actor in actors: actors.remove(patch.actor)
+                    patch = None
                 try:
                     wp = waypoint_ahead(cmap, ego, float(rng.uniform(25, 70)))
                     patch = spawn_ice_patch(world, wp, length_m=float(rng.uniform(20, 60)), width_m=7.0, friction=0.02)
@@ -154,10 +156,19 @@ while saved < a.target:
                 print(f"[{saved}/{a.target}] {el/60:.1f}분 경과, {saved/max(el,1):.1f} img/s, 현재 {town}/{wname}", flush=True)
             if saved >= a.target: break
     finally:
-        for x in actors:
-            try: x.destroy()
+        for s_ in (locals().get("cam"), locals().get("sem")):
+            try:
+                if s_ is not None and s_.is_listening: s_.stop()
             except Exception: pass
-        world.apply_settings(orig); tm.set_synchronous_mode(False)
+        for x in actors:
+            try:
+                if x is not None and x.is_alive: x.destroy()
+            except Exception: pass
+        actors.clear(); patch = None; poly = None
+        try: world.apply_settings(orig)
+        except Exception: pass
+        try: tm.set_synchronous_mode(False)
+        except Exception: pass
 
 (out / "meta.json").write_text(json.dumps(meta, indent=0))
 from collections import Counter
