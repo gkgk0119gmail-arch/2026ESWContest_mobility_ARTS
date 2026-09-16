@@ -19,7 +19,8 @@ from icepredict.common.protocol import ROAD_CLASSES
 from icepredict.pi.fusion import RiskFuser
 from icepredict.pi.context import WeatherObs, LocationCtx, build_context
 from icepredict.pi.imu_slip import SlipDetector, emergency_command, G
-from icepredict.sim.blackice import spawn_ice_patch, waypoint_ahead, RoadNetDetector
+from icepredict.sim.blackice import (spawn_ice_patch, waypoint_ahead, RoadNetDetector,
+                                     camera_intrinsics, patch_road_polygon, draw_patch_overlay)
 
 ICE = ROAD_CLASSES.index("black_ice")
 
@@ -41,6 +42,8 @@ ap.add_argument("--gt-detect", action="store_true", help="카메라 대신 패�
 ap.add_argument("--detect-range", type=float, default=30.0, help="--gt-detect 시 감지 거리(m)")
 ap.add_argument("--night", action="store_true")
 ap.add_argument("--no-video", action="store_true")
+ap.add_argument("--no-overlay", action="store_true", help="빙판 시각화 오버레이 끄기")
+ap.add_argument("--debug-box", action="store_true", help="시뮬 안에 디버그 박스도 그리기")
 a = ap.parse_args()
 
 out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
@@ -94,6 +97,7 @@ try:
     patch = spawn_ice_patch(world, wp_ice, length_m=a.patch_len, width_m=7.0, friction=a.friction)
     actors.append(patch.actor)
     print(f"[sim] ice patch at {wp_ice.transform.location} friction={a.friction} len={a.patch_len}m")
+    poly = patch_road_polygon(cmap, patch, half_width_m=3.2)
 
     # ---- 센서 -----------------------------------------------------------
     cbp = bl.find("sensor.camera.rgb")
@@ -104,6 +108,7 @@ try:
     ibp = bl.find("sensor.other.imu"); ibp.set_attribute("sensor_tick", "0.0")
     imu = world.spawn_actor(ibp, carla.Transform(), attach_to=ego); actors.append(imu)
 
+    K = camera_intrinsics(640, 480, 90.0)
     frames, imus = deque(maxlen=2), deque(maxlen=8)
     cam.listen(lambda im: frames.append(im))
     imu.listen(lambda m: imus.append(m))
@@ -128,6 +133,10 @@ try:
     state = "DRIVE"           # DRIVE → WARN → BRAKE → STOPPED / SLIP → EMERG
     t_sim = 0.0; t_warn = None; t_slip = None; entered = False
     for step in range(a.max_steps):
+        if a.debug_box:
+            world.debug.draw_box(carla.BoundingBox(patch.location + carla.Location(z=0.1),
+                                 carla.Vector3D(patch.extent[0], patch.extent[1], 0.05)),
+                                 patch.transform.rotation, 0.08, carla.Color(120, 220, 255), dt * 1.5)
         world.tick(); t_sim += dt
         v = ego.get_velocity(); spd = math.sqrt(v.x**2 + v.y**2 + v.z**2)
         loc = ego.get_location()
@@ -204,6 +213,10 @@ try:
             bgr = np.frombuffer(im.raw_data, np.uint8).reshape(im.height, im.width, 4)[:, :, :3].copy()
             if vw is None:
                 vw = cv2.VideoWriter(str(out / f"demo_{tag}.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), a.fps, (im.width, im.height))
+            if not a.no_overlay:
+                icecol = (255, 200, 90) if not inside else (100, 100, 255)
+                bgr = draw_patch_overlay(bgr, poly, cam, K, color=icecol, alpha=0.45,
+                                         label=f"BLACK ICE  {dist:.0f}m" if dist > 3 else "BLACK ICE")
             col = {"DRIVE": (0,255,0), "WARN": (0,220,255), "BRAKE": (0,140,255), "EMERG": (0,0,255), "STOPPED": (200,200,200)}[state]
             cv2.putText(bgr, f"{t_sim:5.2f}s {spd*3.6:5.1f}km/h  patch {dist:5.1f}m  risk {risk:.2f}  {state}",
                         (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, col, 2)
