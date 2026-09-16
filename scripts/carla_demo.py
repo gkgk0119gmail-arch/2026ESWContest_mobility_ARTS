@@ -33,7 +33,9 @@ ap.add_argument("--patch-len", type=float, default=40.0)
 ap.add_argument("--friction", type=float, default=0.02)
 ap.add_argument("--target-kph", type=float, default=60.0)
 ap.add_argument("--max-steps", type=int, default=1200)
-ap.add_argument("--fps", type=int, default=20, help="시뮬 고정 스텝 (1/fps 초)")
+ap.add_argument("--fps", type=int, default=50, help="시뮬 고정 스텝 (1/fps 초)")
+ap.add_argument("--warmup", type=float, default=3.0, help="스폰 충격·가속 대기 (감지 비활성)")
+ap.add_argument("--min-detect-kph", type=float, default=25.0, help="이 속도 이상일 때만 2차 감지 활성")
 ap.add_argument("--disable-primary", action="store_true", help="1차 방어 끔 (2차 시연)")
 ap.add_argument("--gt-detect", action="store_true", help="카메라 대신 패치까지 거리로 1차 판정")
 ap.add_argument("--detect-range", type=float, default=30.0, help="--gt-detect 시 감지 거리(m)")
@@ -111,9 +113,11 @@ try:
     ctx = build_context(WeatherObs(temp_c=-3.0, humidity=88.0, temp_trend_c_per_h=-1.0),
                         LocationCtx(feature="bridge", hour=5 if not a.night else 23))
     fuser = RiskFuser(ctx.weights, threshold=ctx.threshold)
-    slip = SlipDetector(rate_hz=a.fps, confirm_samples=1)   # 시뮬 20Hz → 1샘플 확정
+    slip = SlipDetector(rate_hz=a.fps, confirm_samples=3, min_speed_mps=a.min_detect_kph / 3.6)
     print(f"[ctx] prior={ctx.risk_prior} threshold={ctx.threshold} weights=({ctx.weights.alpha},{ctx.weights.beta},{ctx.weights.gamma})")
 
+    for _ in range(int(0.5 * a.fps)):      # 스폰 낙하 충격 소산
+        world.tick()
     ego.set_autopilot(True, 8000)
     tm.ignore_lights_percentage(ego, 100); tm.auto_lane_change(ego, False)
     tm.vehicle_percentage_speed_difference(ego, (30.0 - a.target_kph) / 30.0 * 100.0)
@@ -155,9 +159,12 @@ try:
                 print(f"[{t_sim:6.2f}s] 1차 경고  위험도 {risk:.2f}  패치까지 {dist:.1f}m  속도 {spd*3.6:.1f} km/h")
 
         # ---------- 2차 방어 ----------
-        if imus:
+        if imus and t_sim >= a.warmup:
             m = imus[-1]
-            ay = m.accelerometer.y; gz = m.gyroscope.z
+            tr = ego.get_transform()
+            roll = math.radians(tr.rotation.roll)
+            ay = m.accelerometer.y - G * math.sin(roll)   # 경사/롤로 새어든 중력 성분 제거
+            gz = m.gyroscope.z
             ctrl = ego.get_control()
             ev = slip.step(t_sim, ay, gz, spd, ctrl.steer)
             if ev and state not in ("EMERG",):
