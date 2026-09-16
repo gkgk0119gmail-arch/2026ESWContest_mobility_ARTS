@@ -60,6 +60,8 @@ ap.add_argument("--fp32", default=os.path.expanduser("~/icepredict/models/roadne
 ap.add_argument("--out", default=os.path.expanduser("~/icepredict/models/roadnet_v1/roadnet_int8.onnx"))
 ap.add_argument("--calib", type=int, default=500)
 ap.add_argument("--eval", type=int, default=4000)
+ap.add_argument("--per-channel", action="store_true", help="채널별 가중치 스케일 (MobileNet 계열 필수)")
+ap.add_argument("--calib-method", default="minmax", choices=["minmax", "percentile", "entropy"])
 a = ap.parse_args()
 
 calib = index(a.root, "vali_20k", a.calib, seed=1)
@@ -71,9 +73,11 @@ prep = a.fp32.replace(".onnx", "_prep.onnx")
 from onnxruntime.quantization.shape_inference import quant_pre_process
 quant_pre_process(a.fp32, prep, skip_symbolic_shape=True)
 t0 = time.time()
+CM = {"minmax": CalibrationMethod.MinMax, "percentile": CalibrationMethod.Percentile, "entropy": CalibrationMethod.Entropy}
 quantize_static(prep, a.out, Reader(calib, nm), quant_format=QuantFormat.QDQ,
                 activation_type=QuantType.QInt8, weight_type=QuantType.QInt8,
-                per_channel=False, calibrate_method=CalibrationMethod.MinMax)
+                per_channel=a.per_channel, calibrate_method=CM[a.calib_method])
+print(f"config: per_channel={a.per_channel} calib={a.calib_method}")
 print(f"quantized in {time.time()-t0:.0f}s  size {os.path.getsize(a.fp32)/1e6:.2f}MB → {os.path.getsize(a.out)/1e6:.2f}MB")
 
 r32 = evaluate(s32, ev, nm)
