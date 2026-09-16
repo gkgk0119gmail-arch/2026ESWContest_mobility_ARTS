@@ -33,49 +33,76 @@ def sky_color(bgr: np.ndarray, semantic: np.ndarray) -> np.ndarray:
         return bgr[m].reshape(-1, 3).mean(0)
     return bgr[: bgr.shape[0] // 4].reshape(-1, 3).mean(0)   # 상단 1/4로 대체
 
+def soft_mask(ice_mask: np.ndarray, semantic: np.ndarray, *, feather_px: float = 9.0,
+              edge_noise: float = 0.45, rng: np.random.Generator | None = None) -> np.ndarray:
+    """기하학적 폴리곤 경계를 자연스러운 얼음 가장자리로 바꾼 0~1 알파 마스크.
+
+    직선 경계를 그대로 두면 모델이 '노면 외형'이 아니라 '대각선 모서리'를 학습한다.
+    저주파 노이즈로 경계를 흔든 뒤 블러로 페더링한다. 도로 밖은 항상 0.
+    """
+    rng = rng or np.random.default_rng()
+    h, w = ice_mask.shape
+    a = ice_mask.astype(np.float32)
+    if edge_noise > 0:
+        n = rng.normal(0.0, 1.0, (max(2, h // 24), max(2, w // 24))).astype(np.float32)
+        n = cv2.resize(n, (w, h), interpolation=cv2.INTER_CUBIC)
+        n = cv2.GaussianBlur(n, (0, 0), 6.0)
+        n /= (np.abs(n).max() + 1e-6)
+        a = np.clip(a + edge_noise * n * (cv2.GaussianBlur(a, (0, 0), 6.0) * (1 - a) * 4 + a * (1 - a) * 4), 0, 1)
+        a = (a > 0.5).astype(np.float32)
+    a = cv2.GaussianBlur(a, (0, 0), feather_px)
+    a *= road_mask(semantic).astype(np.float32)
+    return np.clip(a, 0, 1)
+
 def composite_ice(bgr: np.ndarray, semantic: np.ndarray, ice_mask: np.ndarray, *,
                   specular: float = 0.45, darkening: float = 0.35, smoothing: float = 0.7,
-                  streak: float = 0.35, rng: np.random.Generator | None = None) -> np.ndarray:
-    """ice_mask(도로 영역과 교집합) 픽셀에 블랙아이스 외형을 합성."""
+                  streak: float = 0.35, feather_px: float = 9.0, edge_noise: float = 0.45,
+                  rng: np.random.Generator | None = None) -> np.ndarray:
+    """ice_mask(도로 영역과 교집합) 픽셀에 블랙아이스 외형을 합성. 경계는 부드럽게 페더링."""
     rng = rng or np.random.default_rng()
-    m = ice_mask & road_mask(semantic)
-    if m.sum() < 50:
+    if ice_mask.dtype == bool:
+        alpha = soft_mask(ice_mask, semantic, feather_px=feather_px, edge_noise=edge_noise, rng=rng)
+    else:
+        alpha = np.clip(ice_mask.astype(np.float32), 0, 1) * road_mask(semantic)
+    if alpha.sum() < 50:
         return bgr
-    out = bgr.astype(np.float32).copy()
+    src = bgr.astype(np.float32)
+    out = src.copy()
     sky = sky_color(bgr, semantic).astype(np.float32)
+    h, w = bgr.shape[:2]
 
     # 3) 질감 소실: 강하게 블러한 버전과 섞어 국소 대비를 낮춘다
     blur = cv2.GaussianBlur(out, (0, 0), 3.0)
-    out[m] = out[m] * (1 - smoothing) + blur[m] * smoothing
+    out = out * (1 - smoothing) + blur * smoothing
 
     # 2) 어두워짐
-    out[m] *= (1.0 - darkening)
+    out *= (1.0 - darkening)
 
-    # 1) 전반사: 하늘색을 섞되, 시점에서 멀수록(화면 위쪽) 강하게 (그레이징 앵글 = 반사율↑)
-    h = bgr.shape[0]
-    yy = np.linspace(0.0, 1.0, h, dtype=np.float32)[:, None]      # 0=위, 1=아래
-    grazing = (1.0 - yy) ** 1.5                                    # 위쪽일수록 큼
-    gz = np.repeat(grazing, bgr.shape[1], axis=1)
-    w = (specular * gz)[m][:, None]
-    out[m] = out[m] * (1 - w) + sky[None, :] * w
+    # 1) 전반사: 하늘색을 섞되, 그레이징 앵글(화면 위쪽)일수록 반사율이 높다
+    yy = np.linspace(0.0, 1.0, h, dtype=np.float32)[:, None]
+    gz = np.repeat(((1.0 - yy) ** 1.5), w, axis=1)[:, :, None]
+    ws = specular * gz
+    out = out * (1 - ws) + sky[None, None, :] * ws
 
     # 4) 얼룩/줄무늬: 얼음막 두께 불균일
     if streak > 0:
-        noise = rng.normal(0.0, 1.0, (h // 8, bgr.shape[1] // 8)).astype(np.float32)
-        noise = cv2.resize(noise, (bgr.shape[1], h), interpolation=cv2.INTER_CUBIC)
-        noise = cv2.GaussianBlur(noise, (0, 0), 4.0)
-        out[m] *= (1.0 + streak * 0.35 * noise[m])[:, None]
+        n = rng.normal(0.0, 1.0, (max(2, h // 8), max(2, w // 8))).astype(np.float32)
+        n = cv2.GaussianBlur(cv2.resize(n, (w, h), interpolation=cv2.INTER_CUBIC), (0, 0), 4.0)
+        out *= (1.0 + streak * 0.35 * n)[:, :, None]
 
-    return np.clip(out, 0, 255).astype(np.uint8)
+    a3 = alpha[:, :, None]
+    return np.clip(src * (1 - a3) + out * a3, 0, 255).astype(np.uint8)
 
 def random_ice_params(rng: np.random.Generator, night: bool = False) -> dict:
     """도메인 랜덤화: 얼음 두께·조명에 따른 외형 변화."""
     if night:
         # 야간: 헤드라이트 전반사가 강해 국소적으로 매우 밝아짐
         return dict(specular=float(rng.uniform(0.15, 0.40)), darkening=float(rng.uniform(0.10, 0.30)),
-                    smoothing=float(rng.uniform(0.5, 0.85)), streak=float(rng.uniform(0.2, 0.6)))
+                    smoothing=float(rng.uniform(0.5, 0.85)), streak=float(rng.uniform(0.2, 0.6)),
+                    feather_px=float(rng.uniform(6, 16)), edge_noise=float(rng.uniform(0.3, 0.7)))
     return dict(specular=float(rng.uniform(0.30, 0.65)), darkening=float(rng.uniform(0.20, 0.50)),
-                smoothing=float(rng.uniform(0.5, 0.9)), streak=float(rng.uniform(0.1, 0.5)))
+                smoothing=float(rng.uniform(0.5, 0.9)), streak=float(rng.uniform(0.1, 0.5)),
+                feather_px=float(rng.uniform(6, 16)), edge_noise=float(rng.uniform(0.3, 0.7)))
 
 def composite_wet(bgr: np.ndarray, semantic: np.ndarray, mask: np.ndarray,
                   rng: np.random.Generator | None = None) -> np.ndarray:
@@ -83,4 +110,5 @@ def composite_wet(bgr: np.ndarray, semantic: np.ndarray, mask: np.ndarray,
     rng = rng or np.random.default_rng()
     return composite_ice(bgr, semantic, mask, specular=float(rng.uniform(0.10, 0.25)),
                          darkening=float(rng.uniform(0.15, 0.35)), smoothing=float(rng.uniform(0.15, 0.4)),
-                         streak=float(rng.uniform(0.3, 0.7)), rng=rng)
+                         streak=float(rng.uniform(0.3, 0.7)), feather_px=float(rng.uniform(6, 14)),
+                         edge_noise=float(rng.uniform(0.3, 0.7)), rng=rng)
