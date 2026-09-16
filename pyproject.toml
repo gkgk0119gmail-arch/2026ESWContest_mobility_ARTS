@@ -1,0 +1,9 @@
+[project]
+name = "icepredict"
+version = "0.1.0"
+description = "IcePredict - AI prediction + RTOS reaction dual safety net for black ice"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
