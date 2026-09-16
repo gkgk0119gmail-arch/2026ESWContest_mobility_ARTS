@@ -20,7 +20,8 @@ from __future__ import annotations
 import numpy as np
 import cv2
 
-ROAD_TAG, ROADLINE_TAG, SKY_TAG = 7, 6, 13
+# CARLA 0.9.14+ semantic tag: Roads=1, RoadLine=24, Sky=11 (구버전 7/6/13 에서 변경됨)
+ROAD_TAG, ROADLINE_TAG, SKY_TAG = 1, 24, 11
 
 def road_mask(semantic: np.ndarray) -> np.ndarray:
     """semantic: CARLA raw semseg의 R채널(태그). 도로+차선 픽셀."""
