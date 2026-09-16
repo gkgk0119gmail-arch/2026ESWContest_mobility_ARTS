@@ -122,6 +122,7 @@ try:
     tm.ignore_lights_percentage(ego, 100); tm.auto_lane_change(ego, False)
     tm.vehicle_percentage_speed_difference(ego, (30.0 - a.target_kph) / 30.0 * 100.0)
 
+    tag = "gt" if a.gt_detect else ("secondary_only" if a.disable_primary else "primary")
     vw = None
     events, rows = [], []
     state = "DRIVE"           # DRIVE → WARN → BRAKE → STOPPED / SLIP → EMERG
@@ -190,7 +191,7 @@ try:
             ego.apply_control(carla.VehicleControl(throttle=0.0, brake=0.8, steer=ego.get_control().steer * 0.5))
             if spd < 0.3:
                 state = "STOPPED"
-                events.append({"t": round(t_sim,2), "event": "stabilized", "latency_ms": round((t_sim - t_slip)*1000,1)})
+                events.append({"t": round(t_sim,2), "event": "stabilized", "slip_to_stop_ms": round((t_sim - t_slip)*1000,1)})
                 print(f"[{t_sim:6.2f}s] 비상 제어로 정지")
 
         rows.append({"t": round(t_sim,3), "speed_kph": round(spd*3.6,2), "dist_m": round(dist,2),
@@ -202,7 +203,7 @@ try:
             im = frames[-1]
             bgr = np.frombuffer(im.raw_data, np.uint8).reshape(im.height, im.width, 4)[:, :, :3].copy()
             if vw is None:
-                vw = cv2.VideoWriter(str(out / "demo.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), a.fps, (im.width, im.height))
+                vw = cv2.VideoWriter(str(out / f"demo_{tag}.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), a.fps, (im.width, im.height))
             col = {"DRIVE": (0,255,0), "WARN": (0,220,255), "BRAKE": (0,140,255), "EMERG": (0,0,255), "STOPPED": (200,200,200)}[state]
             cv2.putText(bgr, f"{t_sim:5.2f}s {spd*3.6:5.1f}km/h  patch {dist:5.1f}m  risk {risk:.2f}  {state}",
                         (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, col, 2)
@@ -221,7 +222,6 @@ try:
         events.append({"t": round(t_sim,2), "event": "timeout"})
 
     if vw: vw.release()
-    tag = "gt" if a.gt_detect else ("secondary_only" if a.disable_primary else "primary")
     (out / f"events_{tag}.json").write_text(json.dumps({"args": vars(a), "events": events}, indent=1))
     (out / f"trace_{tag}.json").write_text(json.dumps(rows))
     print("\n=== 요약 ===")
