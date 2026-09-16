@@ -97,7 +97,7 @@ try:
     patch = spawn_ice_patch(world, wp_ice, length_m=a.patch_len, width_m=7.0, friction=a.friction)
     actors.append(patch.actor)
     print(f"[sim] ice patch at {wp_ice.transform.location} friction={a.friction} len={a.patch_len}m")
-    poly = patch_road_polygon(cmap, patch, half_width_m=3.2)
+    poly = patch_road_polygon(cmap, patch)
 
     # ---- 센서 -----------------------------------------------------------
     cbp = bl.find("sensor.camera.rgb")

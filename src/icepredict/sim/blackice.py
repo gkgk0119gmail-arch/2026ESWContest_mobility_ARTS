@@ -112,10 +112,12 @@ def world_to_image(points_world, camera, K: np.ndarray):
         out.append((img[0] / img[2], img[1] / img[2]))
     return out
 
-def patch_road_polygon(carla_map, patch: IcePatch, half_width_m: float = 3.2, step_m: float = 2.0):
+def patch_road_polygon(carla_map, patch: IcePatch, half_width_m: float | None = None, step_m: float = 2.0):
     """패치가 덮는 도로면을 waypoint를 따라 좌우 경계 점열로 만든다 (곡선 도로 대응)."""
     import carla
     center = carla_map.get_waypoint(patch.location, project_to_road=True)
+    if half_width_m is None:
+        half_width_m = max(2.0, center.lane_width / 2.0 - 0.1)   # 차선 폭에 맞춤
     half_len = patch.extent[0]
     # 중심에서 뒤로 half_len 이동한 지점부터 시작
     start = center
@@ -137,25 +139,35 @@ def patch_road_polygon(carla_map, patch: IcePatch, half_width_m: float = 3.2, st
         cur = nxt[0]; travelled += step_m
     return left, right
 
-def draw_patch_overlay(bgr: np.ndarray, poly_world, camera, K, color=(255, 220, 120), alpha=0.45,
-                       label: str | None = None):
-    """도로면 폴리곤을 반투명하게 채우고 테두리를 그린다."""
-    import cv2
+def draw_patch_overlay(bgr: np.ndarray, poly_world, camera, K, color=(255, 220, 120), alpha=0.5,
+                       label: str | None = None, post_h_m: float = 1.6):
+    """도로면 폴리곤을 반투명하게 채우고, 진입 경계에 세로 기둥을 세워 원거리에서도 보이게 한다."""
+    import cv2, carla
     left, right = poly_world
     pl = world_to_image(left, camera, K); pr = world_to_image(right, camera, K)
     pts = [p for p in pl if p] + [p for p in reversed(pr) if p]
-    if len(pts) < 3:
-        return bgr
-    arr = np.array(pts, np.int32)
     h, w = bgr.shape[:2]
-    if arr[:, 0].max() < -w or arr[:, 0].min() > 2 * w:
-        return bgr
-    ov = bgr.copy()
-    cv2.fillPoly(ov, [arr], color)
-    bgr = cv2.addWeighted(ov, alpha, bgr, 1 - alpha, 0)
-    cv2.polylines(bgr, [arr], True, (255, 255, 255), 2)
-    if label:
-        cx, cy = int(arr[:, 0].mean()), int(arr[:, 1].mean())
-        if 0 <= cx < w and 0 <= cy < h:
-            cv2.putText(bgr, label, (cx - 60, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    if len(pts) >= 3:
+        arr = np.array(pts, np.int32)
+        if not (arr[:, 0].max() < -w or arr[:, 0].min() > 2 * w):
+            ov = bgr.copy()
+            cv2.fillPoly(ov, [arr], color)
+            bgr = cv2.addWeighted(ov, alpha, bgr, 1 - alpha, 0)
+            cv2.polylines(bgr, [arr], True, (255, 255, 255), 2)
+    # 진입 경계(패치 시작) 가로줄 + 양끝 세로 기둥
+    if left and right:
+        base = [left[0], right[0]]
+        top = [carla.Location(p.x, p.y, p.z + post_h_m) for p in base]
+        pb = world_to_image(base, camera, K); pt = world_to_image(top, camera, K)
+        if all(pb) and all(pt):
+            cv2.line(bgr, tuple(map(int, pb[0])), tuple(map(int, pb[1])), (255, 255, 255), 3)
+            for b, t in zip(pb, pt):
+                cv2.line(bgr, tuple(map(int, b)), tuple(map(int, t)), (80, 200, 255), 3)
+            cv2.line(bgr, tuple(map(int, pt[0])), tuple(map(int, pt[1])), (80, 200, 255), 2)
+            if label:
+                lx = int((pt[0][0] + pt[1][0]) / 2); ly = int(min(pt[0][1], pt[1][1])) - 10
+                (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.75, 2)
+                if -tw < lx < w + tw and -50 < ly < h:
+                    cv2.rectangle(bgr, (lx - tw // 2 - 6, ly - th - 8), (lx + tw // 2 + 6, ly + 6), (0, 0, 0), -1)
+                    cv2.putText(bgr, label, (lx - tw // 2, ly), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (80, 220, 255), 2)
     return bgr
