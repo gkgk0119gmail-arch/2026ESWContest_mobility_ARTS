@@ -88,7 +88,7 @@ def composite_ice(bgr: np.ndarray, semantic: np.ndarray, ice_mask: np.ndarray, *
     if streak > 0:
         n = rng.normal(0.0, 1.0, (max(2, h // 8), max(2, w // 8))).astype(np.float32)
         n = cv2.GaussianBlur(cv2.resize(n, (w, h), interpolation=cv2.INTER_CUBIC), (0, 0), 4.0)
-        out *= (1.0 + streak * 0.35 * n)[:, :, None]
+        out *= (1.0 + streak * 0.08 * n)[:, :, None]   # 약하게: 노이즈가 클래스 단서가 되면 안 됨
 
     a3 = alpha[:, :, None]
     return np.clip(src * (1 - a3) + out * a3, 0, 255).astype(np.uint8)
@@ -96,17 +96,21 @@ def composite_ice(bgr: np.ndarray, semantic: np.ndarray, ice_mask: np.ndarray, *
 def random_ice_params(rng: np.random.Generator, night: bool = False) -> dict:
     """도메인 랜덤화: 얼음 두께·조명에 따른 외형 변화."""
     if night:
-        # 야간: 헤드라이트 전반사가 강해 국소적으로 매우 밝아짐
-        return dict(specular=float(rng.uniform(0.15, 0.40)), darkening=float(rng.uniform(0.10, 0.30)),
-                    smoothing=float(rng.uniform(0.5, 0.85)), streak=float(rng.uniform(0.2, 0.6)),
+        # 야간: 헤드라이트 전반사가 강해 국소적으로 밝아지고, 얼음 자체는 덜 어둡게 보인다
+        return dict(specular=float(rng.uniform(0.10, 0.28)), darkening=float(rng.uniform(0.08, 0.22)),
+                    smoothing=float(rng.uniform(0.45, 0.80)), streak=float(rng.uniform(0.2, 0.6)),
                     feather_px=float(rng.uniform(6, 16)), edge_noise=float(rng.uniform(0.3, 0.7)))
-    return dict(specular=float(rng.uniform(0.30, 0.65)), darkening=float(rng.uniform(0.20, 0.50)),
-                smoothing=float(rng.uniform(0.5, 0.9)), streak=float(rng.uniform(0.1, 0.5)),
+    return dict(specular=float(rng.uniform(0.22, 0.45)), darkening=float(rng.uniform(0.18, 0.38)),
+                smoothing=float(rng.uniform(0.45, 0.80)), streak=float(rng.uniform(0.1, 0.5)),
                 feather_px=float(rng.uniform(6, 16)), edge_noise=float(rng.uniform(0.3, 0.7)))
 
 def composite_wet(bgr: np.ndarray, semantic: np.ndarray, mask: np.ndarray,
                   rng: np.random.Generator | None = None) -> np.ndarray:
-    """젖은 노면: 얼음보다 반사 약하고 어두워짐은 비슷, 질감은 어느 정도 유지."""
+    """(보존용, 기본 경로에서는 미사용) 젖은 노면 합성.
+
+    수집기는 CARLA WeatherParameters의 wetness/precipitation_deposits가 엔진에서 실제로
+    렌더링하는 젖은 노면을 그대로 'wet' 클래스로 쓴다. 합성으로 만든 젖음은 우리가 정의한
+    아티팩트라서 모델이 그것을 학습할 위험이 크다."""
     rng = rng or np.random.default_rng()
     return composite_ice(bgr, semantic, mask, specular=float(rng.uniform(0.10, 0.25)),
                          darkening=float(rng.uniform(0.15, 0.35)), smoothing=float(rng.uniform(0.15, 0.4)),

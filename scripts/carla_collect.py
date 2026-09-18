@@ -17,11 +17,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import numpy as np, cv2, carla
 from icepredict.sim.blackice import spawn_ice_patch, camera_intrinsics, patch_road_polygon, world_to_image
-from icepredict.sim.ice_render import composite_ice, composite_wet, random_ice_params, road_mask
+from icepredict.sim.ice_render import composite_ice, random_ice_params, road_mask
 from icepredict.sim.route import build_route, PurePursuit
 
 W, H, FOV = 640, 480, 90.0
-ROI = (0.55, 0.86, 0.28, 0.72)      # top, bottom, left, right (보닛 제외, RoadNetDetector와 동일)
+ROI = (0.50, 0.87, 0.25, 0.75)      # top, bottom, left, right (보닛 제외, 차선 일부 포함)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--out", default=os.path.expanduser("~/icepredict/dataset/carla"))
@@ -32,7 +32,7 @@ ap.add_argument("--fps", type=int, default=20)
 ap.add_argument("--kph", type=float, default=50.0)
 ap.add_argument("--host", default="127.0.0.1"); ap.add_argument("--port", type=int, default=2000)
 ap.add_argument("--seed", type=int, default=0)
-ap.add_argument("--wet-ratio", type=float, default=0.30)
+
 a = ap.parse_args()
 
 rng = np.random.default_rng(a.seed); random.seed(a.seed)
@@ -41,13 +41,18 @@ dt = 1.0 / a.fps
 client = carla.Client(a.host, a.port); client.set_timeout(120.0)
 K = camera_intrinsics(W, H, FOV)
 
+# 건조(dry) / 젖음(wet) 그룹. 'wet' 라벨은 CARLA 엔진이 wetness·precipitation_deposits로
+# 실제 렌더링한 노면만 사용한다. 합성으로 만든 젖음을 쓰면 모델이 우리 아티팩트를 배운다.
+# 노출이 날아가지 않도록 태양 고도와 cloudiness를 보수적으로 잡았다.
 WEATHERS = {
-    "day_clear":  dict(cloudiness=15, precipitation=0,  precipitation_deposits=0,  wetness=0,  sun_altitude_angle=60,  fog_density=2),
-    "day_cloudy": dict(cloudiness=80, precipitation=0,  precipitation_deposits=10, wetness=15, sun_altitude_angle=35,  fog_density=8),
-    "dawn":       dict(cloudiness=60, precipitation=0,  precipitation_deposits=20, wetness=25, sun_altitude_angle=8,   fog_density=15),
-    "dusk":       dict(cloudiness=50, precipitation=0,  precipitation_deposits=15, wetness=20, sun_altitude_angle=3,   fog_density=12),
-    "night":      dict(cloudiness=70, precipitation=0,  precipitation_deposits=25, wetness=30, sun_altitude_angle=-20, fog_density=10),
-    "rain":       dict(cloudiness=95, precipitation=70, precipitation_deposits=70, wetness=80, sun_altitude_angle=25,  fog_density=20),
+    "dry_noon":    ("dry", dict(cloudiness=25, precipitation=0,  precipitation_deposits=0,  wetness=0,  sun_altitude_angle=45, fog_density=3)),
+    "dry_cloudy":  ("dry", dict(cloudiness=85, precipitation=0,  precipitation_deposits=0,  wetness=0,  sun_altitude_angle=30, fog_density=8)),
+    "dry_dawn":    ("dry", dict(cloudiness=55, precipitation=0,  precipitation_deposits=0,  wetness=5,  sun_altitude_angle=10, fog_density=14)),
+    "dry_night":   ("dry", dict(cloudiness=60, precipitation=0,  precipitation_deposits=0,  wetness=0,  sun_altitude_angle=-20, fog_density=8)),
+    "wet_cloudy":  ("wet", dict(cloudiness=90, precipitation=0,  precipitation_deposits=60, wetness=70, sun_altitude_angle=30, fog_density=10)),
+    "wet_rain":    ("wet", dict(cloudiness=95, precipitation=65, precipitation_deposits=80, wetness=90, sun_altitude_angle=25, fog_density=18)),
+    "wet_dusk":    ("wet", dict(cloudiness=80, precipitation=20, precipitation_deposits=55, wetness=65, sun_altitude_angle=6,  fog_density=15)),
+    "wet_night":   ("wet", dict(cloudiness=75, precipitation=0,  precipitation_deposits=65, wetness=75, sun_altitude_angle=-20, fog_density=10)),
 }
 WNAMES = list(WEATHERS)
 
@@ -101,8 +106,9 @@ while saved < a.target:
     orig = world.get_settings()
     st = world.get_settings(); st.synchronous_mode = True; st.fixed_delta_seconds = dt
     world.apply_settings(st)
-    world.set_weather(carla.WeatherParameters(**WEATHERS[wname]))
-    night = WEATHERS[wname]["sun_altitude_angle"] < 5
+    surface, wparams = WEATHERS[wname]
+    world.set_weather(carla.WeatherParameters(**wparams))
+    night = wparams["sun_altitude_angle"] < 5
 
     sensors, actors = [], []
     try:
@@ -175,17 +181,14 @@ while saved < a.target:
                 img = composite_ice(bgr, seg, mask, rng=rng, **random_ice_params(rng, night))
             elif cover > 0.05:
                 continue                             # 경계 애매 구간은 라벨 노이즈라 버림
-            elif rng.random() < a.wet_ratio:
-                cls = "wet"
-                img = composite_wet(bgr, seg, np.ones((H, W), bool), rng=rng)
             else:
-                cls = "normal"
-                img = bgr
+                cls = "wet" if surface == "wet" else "normal"
+                img = bgr                            # 엔진 렌더링 그대로
 
             crop = cv2.resize(roi_crop(img), (224, 224), interpolation=cv2.INTER_AREA)
             name = f"{saved:06d}_{town}_{wname}_{cls}.jpg"
             cv2.imwrite(str(out / "images" / name), crop, [cv2.IMWRITE_JPEG_QUALITY, 92])
-            meta.append({"file": name, "cls": cls, "town": town, "weather": wname, "cover": round(cover, 3)})
+            meta.append({"file": name, "cls": cls, "town": town, "weather": wname, "surface": surface, "cover": round(cover, 3)})
             saved += 1; ep_saved += 1
             if saved % 500 == 0:
                 el = time.time() - t_start
