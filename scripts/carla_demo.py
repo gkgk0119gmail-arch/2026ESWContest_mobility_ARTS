@@ -21,6 +21,7 @@ from icepredict.pi.context import WeatherObs, LocationCtx, build_context
 from icepredict.pi.imu_slip import SlipDetector, emergency_command, G
 from icepredict.sim.blackice import (spawn_ice_patch, waypoint_ahead, RoadNetDetector,
                                      camera_intrinsics, patch_road_polygon, draw_patch_overlay)
+from icepredict.sim import camera as camcfg
 
 ICE = ROAD_CLASSES.index("black_ice")
 
@@ -100,15 +101,13 @@ try:
     poly = patch_road_polygon(cmap, patch)
 
     # ---- 센서 -----------------------------------------------------------
-    cbp = bl.find("sensor.camera.rgb")
-    cbp.set_attribute("image_size_x", "640"); cbp.set_attribute("image_size_y", "480")
-    cbp.set_attribute("fov", "90"); cbp.set_attribute("sensor_tick", "0.0")
-    cam = world.spawn_actor(cbp, carla.Transform(carla.Location(x=1.4, z=1.5), carla.Rotation(pitch=-12.0)), attach_to=ego)
+    cbp = camcfg.apply_camera_bp(bl.find("sensor.camera.rgb")); cbp.set_attribute("sensor_tick", "0.0")
+    cam = world.spawn_actor(cbp, camcfg.camera_transform(carla), attach_to=ego)
     actors.append(cam)
     ibp = bl.find("sensor.other.imu"); ibp.set_attribute("sensor_tick", "0.0")
     imu = world.spawn_actor(ibp, carla.Transform(), attach_to=ego); actors.append(imu)
 
-    K = camera_intrinsics(640, 480, 90.0)
+    K = camera_intrinsics(camcfg.WIDTH, camcfg.HEIGHT, camcfg.FOV)
     frames, imus = deque(maxlen=2), deque(maxlen=8)
     cam.listen(lambda im: frames.append(im))
     imu.listen(lambda m: imus.append(m))

@@ -54,6 +54,9 @@ def waypoint_ahead(carla_map, vehicle, distance_m: float):
     return wp
 
 # ---- 2) 카메라 추론 -------------------------------------------------------
+from icepredict.sim.camera import ROI_TOP, ROI_BOTTOM, ROI_LEFT, ROI_RIGHT
+CAM_ROI = (ROI_TOP, ROI_BOTTOM, ROI_LEFT, ROI_RIGHT)
+
 MEAN = np.array([0.485, 0.456, 0.406], np.float32).reshape(3, 1, 1)
 STD = np.array([0.229, 0.224, 0.225], np.float32).reshape(3, 1, 1)
 
@@ -61,12 +64,11 @@ STD = np.array([0.229, 0.224, 0.225], np.float32).reshape(3, 1, 1)
 class RoadNetDetector:
     model_path: str
     size: int = 224
-    # 노면만 담고 보닛(프레임 하단 ~0.87 이하)은 제외한다. 보닛이 섞이면 모든 클래스에
-    # 동일한 고정 패턴이 들어가 모델이 노면 대신 그것을 보게 된다.
-    roi_top: float = 0.55
-    roi_bottom: float = 0.86
-    roi_left: float = 0.28
-    roi_right: float = 0.72
+    # 전방 8~30m 노면 구간. 값의 근거는 icepredict.sim.camera 참고.
+    roi_top: float = CAM_ROI[0]
+    roi_bottom: float = CAM_ROI[1]
+    roi_left: float = CAM_ROI[2]
+    roi_right: float = CAM_ROI[3]
     sess: object = field(init=False, default=None)
     _iname: str = field(init=False, default="")
 

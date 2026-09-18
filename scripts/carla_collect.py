@@ -19,14 +19,15 @@ import numpy as np, cv2, carla
 from icepredict.sim.blackice import spawn_ice_patch, camera_intrinsics, patch_road_polygon, world_to_image
 from icepredict.sim.ice_render import composite_ice, random_ice_params, road_mask
 from icepredict.sim.route import build_route, PurePursuit
+from icepredict.sim import camera as camcfg
 
-W, H, FOV = 640, 480, 90.0
-ROI = (0.50, 0.87, 0.25, 0.75)      # top, bottom, left, right (보닛 제외, 차선 일부 포함)
+W, H, FOV = camcfg.WIDTH, camcfg.HEIGHT, camcfg.FOV
+ROI = (camcfg.ROI_TOP, camcfg.ROI_BOTTOM, camcfg.ROI_LEFT, camcfg.ROI_RIGHT)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--out", default=os.path.expanduser("~/icepredict/dataset/carla"))
 ap.add_argument("--target", type=int, default=10000)
-ap.add_argument("--towns", default="Town04,Town06,Town03")
+ap.add_argument("--towns", default="Town04,Town03,Town05")   # Town06은 이 빌드에 없음
 ap.add_argument("--route-m", type=float, default=450.0)
 ap.add_argument("--fps", type=int, default=20)
 ap.add_argument("--kph", type=float, default=50.0)
@@ -141,10 +142,9 @@ while saved < a.target:
         if not patches:
             teardown(world, orig, sensors, actors); continue
 
-        cbp = bl.find("sensor.camera.rgb"); sbp = bl.find("sensor.camera.semantic_segmentation")
-        for b in (cbp, sbp):
-            b.set_attribute("image_size_x", str(W)); b.set_attribute("image_size_y", str(H)); b.set_attribute("fov", str(FOV))
-        ctf = carla.Transform(carla.Location(x=1.4, z=1.5), carla.Rotation(pitch=-12))
+        cbp = camcfg.apply_camera_bp(bl.find("sensor.camera.rgb"))
+        sbp = camcfg.apply_camera_bp(bl.find("sensor.camera.semantic_segmentation"), exposure=None)
+        ctf = camcfg.camera_transform(carla)
         cam = world.spawn_actor(cbp, ctf, attach_to=ego); sem = world.spawn_actor(sbp, ctf, attach_to=ego)
         sensors += [cam, sem]; actors += [cam, sem]
         cq, sq = deque(maxlen=1), deque(maxlen=1)
@@ -168,7 +168,7 @@ while saved < a.target:
             rm = road_mask(seg)
             t, b_, l, r = ROI
             ys, ye, xs, xe = int(H*t), int(H*b_), int(W*l), int(W*r)
-            if rm[ys:ye, xs:xe].mean() < 0.55:      # ROI가 도로로 충분히 차지 않으면 버림
+            if rm[ys:ye, xs:xe].mean() < 0.70:      # ROI가 도로로 충분히 차지 않으면 버림
                 continue
 
             loc = ego.get_location()
