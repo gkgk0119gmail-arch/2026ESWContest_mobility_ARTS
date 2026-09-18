@@ -167,7 +167,7 @@ try:
     vw = None
     events, rows = [], []
     state = "DRIVE"           # DRIVE → WARN → BRAKE → STOPPED / SLIP → EMERG
-    t_sim = 0.0; t_warn = None; t_slip = None; entered = False
+    t_sim = 0.0; t_warn = None; t_slip = None; entered = False; warn_info = None
     for step in range(a.max_steps):
         if a.debug_box:
             world.debug.draw_box(carla.BoundingBox(patch.location + carla.Location(z=0.1),
@@ -197,24 +197,32 @@ try:
                     view = composite_ice(view, seg, mask, rng=np.random.default_rng(a.ice_seed), **ice_params)
 
         # ---------- 1차 방어 ----------
-        risk = 0.0; p = np.zeros(4)
-        if state in ("DRIVE", "WARN") and not a.disable_primary:
+        risk = 0.0; p = np.zeros(4); fired = False
+        # 경고 이후에도 추론을 계속한다. 상태로 막으면 제동 중 프레임의 HUD가 확률 0.00,
+        # risk 0.00으로 굳어 "무엇을 보고 멈췄는지"가 영상에 남지 않는다.
+        if not a.disable_primary:
             if a.gt_detect:
                 # 정답 기반: 패치 앞 detect_range 안에 들어오면 감지 (도메인갭 우회 데모)
                 ahead = dist - patch.extent[0]
                 risk = 1.0 if 0 < ahead <= a.detect_range else 0.0
                 fired = risk > 0
-            elif view is not None:
+            elif view is not None and det is not None:
                 p = det.infer(np.ascontiguousarray(view[:, :, ::-1]))
-                r = fuser.fuse(p.tolist(), spec=0.0, lane=1.0)   # 반사도/차선 헤드는 미학습 → 중립값
+                # 반사도/차선 헤드는 미학습 → None으로 제외 (0/1을 넣으면 가중 합에서
+                # 최솟값이 되어 위험도 상한이 0.35로 잘리고 임계값 0.441에 닿지 못한다)
+                r = fuser.fuse(p.tolist(), spec=None, lane=None)
                 risk = r.risk; fired = r.alarm
-            else:
-                fired = False
             if fired and state == "DRIVE":
                 state = "WARN"; t_warn = t_sim
+                edge = dist - patch.extent[0]
+                # HUD는 ASCII만 쓴다. cv2의 Hershey 폰트는 한글 글리프가 없어 '???'로 찍힌다.
+                warn_info = (f"PRIMARY WARNING - BLACK ICE  risk {risk:.2f}  "
+                             f"edge {edge:.1f}m  {spd*3.6:.0f}km/h")
                 events.append({"t": round(t_sim,2), "event": "primary_warning", "risk": round(float(risk),3),
-                               "dist_to_patch_m": round(dist,1), "speed_kph": round(spd*3.6,1)})
-                print(f"[{t_sim:6.2f}s] 1차 경고  위험도 {risk:.2f}  패치까지 {dist:.1f}m  속도 {spd*3.6:.1f} km/h")
+                               "dist_to_patch_m": round(dist,1), "dist_to_edge_m": round(edge,1),
+                               "speed_kph": round(spd*3.6,1)})
+                print(f"[{t_sim:6.2f}s] 1차 경고  위험도 {risk:.2f}  패치까지 {dist:.1f}m "
+                      f"(가장자리 {edge:.1f}m)  속도 {spd*3.6:.1f} km/h")
 
         # ---------- 2차 방어 ----------
         if imus and t_sim >= a.warmup:
@@ -274,6 +282,9 @@ try:
                 cv2.rectangle(bgr, (int(wd*det.roi_left), int(h*det.roi_top)), (int(wd*det.roi_right), int(h*det.roi_bottom)), (255,255,0), 1)
                 cv2.putText(bgr, "  ".join(f"{c[:4]} {v:.2f}" for c, v in zip(ROAD_CLASSES, p)), (10, h-14),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,0), 1)
+            if warn_info is not None:      # 경고 발화 시점의 근거를 계속 띄워둔다
+                cv2.rectangle(bgr, (0, 38), (bgr.shape[1], 74), (0, 0, 150), -1)
+                cv2.putText(bgr, warn_info, (10, 63), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (255,255,255), 1, cv2.LINE_AA)
             if inside: cv2.putText(bgr, "ICE", (bgr.shape[1]-90, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0,0,255), 2)
             vw.write(bgr)
 

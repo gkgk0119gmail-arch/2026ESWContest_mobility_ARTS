@@ -40,6 +40,9 @@ ap.add_argument("--backbone-lr-mult", type=float, default=0.2, help="백본은 �
 ap.add_argument("--workers", type=int, default=12)
 ap.add_argument("--size", type=int, default=224)
 ap.add_argument("--rscd-test-per-class", type=int, default=0, help="0=test_50k 전체")
+# val_frac이 작으면 (town,weather) 조합이 건조/젖음 각 1개씩만 뽑혀 검증이 한 도시에
+# 몰린다. 조합 단위로 나누므로 0.3 정도는 있어야 조건 다양성이 확보된다.
+ap.add_argument("--val-frac", type=float, default=0.3)
 ap.add_argument("--smoke", action="store_true")
 ap.add_argument("--seed", type=int, default=0)
 a = ap.parse_args()
@@ -59,7 +62,7 @@ rscd_te = build_index(rscd_root, "test_50k")
 if a.rscd_test_per_class:
     rscd_te = subsample(rscd_te, a.rscd_test_per_class, a.seed)
 carla_all = build_carla_index(Path(a.carla))
-carla_tr, carla_va, va_keys = split_items(carla_all, val_frac=0.15, seed=a.seed)
+carla_tr, carla_va, va_keys = split_items(carla_all, val_frac=a.val_frac, seed=a.seed)
 print(f"index: rscd_train={len(rscd_tr)} rscd_test={len(rscd_te)} "
       f"carla_train={len(carla_tr)} carla_val={len(carla_va)}  ({time.time()-t0:.0f}s)")
 print("carla train 클래스:", dict(zip(ROAD_CLASSES, class_counts(carla_tr))))

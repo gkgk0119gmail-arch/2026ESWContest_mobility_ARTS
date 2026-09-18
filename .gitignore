@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 .pytest_cache/
 secrets.yaml
+icepredict_영상

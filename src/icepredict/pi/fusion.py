@@ -2,6 +2,7 @@
 
 가중치는 Pi가 기상·시간대에 따라 동적으로 조정한다. 히스테리시스로 경고 깜빡임을 막는다.
 N6에서는 같은 식을 C로 구현하며, 이 모듈은 Pi 측 검증·로깅·시뮬용 참조 구현이다.
+아직 학습하지 않은 신호(반사도·차선)는 spec=None / lane=None으로 넘겨 제외한다.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -31,14 +32,23 @@ class RiskFuser:
         if threshold is not None:
             self.threshold = max(0.05, min(0.95, threshold))
 
-    def fuse(self, p_cls: list[float], spec: float, lane: float) -> FusionResult:
+    def fuse(self, p_cls: list[float], spec: float | None, lane: float | None) -> FusionResult:
+        """spec/lane에 None을 주면 그 신호가 없는 것으로 보고 가중치를 재정규화한다.
+
+        0을 넣어 '중립'으로 쓰면 안 된다. 가중 합에서 0은 중립이 아니라 최솟값이고, 가장 큰
+        가중치(beta=0.45)를 죽이면 위험도 상한이 0.35로 잘려 임계값 0.441에 도달할 수 없다.
+        실제로 반사도 헤드가 미학습인 동안 CARLA 데모의 1차 방어가 p_ice=0.92에서도 발화하지
+        못한 원인이 이것이었다. 없는 신호는 빼고 있는 신호로만 정규화하는 것이 맞다.
+        """
         p_ice = float(p_cls[ICE_IDX])
-        spec = min(1.0, max(0.0, float(spec)))
-        lane = min(1.0, max(0.0, float(lane)))
         w = self.w
-        s = w.alpha + w.beta + w.gamma
-        a, b, g = w.alpha / s, w.beta / s, w.gamma / s   # 합이 1이 되도록 정규화
-        contrib = {"cls": a * p_ice, "spec": b * spec, "lane": g * (1.0 - lane)}
+        terms = {"cls": (w.alpha, p_ice)}
+        if spec is not None:
+            terms["spec"] = (w.beta, min(1.0, max(0.0, float(spec))))
+        if lane is not None:
+            terms["lane"] = (w.gamma, 1.0 - min(1.0, max(0.0, float(lane))))
+        s = sum(wt for wt, _ in terms.values()) or 1.0
+        contrib = {k: (wt / s) * v for k, (wt, v) in terms.items()}
         risk = sum(contrib.values())
 
         # 히스테리시스: 켜질 땐 threshold, 꺼질 땐 threshold - hyst
