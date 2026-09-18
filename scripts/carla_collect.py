@@ -21,7 +21,7 @@ from icepredict.sim.ice_render import composite_ice, composite_wet, random_ice_p
 from icepredict.sim.route import build_route, PurePursuit
 
 W, H, FOV = 640, 480, 90.0
-ROI = (0.62, 0.97, 0.30, 0.70)      # top, bottom, left, right (carla_demo와 동일)
+ROI = (0.55, 0.86, 0.28, 0.72)      # top, bottom, left, right (보닛 제외, RoadNetDetector와 동일)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--out", default=os.path.expanduser("~/icepredict/dataset/carla"))
