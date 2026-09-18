@@ -51,6 +51,12 @@ ap.add_argument("--val-frac", type=float, default=0.3)
 ap.add_argument("--rscd-test-per-class", type=int, default=0, help="0=test_50k 전체")
 ap.add_argument("--freeze-observer-epoch", type=int, default=2,
                 help="이 에포크부터 관측자를 멈춰 스케일을 고정한다 (마지막 에포크는 고정된 스케일로 적응)")
+# 혼합 정밀도: 지정한 모듈만 FP32로 남긴다.
+# 원인이 features.1의 첫 depthwise Conv(최대오차 15)로 특정돼 있고, Neural-ART는 미지원·
+# 비양자화 연산을 CPU로 폴백시킨다. 그 레이어 하나만 FP32로 빼도 나머지는 NPU로 갈 수 있다.
+# 첫 레이어는 MACC 비중이 작아 CPU 폴백 비용도 작다.
+ap.add_argument("--fp32-modules", default="",
+                help="FP32로 남길 모듈 이름 (쉼표 구분). 예: features.0,features.1")
 ap.add_argument("--smoke", action="store_true")
 ap.add_argument("--seed", type=int, default=0)
 a = ap.parse_args()
@@ -102,14 +108,24 @@ print(f"init: {a.init} (epoch {ck.get('epoch')})")
 # 이것이 QuantizeLinear/DequantizeLinear 쌍으로 변환된다.
 # 가중치: 대칭 per-channel int8 / 활성: per-tensor affine uint8 — ONNX QDQ와 Neural-ART가
 # 기대하는 조합이다.
+# 활성은 반드시 **부호 있는 int8**이어야 한다. quint8(0~255)로 내보내면
+# ST Edge AI Core가 거부한다:
+#   "NOT IMPLEMENTED: Onnx exporting model with quantized unsigned integer format
+#    is not supported"
+# Neural-ART NPU는 signed int8만 받는다. 정확도와 무관하게 배포 가능성의 전제 조건이다.
 act_fq = tq.FakeQuantize.with_args(
-    observer=tq.MovingAverageMinMaxObserver, quant_min=0, quant_max=255,
-    dtype=torch.quint8, qscheme=torch.per_tensor_affine, reduce_range=False)
+    observer=tq.MovingAverageMinMaxObserver, quant_min=-128, quant_max=127,
+    dtype=torch.qint8, qscheme=torch.per_tensor_affine, reduce_range=False)
 wt_fq = tq.FakeQuantize.with_args(
     observer=tq.MovingAveragePerChannelMinMaxObserver, quant_min=-128, quant_max=127,
     dtype=torch.qint8, qscheme=torch.per_channel_symmetric, ch_axis=0)
 qconfig = tq.QConfig(activation=act_fq, weight=wt_fq)
 qconfig_mapping = tq.QConfigMapping().set_global(qconfig)
+fp32_mods = [m.strip() for m in a.fp32_modules.split(",") if m.strip()]
+for name in fp32_mods:
+    qconfig_mapping = qconfig_mapping.set_module_name(name, None)
+if fp32_mods:
+    print(f"FP32로 남기는 모듈: {fp32_mods}")
 example = torch.randn(1, 3, a.size, a.size)
 model = prepare_qat_fx(fp32.train(), qconfig_mapping, (example,)).to(dev)
 n_fq = sum(1 for m in model.modules() if isinstance(m, tq.FakeQuantizeBase))
@@ -200,7 +216,8 @@ print(f"ONNX 노드: 총 {len(m.graph.node)}개, QuantizeLinear {kinds.get('Quan
 if qdq == 0:
     print("※ QDQ 노드가 0개다 — export가 fake-quant를 반영하지 못했다. NPU 매핑이 안 된다")
 
-res = {"baseline_fakequant": {"rscd": b_r, "carla": b_c},
+res = {"fp32_modules": fp32_mods,
+       "baseline_fakequant": {"rscd": b_r, "carla": b_c},
        "final": {"rscd": best_rv, "carla": best_cv, "epoch": best_ep},
        "onnx_nodes": kinds, "carla_val_keys": va_keys, "args": vars(a)}
 (out / "metrics.json").write_text(json.dumps(res, indent=1))
