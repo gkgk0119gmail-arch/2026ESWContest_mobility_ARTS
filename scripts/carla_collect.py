@@ -33,6 +33,16 @@ ap.add_argument("--fps", type=int, default=20)
 ap.add_argument("--kph", type=float, default=50.0)
 ap.add_argument("--host", default="127.0.0.1"); ap.add_argument("--port", type=int, default=2000)
 ap.add_argument("--seed", type=int, default=0)
+# 에피소드 워치독: pure pursuit은 차가 경로를 벗어나면 진행 인덱스가 멈추고
+# done()이 영원히 False가 된다. 그러면 ROI가 도로가 아니라 모든 프레임이
+# 버려지면서 수집이 무한정 헛돈다. 아래 세 조건 중 하나라도 걸리면 에피소드를 끊는다.
+ap.add_argument("--episode-steps", type=int, default=1600)   # 에피소드 최대 틱 (20fps=80초)
+ap.add_argument("--stall-ticks", type=int, default=120)      # 경로 진행 없이 버틸 틱 (6초)
+ap.add_argument("--offroute-m", type=float, default=12.0)    # 경로점에서 이만큼 벌어지면 이탈
+# 수집용 마찰. 빙판 '외관'은 composite_ice가 합성하므로 물리 마찰을 낮출 이유가 없다.
+# 0.02로 두면 차가 스핀아웃해 경로를 이탈하고 프레임이 전부 버려진다.
+# (데모 scripts/carla_demo.py는 실제 미끄러짐이 필요하므로 그대로 0.02를 쓴다.)
+ap.add_argument("--ice-friction", type=float, default=0.9)
 
 a = ap.parse_args()
 
@@ -56,6 +66,11 @@ WEATHERS = {
     "wet_night":   ("wet", dict(cloudiness=75, precipitation=0,  precipitation_deposits=65, wetness=75, sun_altitude_angle=-20, fog_density=10)),
 }
 WNAMES = list(WEATHERS)
+# 그룹별 목록. 날씨를 완전 무작위로 뽑으면 젖음이 연속으로 나와 normal이 한참 비어 있다
+# (실제로 첫 두 에피소드가 모두 wet으로 뽑혀 normal 0장이었다). 에피소드마다 건조/젖음을
+# 번갈아 고르고 그룹 안에서만 무작위로 뽑아 클래스가 고르게 차도록 한다.
+DRY = [k for k, v in WEATHERS.items() if v[0] == "dry"]
+WET = [k for k, v in WEATHERS.items() if v[0] == "wet"]
 
 def roi_crop(img):
     t, b, l, r = ROI
@@ -102,7 +117,8 @@ world = client.get_world()
 
 while saved < a.target and not all(count[c] >= cap[c] for c in CLASSES):
     town = towns[ep % len(towns)]
-    wname = WNAMES[int(rng.integers(len(WNAMES)))]
+    group = DRY if ep % 2 == 0 else WET
+    wname = group[int(rng.integers(len(group)))]
     ep += 1
     if cur_town != town:
         world = client.load_world(town); cur_town = town
@@ -136,7 +152,7 @@ while saved < a.target and not all(count[c] >= cap[c] for c in CLASSES):
             wp = route[idx]
             length = float(rng.uniform(25, 55))
             try:
-                p = spawn_ice_patch(world, wp, length_m=length, width_m=7.0, friction=0.02)
+                p = spawn_ice_patch(world, wp, length_m=length, width_m=7.0, friction=a.ice_friction)
                 patches.append((p, patch_road_polygon(cmap, p)))
                 actors.append(p.actor)
             except Exception:
@@ -158,10 +174,25 @@ while saved < a.target and not all(count[c] >= cap[c] for c in CLASSES):
             ego.apply_control(carla.VehicleControl(throttle=0.6)); world.tick()
 
         ep_saved = 0
+        ticks, last_i, stalled, reason = 0, -1, 0, "route"
         while not ctrl.done() and saved < a.target:
             c, prog = ctrl.update(ego)
             ego.apply_control(c)
             world.tick()
+            ticks += 1
+
+            # --- 워치독 ---
+            if ctrl.i > last_i:
+                last_i, stalled = ctrl.i, 0
+            else:
+                stalled += 1
+            if stalled >= a.stall_ticks:
+                reason = f"정체 {stalled}틱"; break
+            if ticks >= a.episode_steps:
+                reason = f"틱 상한 {ticks}"; break
+            if ego.get_location().distance(ctrl.route[ctrl.i].transform.location) > a.offroute_m:
+                reason = "경로 이탈"; break
+
             if not cq or not sq:
                 continue
 
@@ -199,7 +230,7 @@ while saved < a.target and not all(count[c] >= cap[c] for c in CLASSES):
                 el = time.time() - t_start
                 eta = (a.target - saved) / max(saved / el, 1e-6) / 60
                 print(f"[{saved}/{a.target}] {el/60:.1f}분 {saved/el:.0f}장/s  남은 {eta:.0f}분  {dict(count)}", flush=True)
-        print(f"  ep{ep} {town}/{wname}: {ep_saved}장", flush=True)
+        print(f"  ep{ep} {town}/{wname}: {ep_saved}장 ({ticks}틱, {reason})", flush=True)
     finally:
         teardown(world, orig, sensors, actors)
 
