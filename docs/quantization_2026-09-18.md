@@ -136,3 +136,23 @@ PyTorch export 그래프는 atonn이 덜 흡수한다(HW 54/SW 239) — 그래�
 `npuval_{D,hyb}.elf`(NPU_Validation, 0x34000000 RAM 이미지, 개발 모드 GDB 적재), `npuval_*_weights.raw`,
 `n6_npu_validate.sh D|hyb` — 블롭 굽기 → GDB 서버 → 적재·실행 → `validate --mode target --desc serial:/dev/ttyACM0:921600`.
 relocatable 생성도 동작한다 (`network_rel.bin`, PATH에 arm-gcc 필요).
+
+### NPU 통합 메모리 설계 (FSBL 펌웨어와의 겹침 해결)
+기본 프로파일(`n6-allmems-O3`)은 활성을 `cpuRAM2`(0x34100000~0x34200000) 1MB에 100% 배치한다.
+우리 NetXDuo FSBL 펌웨어는 ROM 0x34180400(255K) + RAM 0x341C0000(256K) — **그 안에 산다.** 그대로 통합하면 충돌.
+
+해결: 커스텀 풀 `~/icepredict/fw/icepredict_fsbl.mpool` (`stm32n6.mpool` 복사본, `cpuRAM2` 1024→**512KB**)
++ 프로파일 `icepredict-fsbl@~/icepredict/fw/neuralart_icepredict.json`. 결과:
+- `cpuRAM2` 사용 0%, 활성 = npuRAM3~5 100% + npuRAM6 50% + **hyperRAM 784KB**(외부 PSRAM, 느림)
+- HW 94 / SW 24 유지, 가중치 1.13MB는 octoFlash 0x71000000 (우리 펌웨어 0x70000000과 무관)
+- hyperRAM 784KB의 지연 비용은 실측 대상 (`npuval_hybfsbl`)
+`stm32n6 __bootFromFlash.mpool`(ST 제공)은 이 atonn에서 파싱 실패이고, 내용도 cpuRAM2 1024KB를 그대로 써서 해결책이 아니다.
+
+### 실보드 검증 변형 (`~/icepredict/fw/npuval_*.elf`, `n6_npu_validate.sh D|hyb|hybfsbl`)
+| 변형 | 모델 | 풀 | 용도 |
+|---|---|---|---|
+| D | v2 PTQ 스템 FP32 (0.8067) | allmems | 절차 검증용 기준 |
+| hyb | QAT+ORT 하이브리드 (0.8885) | allmems | 최고 정확도, cpuRAM2 사용(통합 불가 배치) |
+| hybfsbl | 동일 모델 | icepredict-fsbl | **통합 대상 배치** — hyperRAM 비용 실측 |
+`validate --mode host`는 Neural-ART에서 미지원 → 실보드가 유일한 검증 경로. 외부 플래시 소거·GDB halt는
+개발/프로그래밍 모드(BOOT1 오른쪽)에서만 된다 (실행 모드: 'failed to erase memory', 'No device found').

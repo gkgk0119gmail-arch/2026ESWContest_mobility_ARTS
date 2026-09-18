@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # STM32N6570-DK 개발 모드에서 NPU 검증 펌웨어를 RAM에 적재해 실행하고 stedgeai validate로 실측한다.
-# 사용: n6_npu_validate.sh D|hyb     (BOOT1 오른쪽 = 개발/프로그래밍 모드에서만 동작)
+# 사용: n6_npu_validate.sh D|hyb|hybfsbl     (BOOT1 오른쪽 = 개발/프로그래밍 모드에서만 동작)
 set -u
 M=${1:-hyb}
 CP=/opt/st/stm32cubeide_2.1.1/plugins/com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.linux64_2.2.400.202601091506/tools/bin
@@ -14,7 +14,9 @@ RESET=${RESET:-0}   # 1이면 gdbserver -k(리셋 후 halt): 개발 부팅 모�
 case $M in
   D)   ONNX=$HOME/icepredict/models/mp_D_min/roadnet_int8_int8.onnx ;;
   hyb) ONNX=$HOME/icepredict/models/roadnet_v2_hybrid_plain/roadnet_int8_signed.onnx ;;
-  *) echo "D|hyb"; exit 2 ;;
+  hybfsbl) ONNX=$HOME/icepredict/models/roadnet_v2_hybrid_plain/roadnet_int8_signed.onnx
+           PROF="icepredict-fsbl@$HOME/icepredict/fw/neuralart_icepredict.json" ;;   # FSBL 회피 풀 (npuRAM+hyperRAM)
+  *) echo "D|hyb|hybfsbl"; exit 2 ;;
 esac
 LOG=$HOME/icepredict/logs/npuval_$M; mkdir -p "$LOG"
 pkill -x arm-none-eabi-gdb 2>/dev/null; pkill -x ST-LINK_gdbserver 2>/dev/null; sleep 1   # -x: 정확한 프로세스명만 (자기매칭 방지)
