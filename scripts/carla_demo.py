@@ -56,6 +56,12 @@ ap.add_argument("--detect-range", type=float, default=30.0, help="--gt-detect �
 ap.add_argument("--night", action="store_true")
 ap.add_argument("--no-ice-render", action="store_true", help="카메라 프레임에 얼음 합성 안 함")
 ap.add_argument("--ice-seed", type=int, default=7, help="얼음 외관 파라미터 시드 (프레임마다 고정)")
+# 융합을 STM32N6에서 돌린다. 학교망이 유선→무선을 차단하므로 데스크탑이 bind하고
+# Pi 브리지(scripts/n6_bridge.py)가 connect한다 — 방향을 뒤집어야 연결이 된다.
+ap.add_argument("--fusion", choices=["local", "n6"], default="local",
+                help="local=이 프로세스에서 융합, n6=STM32N6 보드에서 융합")
+ap.add_argument("--n6-bind", default="tcp://*:5558", help="Pi 브리지가 접속할 주소")
+ap.add_argument("--n6-timeout", type=float, default=3.0, help="브리지 응답 대기(초)")
 ap.add_argument("--no-video", action="store_true")
 ap.add_argument("--no-overlay", action="store_true", help="빙판 시각화 오버레이 끄기")
 ap.add_argument("--debug-box", action="store_true", help="시뮬 안에 디버그 박스도 그리기")
@@ -152,6 +158,32 @@ try:
     ctx = build_context(WeatherObs(temp_c=-3.0, humidity=88.0, temp_trend_c_per_h=-1.0),
                         LocationCtx(feature="bridge", hour=5 if not a.night else 23))
     fuser = RiskFuser(ctx.weights, threshold=ctx.threshold)
+
+    # ---- 융합을 보드로 보낼 경우: Pi 브리지 연결 대기 ----
+    n6 = None
+    n6_stats = {"board": 0, "fallback": 0, "board_ns_sum": 0}
+    if a.fusion == "n6":
+        import zmq
+        zctx = zmq.Context()
+        n6 = zctx.socket(zmq.REQ)
+        n6.setsockopt(zmq.RCVTIMEO, int(a.n6_timeout * 1000))
+        n6.setsockopt(zmq.SNDTIMEO, int(a.n6_timeout * 1000))
+        n6.setsockopt(zmq.REQ_RELAXED, 1)      # 타임아웃 후에도 소켓을 재사용할 수 있게
+        n6.setsockopt(zmq.REQ_CORRELATE, 1)
+        n6.bind(a.n6_bind)
+        print(f"[n6] {a.n6_bind} 에서 Pi 브리지 접속 대기 — Pi에서 scripts/n6_bridge.py 실행", flush=True)
+        while True:                             # 브리지가 붙을 때까지 기다린다
+            try:
+                n6.send_json({"kind": "ping"}); r = n6.recv_json()
+                print(f"[n6] 브리지 연결됨, 보드 {r.get('board')}", flush=True); break
+            except zmq.Again:
+                print("[n6] 대기 중...", flush=True)
+        # 기상 컨텍스트로 보드 임계값·가중치를 설정
+        n6.send_json({"kind": "ctx", "threshold": ctx.threshold, "alpha": ctx.weights.alpha,
+                      "beta": ctx.weights.beta, "gamma": ctx.weights.gamma})
+        n6.recv_json()
+        print(f"[n6] ctx 전송: threshold={ctx.threshold} weights=({ctx.weights.alpha},"
+              f"{ctx.weights.beta},{ctx.weights.gamma})", flush=True)
     slip = SlipDetector(rate_hz=a.fps, confirm_samples=3, min_speed_mps=a.min_detect_kph / 3.6)
     print(f"[ctx] prior={ctx.risk_prior} threshold={ctx.threshold} weights=({ctx.weights.alpha},{ctx.weights.beta},{ctx.weights.gamma})")
 
@@ -164,6 +196,8 @@ try:
     tag = "gt" if a.gt_detect else ("secondary_only" if a.disable_primary else "primary")
     if not a.no_ice_render and not a.gt_detect:
         tag += "_icerender"
+    if a.fusion == "n6":
+        tag += "_n6"
     vw = None
     events, rows = [], []
     state = "DRIVE"           # DRIVE → WARN → BRAKE → STOPPED / SLIP → EMERG
@@ -210,8 +244,26 @@ try:
                 p = det.infer(np.ascontiguousarray(view[:, :, ::-1]))
                 # 반사도/차선 헤드는 미학습 → None으로 제외 (0/1을 넣으면 가중 합에서
                 # 최솟값이 되어 위험도 상한이 0.35로 잘리고 임계값 0.441에 닿지 못한다)
-                r = fuser.fuse(p.tolist(), spec=None, lane=None)
-                risk = r.risk; fired = r.alarm
+                if n6 is not None:
+                    vd = None
+                    try:
+                        n6.send_json({"kind": "infer", "p": [float(z) for z in p],
+                                      "spec": None, "lane": None})
+                        vd = n6.recv_json()
+                    except zmq.Again:
+                        vd = None
+                    if vd and vd.get("ok"):
+                        risk = float(vd["risk"]); fired = bool(vd["alarm"])
+                        n6_stats["board"] += 1; n6_stats["board_ns_sum"] += vd["board_ns"]
+                    else:
+                        # 조용히 로컬로 되돌아가면 "보드가 판정했다"는 주장이 거짓이 된다.
+                        # 세어두고 종료 시 반드시 보고한다.
+                        r = fuser.fuse(p.tolist(), spec=None, lane=None)
+                        risk = r.risk; fired = r.alarm
+                        n6_stats["fallback"] += 1
+                else:
+                    r = fuser.fuse(p.tolist(), spec=None, lane=None)
+                    risk = r.risk; fired = r.alarm
             if fired and state == "DRIVE":
                 state = "WARN"; t_warn = t_sim
                 edge = dist - patch.extent[0]
@@ -297,6 +349,19 @@ try:
     if vw: vw.release()
     (out / f"events_{tag}.json").write_text(json.dumps({"args": vars(a), "events": events}, indent=1))
     (out / f"trace_{tag}.json").write_text(json.dumps(rows))
+    if a.fusion == "n6":
+        tot = n6_stats["board"] + n6_stats["fallback"]
+        avg = n6_stats["board_ns_sum"] / max(n6_stats["board"], 1) / 1000.0
+        print(f"\n=== 융합 경로 ===")
+        print(f"  보드 판정 {n6_stats['board']}프레임, 로컬 폴백 {n6_stats['fallback']}프레임 "
+              f"({n6_stats['fallback']/max(tot,1)*100:.1f}%), 보드 평균 {avg:.2f}us")
+        if n6_stats["fallback"]:
+            print("  ※ 폴백이 있었다 — 그 프레임의 판정은 보드가 아니라 이 프로세스가 했다")
+        try:
+            n6.send_json({"kind": "bye"}); n6.recv_json()
+        except Exception:
+            pass
+
     print("\n=== 요약 ===")
     for e in events: print(" ", e)
     print(f"저장: {out}")
