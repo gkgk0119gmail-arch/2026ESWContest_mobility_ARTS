@@ -86,3 +86,81 @@ def subsample(items, per_class: int, seed: int = 0):
         out += lst[:per_class]
     rng.shuffle(out)
     return out
+
+# ---- CARLA 합성 데이터셋 -------------------------------------------------
+# 파일명 규칙: <seq>_<town>_<weather>_<cls>.jpg  (cls = normal | wet | black_ice)
+# pothole은 CARLA 재현이 어려워 수집하지 않는다. 그래서 CARLA만으로 미세조정하면 4클래스
+# 헤드의 pothole 쪽이 무너지고 실제 도메인 성능도 함께 잊는다 → 반드시 RSCD와 섞어 쓴다.
+CARLA_CLASSES = ("normal", "wet", "black_ice")
+
+def parse_carla(fname: str) -> int | None:
+    """파일명에서 4클래스 인덱스. black_ice는 '_black_ice.jpg'로 끝난다."""
+    stem = fname.rsplit(".", 1)[0]
+    for c in ("black_ice", "normal", "wet"):          # black_ice를 먼저 봐야 한다
+        if stem.endswith("_" + c):
+            return ROAD_CLASSES.index(c)
+    return None
+
+def build_carla_index(root: Path, cache_dir: Path | None = None) -> list[tuple[str, int]]:
+    root = Path(root)
+    cache = (cache_dir or root) / "index_carla.txt"
+    if cache.exists():
+        out = []
+        for line in cache.read_text().splitlines():
+            p, c = line.rsplit("\t", 1)
+            out.append((p, int(c)))
+        return out
+    items = []
+    for dirpath, _, files in os.walk(root / "images"):
+        for f in files:
+            l = parse_carla(f)
+            if l is None:
+                continue
+            items.append((os.path.join(dirpath, f), l))
+    items.sort()
+    cache.write_text("\n".join(f"{p}\t{c}" for p, c in items))
+    return items
+
+def carla_key(path) -> str:
+    """파일명에서 town_weather 키. 클래스 접미사를 먼저 떼야 한다 — 'black_ice'는 언더스코어를
+    포함하므로 단순 split으로 자르면 얼음 프레임만 다른 키가 되어 split이 어긋난다."""
+    stem = Path(path).stem
+    for c in ("black_ice", "normal", "wet"):
+        if stem.endswith("_" + c):
+            stem = stem[: -len(c) - 1]; break
+    return stem.split("_", 1)[1] if "_" in stem else stem   # 앞의 seq 제거
+
+def split_items(items, val_frac: float = 0.15, seed: int = 0):
+    """CARLA는 공식 split이 없다. 같은 에피소드 프레임이 train/val에 섞이면 검증이 낙관적으로
+    나오므로 (town, weather) 조합 단위로 나눈다 — 에피소드 경계에 가장 가까운 기준이다.
+
+    건조/젖음 그룹에서 각각 뽑는다. 무작위로 뽑으면 val이 전부 건조 조합이 되어 wet 클래스가
+    한 장도 없는 검증셋이 만들어질 수 있다."""
+    by = {}
+    for p, c in items:
+        by.setdefault(carla_key(p), []).append((p, c))
+    dry = sorted(k for k in by if "_dry_" in k or k.endswith("_dry"))
+    wet = sorted(k for k in by if k not in dry)
+    rng = random.Random(seed)
+    vk = set()
+    for group in (dry, wet):
+        if not group:
+            continue
+        g = list(group); rng.shuffle(g)
+        vk.update(g[: max(1, int(len(g) * val_frac))])
+    tr = [x for k in sorted(by) if k not in vk for x in by[k]]
+    va = [x for k in sorted(vk) for x in by[k]]
+    return tr, va, sorted(vk)
+
+def finetune_tf(size=224):
+    """미세조정용 증강. 선명도·밝기를 클래스 단서로 쓰지 못하게 블러/노이즈/밝기를 모든
+    클래스에 무작위로 건다 (합성기 v1의 실패를 학습 단계에서 한 번 더 막는 안전장치)."""
+    return T.Compose([
+        T.RandomResizedCrop(size, scale=(0.7, 1.0), ratio=(0.9, 1.6), antialias=True),
+        T.RandomHorizontalFlip(),
+        T.ColorJitter(0.35, 0.35, 0.25, 0.03),
+        T.RandomApply([T.GaussianBlur(5, sigma=(0.4, 2.2))], p=0.5),
+        T.ConvertImageDtype(torch.float32),
+        T.RandomApply([T.Lambda(lambda x: (x + torch.randn_like(x) * 0.02).clamp(0, 1))], p=0.4),
+        T.Normalize(MEAN, STD),
+    ])

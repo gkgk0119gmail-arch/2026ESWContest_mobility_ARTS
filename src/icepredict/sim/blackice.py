@@ -116,6 +116,22 @@ def world_to_image(points_world, camera, K: np.ndarray):
         out.append((img[0] / img[2], img[1] / img[2]))
     return out
 
+def patch_image_mask(poly_world, camera, K: np.ndarray, shape) -> np.ndarray:
+    """패치 도로면 폴리곤을 카메라에 투영한 bool 마스크.
+
+    수집기와 데모가 **같은** 마스크를 써야 한다. 학습 때 본 얼음 모양과 데모에서
+    합성되는 얼음 모양이 다르면 미세조정이 데모에서 동작하지 않는다.
+    """
+    import cv2
+    left, right = poly_world
+    pl = world_to_image(left, camera, K); pr = world_to_image(right, camera, K)
+    pts = [p for p in pl if p] + [p for p in reversed(pr) if p]
+    h, w = shape[:2]
+    m = np.zeros((h, w), np.uint8)
+    if len(pts) >= 3:
+        cv2.fillPoly(m, [np.array(pts, np.int32)], 255)
+    return m > 0
+
 def patch_road_polygon(carla_map, patch: IcePatch, half_width_m: float | None = None, step_m: float = 2.0):
     """패치가 덮는 도로면을 waypoint를 따라 좌우 경계 점열로 만든다 (곡선 도로 대응)."""
     import carla

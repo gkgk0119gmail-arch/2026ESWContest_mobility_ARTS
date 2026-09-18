@@ -16,7 +16,8 @@ from collections import deque, Counter
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import numpy as np, cv2, carla
-from icepredict.sim.blackice import spawn_ice_patch, camera_intrinsics, patch_road_polygon, world_to_image
+from icepredict.sim.blackice import (spawn_ice_patch, camera_intrinsics, patch_road_polygon,
+                                     world_to_image, patch_image_mask)
 from icepredict.sim.ice_render import composite_ice, random_ice_params, road_mask
 from icepredict.sim.route import build_route, PurePursuit
 from icepredict.sim import camera as camcfg
@@ -43,6 +44,16 @@ ap.add_argument("--offroute-m", type=float, default=12.0)    # 경로점에서 �
 # 0.02로 두면 차가 스핀아웃해 경로를 이탈하고 프레임이 전부 버려진다.
 # (데모 scripts/carla_demo.py는 실제 미끄러짐이 필요하므로 그대로 0.02를 쓴다.)
 ap.add_argument("--ice-friction", type=float, default=0.9)
+# 빙판 커버리지 채택 구간. v1은 0.45 미만을 전부 버려서 '마른 아스팔트 → 얼음' 경계가
+# 데이터셋에 0장이었다. 50m 전방 경고가 목적이면 정작 필요한 건 멀리 경계가 보이는
+# 프레임이다. 0.20~0.45를 edge, 0.45 이상을 full로 나눠 각각 절반씩 채운다.
+ap.add_argument("--ice-cover-min", type=float, default=0.20)
+ap.add_argument("--ice-cover-split", type=float, default=0.45)
+# 야간 ROI가 거의 새까만 프레임은 배울 내용이 없다 (v1에서 normal의 28%가 밝기 25 미만).
+ap.add_argument("--min-roi-brightness", type=float, default=22.0)
+# 클래스만 모으고 수집을 끝낼지 (재수집용). 예) --only black_ice
+ap.add_argument("--only", default="", help="이 클래스만 수집 (쉼표 구분). 빈 값=전체")
+ap.add_argument("--start-seq", type=int, default=0, help="파일명 시작 번호 (기존 데이터에 덧붙일 때)")
 
 a = ap.parse_args()
 
@@ -59,11 +70,11 @@ WEATHERS = {
     "dry_noon":    ("dry", dict(cloudiness=25, precipitation=0,  precipitation_deposits=0,  wetness=0,  sun_altitude_angle=45, fog_density=3)),
     "dry_cloudy":  ("dry", dict(cloudiness=85, precipitation=0,  precipitation_deposits=0,  wetness=0,  sun_altitude_angle=30, fog_density=8)),
     "dry_dawn":    ("dry", dict(cloudiness=55, precipitation=0,  precipitation_deposits=0,  wetness=5,  sun_altitude_angle=10, fog_density=14)),
-    "dry_night":   ("dry", dict(cloudiness=60, precipitation=0,  precipitation_deposits=0,  wetness=0,  sun_altitude_angle=-20, fog_density=8)),
+    "dry_night":   ("dry", dict(cloudiness=60, precipitation=0,  precipitation_deposits=0,  wetness=0,  sun_altitude_angle=-10, fog_density=8)),
     "wet_cloudy":  ("wet", dict(cloudiness=90, precipitation=0,  precipitation_deposits=60, wetness=70, sun_altitude_angle=30, fog_density=10)),
     "wet_rain":    ("wet", dict(cloudiness=95, precipitation=65, precipitation_deposits=80, wetness=90, sun_altitude_angle=25, fog_density=18)),
     "wet_dusk":    ("wet", dict(cloudiness=80, precipitation=20, precipitation_deposits=55, wetness=65, sun_altitude_angle=6,  fog_density=15)),
-    "wet_night":   ("wet", dict(cloudiness=75, precipitation=0,  precipitation_deposits=65, wetness=75, sun_altitude_angle=-20, fog_density=10)),
+    "wet_night":   ("wet", dict(cloudiness=75, precipitation=0,  precipitation_deposits=65, wetness=75, sun_altitude_angle=-10, fog_density=10)),
 }
 WNAMES = list(WEATHERS)
 # 그룹별 목록. 날씨를 완전 무작위로 뽑으면 젖음이 연속으로 나와 normal이 한참 비어 있다
@@ -75,15 +86,6 @@ WET = [k for k, v in WEATHERS.items() if v[0] == "wet"]
 def roi_crop(img):
     t, b, l, r = ROI
     return img[int(H * t):int(H * b), int(W * l):int(W * r)]
-
-def poly_mask(cam, poly):
-    left, right = poly
-    pl = world_to_image(left, cam, K); pr = world_to_image(right, cam, K)
-    pts = [p for p in pl if p] + [p for p in reversed(pr) if p]
-    m = np.zeros((H, W), np.uint8)
-    if len(pts) >= 3:
-        cv2.fillPoly(m, [np.array(pts, np.int32)], 255)
-    return m > 0
 
 def teardown(world, orig, sensors, actors):
     """센서 콜백을 먼저 끊고 한 틱 흘린 뒤 일괄 파괴. 순서를 지키지 않으면
@@ -107,15 +109,20 @@ def teardown(world, orig, sensors, actors):
     except Exception: pass
 
 CLASSES = ("normal", "wet", "black_ice")
-cap = {c: int(a.target / len(CLASSES) * 1.15) for c in CLASSES}   # 약간의 여유
+ONLY = tuple(x.strip() for x in a.only.split(",") if x.strip()) or CLASSES
+assert all(c in CLASSES for c in ONLY), f"--only: {CLASSES} 중에서 골라라"
+cap = {c: (int(a.target / len(ONLY) * 1.15) if c in ONLY else 0) for c in CLASSES}
 count = {c: 0 for c in CLASSES}
+# 얼음은 '경계가 보이는' 프레임과 'ROI가 얼음으로 찬' 프레임을 절반씩 모은다.
+icap = {"edge": cap["black_ice"] // 2, "full": cap["black_ice"] - cap["black_ice"] // 2}
+icount = {"edge": 0, "full": 0}
 saved, meta, ep = 0, [], 0
 towns = [t.strip() for t in a.towns.split(",")]
 t_start = time.time()
 cur_town = None
 world = client.get_world()
 
-while saved < a.target and not all(count[c] >= cap[c] for c in CLASSES):
+while saved < a.target and not all(count[c] >= cap[c] for c in ONLY):
     town = towns[ep % len(towns)]
     group = DRY if ep % 2 == 0 else WET
     wname = group[int(rng.integers(len(group)))]
@@ -207,14 +214,18 @@ while saved < a.target and not all(count[c] >= cap[c] for c in CLASSES):
 
             loc = ego.get_location()
             near = min(patches, key=lambda pp: loc.distance(pp[0].location))
-            mask = poly_mask(cam, near[1])
+            mask = patch_image_mask(near[1], cam, K, (H, W))
             cover = float((mask & rm)[ys:ye, xs:xe].mean())
 
-            if cover > 0.45:
+            sub = None
+            if cover >= a.ice_cover_min:
                 cls = "black_ice"
+                sub = "full" if cover >= a.ice_cover_split else "edge"
+                if icount[sub] >= icap[sub]:
+                    continue                         # edge/full 한쪽만 쏠리지 않게
                 img = composite_ice(bgr, seg, mask, rng=rng, **random_ice_params(rng, night))
-            elif cover > 0.05:
-                continue                             # 경계 애매 구간은 라벨 노이즈라 버림
+            elif cover > 0.03:
+                continue                             # 얼음이 살짝만 걸친 구간은 라벨 노이즈
             else:
                 cls = "wet" if surface == "wet" else "normal"
                 img = bgr                            # 엔진 렌더링 그대로
@@ -222,14 +233,17 @@ while saved < a.target and not all(count[c] >= cap[c] for c in CLASSES):
             if count[cls] >= cap[cls]:
                 continue                             # 클래스 균형 유지
             crop = cv2.resize(roi_crop(img), (224, 224), interpolation=cv2.INTER_AREA)
-            name = f"{saved:06d}_{town}_{wname}_{cls}.jpg"
+            if cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY).mean() < a.min_roi_brightness:
+                continue                             # 야간 무내용 프레임 (배울 게 없다)
+            name = f"{a.start_seq + saved:06d}_{town}_{wname}_{cls}.jpg"
             cv2.imwrite(str(out / "images" / name), crop, [cv2.IMWRITE_JPEG_QUALITY, 92])
             meta.append({"file": name, "cls": cls, "town": town, "weather": wname, "surface": surface, "cover": round(cover, 3)})
             saved += 1; ep_saved += 1; count[cls] += 1
+            if sub: icount[sub] += 1
             if saved % 500 == 0:
                 el = time.time() - t_start
                 eta = (a.target - saved) / max(saved / el, 1e-6) / 60
-                print(f"[{saved}/{a.target}] {el/60:.1f}분 {saved/el:.0f}장/s  남은 {eta:.0f}분  {dict(count)}", flush=True)
+                print(f"[{saved}/{a.target}] {el/60:.1f}분 {saved/el:.0f}장/s  남은 {eta:.0f}분  {dict(count)} 얼음{dict(icount)}", flush=True)
         print(f"  ep{ep} {town}/{wname}: {ep_saved}장 ({ticks}틱, {reason})", flush=True)
     finally:
         teardown(world, orig, sensors, actors)
@@ -240,3 +254,8 @@ print(f"총 {saved}장  {(time.time()-t_start)/60:.1f}분")
 print("클래스:", dict(Counter(m["cls"] for m in meta)))
 print("날씨 :", dict(Counter(m["weather"] for m in meta)))
 print("맵   :", dict(Counter(m["town"] for m in meta)))
+icov = [m["cover"] for m in meta if m["cls"] == "black_ice"]
+if icov:
+    import numpy as _np
+    print(f"얼음 cover: 중앙 {_np.median(icov):.2f}  경계(<{a.ice_cover_split}) {sum(c < a.ice_cover_split for c in icov)}장  "
+          f"충만 {sum(c >= a.ice_cover_split for c in icov)}장")

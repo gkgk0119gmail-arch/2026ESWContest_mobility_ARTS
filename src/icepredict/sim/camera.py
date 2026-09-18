@@ -32,6 +32,11 @@ def image_y_for_distance(d_m: float, h: float = CAM_Z, pitch_deg: float = CAM_PI
     rel = math.radians(-pitch_deg) - depression            # 카메라 광축 기준 (양수 = 광축 위)
     return height / 2.0 - f * math.tan(rel)
 
+def horizon_y(pitch_deg: float = CAM_PITCH, height: int = HEIGHT,
+              width: int = WIDTH, fov_deg: float = FOV) -> float:
+    """무한 원거리 노면이 맺히는 y. 노면 정반사(평면 거울 근사)의 대칭축."""
+    return height / 2.0 - focal_px(width, fov_deg) * math.tan(math.radians(-pitch_deg))
+
 def road_band_y(near_m: float = 8.0, far_m: float = 30.0, **kw) -> tuple[float, float]:
     """near~far 구간이 차지하는 (위, 아래) y. 정규화 전 픽셀 값."""
     return image_y_for_distance(far_m, **kw), image_y_for_distance(near_m, **kw)
