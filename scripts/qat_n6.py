@@ -55,8 +55,18 @@ ap.add_argument("--freeze-observer-epoch", type=int, default=2,
 # 원인이 features.1의 첫 depthwise Conv(최대오차 15)로 특정돼 있고, Neural-ART는 미지원·
 # 비양자화 연산을 CPU로 폴백시킨다. 그 레이어 하나만 FP32로 빼도 나머지는 NPU로 갈 수 있다.
 # 첫 레이어는 MACC 비중이 작아 CPU 폴백 비용도 작다.
-ap.add_argument("--fp32-modules", default="",
-                help="FP32로 남길 모듈 이름 (쉼표 구분). 예: features.0,features.1")
+ap.add_argument("--fp32-modules", default="features.0,features.1.block.0",
+                help="FP32로 남길 모듈 이름 (쉼표 구분). 기본값은 PTQ 민감도로 찾은 스템 절벽")
+# 학습용 활성 dtype. quint8이면 PyTorch backend config가 전 레이어를 양자화한다.
+# qint8을 강제하면 dtype 제약을 못 맞춘 레이어의 양자화가 조용히 생략된다 (QDQ 164 -> 54쌍,
+# 정확도가 좋아 보이지만 NPU 매핑 1개). ST는 signed만 받으므로 quint8로 학습한 뒤 내보낸
+# ONNX의 영점을 -128 이동해 int8로 바꾼다 (scripts/qdq_u8_to_i8.py) — 같은 격자의
+# 평행이동이라 수치가 정확히 보존된다.
+# qint8sym: 대칭 int8 [-127,127] — ORT PTQ(ActivationSymmetric, WeightSymmetric)와 같은 관습.
+# QAT 강건성은 스케일 관습에 종속된다: quint8 비대칭으로 단련한 가중치를 ORT 대칭 int8로 다시
+# 양자화하면 공적응이 깨져 0.69로 떨어졌다. 같은 관습으로 단련하면 FP32로 뽑아 ORT PTQ해도
+# 정확도가 이어지고, 그래프는 atonn이 잘 흡수하는 ORT 형태(HW 88/SW 14)를 얻는다.
+ap.add_argument("--act-dtype", default="quint8", choices=["quint8", "qint8", "qint8sym", "qint8sym128"])
 ap.add_argument("--smoke", action="store_true")
 ap.add_argument("--seed", type=int, default=0)
 a = ap.parse_args()
@@ -113,11 +123,22 @@ print(f"init: {a.init} (epoch {ck.get('epoch')})")
 #   "NOT IMPLEMENTED: Onnx exporting model with quantized unsigned integer format
 #    is not supported"
 # Neural-ART NPU는 signed int8만 받는다. 정확도와 무관하게 배포 가능성의 전제 조건이다.
-act_fq = tq.FakeQuantize.with_args(
-    observer=tq.MovingAverageMinMaxObserver, quant_min=-128, quant_max=127,
-    dtype=torch.qint8, qscheme=torch.per_tensor_affine, reduce_range=False)
+if a.act_dtype == "quint8":
+    act_fq = tq.FakeQuantize.with_args(
+        observer=tq.MovingAverageMinMaxObserver, quant_min=0, quant_max=255,
+        dtype=torch.quint8, qscheme=torch.per_tensor_affine, reduce_range=False)
+elif a.act_dtype == "qint8":
+    act_fq = tq.FakeQuantize.with_args(
+        observer=tq.MovingAverageMinMaxObserver, quant_min=-128, quant_max=127,
+        dtype=torch.qint8, qscheme=torch.per_tensor_affine, reduce_range=False)
+else:
+    qmin = -127 if a.act_dtype == "qint8sym" else -128
+    act_fq = tq.FakeQuantize.with_args(
+        observer=tq.MovingAverageMinMaxObserver, quant_min=qmin, quant_max=127,
+        dtype=torch.qint8, qscheme=torch.per_tensor_symmetric, reduce_range=False)
+wt_qmin = -127 if a.act_dtype.startswith("qint8sym") else -128
 wt_fq = tq.FakeQuantize.with_args(
-    observer=tq.MovingAveragePerChannelMinMaxObserver, quant_min=-128, quant_max=127,
+    observer=tq.MovingAveragePerChannelMinMaxObserver, quant_min=wt_qmin, quant_max=127,
     dtype=torch.qint8, qscheme=torch.per_channel_symmetric, ch_axis=0)
 qconfig = tq.QConfig(activation=act_fq, weight=wt_fq)
 qconfig_mapping = tq.QConfigMapping().set_global(qconfig)

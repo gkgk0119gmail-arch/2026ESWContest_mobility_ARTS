@@ -46,6 +46,8 @@ ap.add_argument("--probe", type=int, default=16, help="SQNR 측정에 쓸 이미
 ap.add_argument("--eval-per-class", type=int, default=150)
 ap.add_argument("--sweep", default="0,1,2,4,8,16", help="FP32로 제외할 노드 수 후보")
 ap.add_argument("--size", type=int, default=224)
+ap.add_argument("--quantized", default="", help="이미 양자화된 모델을 분석만 한다 (재양자화·스윕 생략)")
+ap.add_argument("--cliff-db", type=float, default=3.0, help="이 SQNR(dB) 아래로 처음 떨어지는 지점을 절벽으로 본다")
 ap.add_argument("--seed", type=int, default=0)
 a = ap.parse_args()
 random.seed(a.seed); np.random.seed(a.seed)
@@ -134,8 +136,12 @@ def run_all(model_path, imgs):
 
 # ---- 1) 전량 양자화 후 SQNR 측정 -------------------------------------------
 full_q = out / "int8_full.onnx"
-print("\n[1] 전량 int8 양자화 …")
-quantize(full_q)
+if a.quantized:
+    full_q = Path(a.quantized)
+    print(f"\n[1] 주어진 양자화 모델 분석: {full_q}")
+else:
+    print("\n[1] 전량 int8 양자화 …")
+    quantize(full_q)
 
 fp32_dbg = out / "fp32_debug.onnx"; int8_dbg = out / "int8_debug.onnx"
 expose_all_outputs(prep, fp32_dbg); expose_all_outputs(full_q, int8_dbg)
@@ -172,6 +178,23 @@ for r in rows[:20]:
     print(f"{r['sqnr_db']:9.2f}  {r['op']:<16s} {r['node'][:40]:<40s} {r['tensor'][:40]}")
 (out / "sensitivity.json").write_text(json.dumps(rows, indent=1))
 
+# 연쇄 오차에서는 '가장 나쁜 곳'이 아니라 '처음 무너지는 곳'이 원인이다. 하류는 상류 오차를
+# 물려받아 더 나빠 보이므로 절대 SQNR 순위로는 원인이 묻힌다 (실제로 겪었다: 첫 depthwise가
+# 7위로 밀려 한 번도 제외되지 않았다). 그래프 순서로 훑어 임계 아래로 처음 떨어지는 지점을 찍는다.
+by_t = {r["tensor"]: r for r in rows}
+order = [o for node in m_prep.graph.node for o in node.output if o in by_t]
+print(f"\n=== 그래프 순서 SQNR (절벽 기준 {a.cliff_db} dB) ===")
+first_cliff, shown = None, 0
+for i, t in enumerate(order, 1):
+    r = by_t[t]; low = r["sqnr_db"] < a.cliff_db
+    if first_cliff is None and low:
+        first_cliff = i
+    if i <= 6 or low and shown < 14:
+        print(f"{i:3d} {r['sqnr_db']:8.2f}  {r['op']:<16s} {t[:60]}{'  <<< 절벽' if low and first_cliff == i else ('  <' if low else '')}")
+        if low: shown += 1
+print(f"첫 절벽: #{first_cliff} {order[first_cliff-1] if first_cliff else '-'}"
+      f"  | SQNR>{a.cliff_db}dB 텐서 {sum(1 for r in rows if r['sqnr_db'] >= a.cliff_db)}/{len(rows)}")
+
 # 제외 후보: 가중치를 가진 연산만 (Conv/Gemm/MatMul) — 활성만 있는 노드는 제외해도 효과가 적다
 WEIGHTED = {"Conv", "Gemm", "MatMul"}
 cands, seen = [], set()
@@ -183,6 +206,7 @@ print(f"\n제외 후보(가중 연산) {len(cands)}개 — 최악 순: {cands[:8
 # ---- 4) 정확도 스윕 --------------------------------------------------------
 def evaluate(model_path, items):
     so = ort.SessionOptions(); so.intra_op_num_threads = 8
+    so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL   # QLinearMul 융합 실패 회피
     sess = ort.InferenceSession(str(model_path), so, providers=["CPUExecutionProvider"])
     nm = sess.get_inputs()[0].name
     C = len(ROAD_CLASSES); cm = np.zeros((C, C), np.int64)
@@ -200,6 +224,10 @@ fp32_cacc, fp32_crec = evaluate(prep, carla_va)
 print(f"\n[기준] FP32  RSCD acc {fp32_acc:.4f} ice {fp32_rec['black_ice']:.3f} | "
       f"CARLA acc {fp32_cacc:.4f} ice {fp32_crec['black_ice']:.3f}")
 
+if a.quantized:
+    r_acc, r_rec = evaluate(full_q, rscd_te); c_acc, c_rec = evaluate(full_q, carla_va)
+    print(f"[주어진 모델] RSCD acc {r_acc:.4f} ice {r_rec['black_ice']:.3f} | CARLA acc {c_acc:.4f} ice {c_rec['black_ice']:.3f}")
+    sys.exit(0)
 print("\n=== 제외 개수 스윕 ===")
 print(f"{'K':>3s}  {'RSCD acc':>9s} {'RSCD ice':>9s}  {'CARLA acc':>10s} {'CARLA ice':>10s}  모델")
 results = []

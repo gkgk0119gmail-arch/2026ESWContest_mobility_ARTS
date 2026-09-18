@@ -88,3 +88,51 @@ PyTorch가 dtype 제약으로 **일부 레이어 양자화를 건너뛴** 경우
   --calib-method`로 조합 스윕
 - `scripts/quant_sensitivity.py` — 중간 텐서 SQNR로 민감 레이어 순위 + 제외 개수 스윕
 - `scripts/qat_n6.py` — FX 그래프 모드 QAT + QDQ ONNX export
+
+---
+
+## 추가 (같은 날 저녁): 해결됨 — 원인은 스템 절벽, 해법은 "QAT 가중치 + ORT 그래프"
+
+### 원인
+그래프 순서로 SQNR을 보면 **첫 depthwise Conv(features.1 block.0)에서 31dB → −2dB로 무너지고**
+그 뒤는 전부 하류다. 절대 SQNR 순위로는 하류가 더 나빠 보여 원인이 7위로 밀렸다 — 연쇄 오차는
+"가장 나쁜 곳"이 아니라 "처음 무너지는 곳"을 봐야 한다. 앞서 "features.1은 증상일 뿐"이라고 쓴
+판단은 틀렸고 핸드오프의 원래 진단이 맞았다.
+정확히는 depthwise의 *가중치*가 아니라 **스템 hardswish 출력의 활성 양자화**다: 그 Conv만
+FP32로 빼면 효과가 없고(0.29), 입력 활성까지 FP32로 남겨야 회복된다(0.82).
+
+### 실험 요약
+| 설정 | RSCD acc |
+|---|---|
+| 스템 4노드(features.0 + 첫 depthwise) FP32, 나머지 ORT PTQ int8 대칭 = **D** | 0.8067 |
+| + 후반 SE 블록 제외 / 보정 500장 / 비대칭 | 0.80 / 0.80 / 0.56 (무효) |
+| 스템 FP32 + PyTorch QAT (quint8) fake-quant | **0.9075** (부분집합), 0.8975 (2,000장) |
+| QAT 가중치 → ORT PTQ int8 **대칭** | 0.6925 (관습 불일치로 공적응 붕괴) |
+| QAT 가중치 → ORT PTQ **uint8 비대칭**(같은 계열), FX 그래프 | 0.8230 |
+| **QAT 가중치 → 평범한 RoadNet → v2 export → ORT PTQ uint8 → signed 변환** | **0.8885** ← 채택 |
+
+### 채택 모델 (하이브리드-plain)
+- RSCD 2,000장: acc **0.8885** / ice **0.964** (FP32 0.8945 / 0.974) · CARLA: acc 0.7769 / ice **0.788** (FP32 0.677)
+- NPU: 118 epoch 중 **HW 94 / SW 24**, MACC 69.7M, 가중치 블롭 1.19MB (octoFlash 0x71000000)
+- 입력 STAI_FORMAT_FLOAT [1,3,224,224] (스템이 FP32라 첫 양자화가 그래프 안), 출력 S8 [1,4] scale 0.0342
+
+### 파이프라인 (재현)
+```
+scripts/qat_n6.py            # 스템 FP32 + quint8 QAT  → best.pt
+scripts/qat_to_plain.py      # FX 키를 평범한 RoadNet으로 되돌려 v2 형태 FP32 ONNX
+scripts/ptq_int8_n6.py --activation uint8 --exclude-until-depthwise   # ORT PTQ, 깨끗한 그래프
+scripts/qdq_u8_to_i8.py      # uint8→int8 정확 변환 (영점 −128, 오차 0.00) — ST는 signed만 받음
+stedgeai generate --st-neural-art "n6-allmems-O3@user_neuralart.json"  # network.c + xSPI2.raw
+```
+FX 키 매핑: qconfig=None인 스템은 융합 대신 한 단계 더 감싸여 `features.0.0.0.*`(conv)/`features.0.0.1.*`(bn),
+융합된 블록은 `X.i.bn.*` → `X.(i+1).*`. strict 로드 0/0으로 확인.
+
+### 왜 이 조합인가
+QAT의 강건성은 **스케일 관습에 종속**된다 — 같은 계열(uint8 비대칭)로 재양자화해야 이어진다.
+PyTorch export 그래프는 atonn이 덜 흡수한다(HW 54/SW 239) — 그래프는 ORT가 만든 것을 써야 한다.
+그래서 "가중치는 QAT, 그래프는 ORT, 부호는 정확 변환"이다.
+
+### 실보드 검증 준비물 (`~/icepredict/fw/`)
+`npuval_{D,hyb}.elf`(NPU_Validation, 0x34000000 RAM 이미지, 개발 모드 GDB 적재), `npuval_*_weights.raw`,
+`n6_npu_validate.sh D|hyb` — 블롭 굽기 → GDB 서버 → 적재·실행 → `validate --mode target --desc serial:/dev/ttyACM0:921600`.
+relocatable 생성도 동작한다 (`network_rel.bin`, PATH에 arm-gcc 필요).

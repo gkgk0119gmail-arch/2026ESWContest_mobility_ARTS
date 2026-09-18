@@ -65,6 +65,23 @@ ap.add_argument("--act-symmetric", action="store_true", help="활성을 대칭�
 # 민감도 최악 목록 상위를 차지한다. Conv/Gemm만 양자화하고 그 계열을 FP32로 남기면
 # NPU는 미양자화 연산을 CPU로 폴백시키므로 Conv 대부분은 여전히 NPU에서 돈다.
 ap.add_argument("--op-types", default="", help="양자화할 연산 종류 (쉼표). 예: Conv,Gemm. 빈 값=전체")
+# 혼합 정밀도. 민감도 분석에서 SQNR이 **처음 무너지는 곳**은 features.1의 첫 depthwise 3x3
+# (31dB → -2dB). 그 뒤는 전부 하류다. 절대 SQNR 순위로는 하류가 더 나빠 보여 원인이 묻힌다.
+# depthwise는 출력 채널이 입력 채널 하나에만 의존해 per-tensor 활성 양자화에 취약하다
+# (MobileNet 계열의 알려진 실패 모드). NPU는 미양자화 노드를 CPU로 폴백시키므로
+# 소수 레이어를 FP32로 남겨도 MACC 대부분(1x1 pointwise)은 NPU에서 돈다.
+ap.add_argument("--exclude-nodes", default="", help="FP32로 남길 노드 이름 (쉼표)")
+ap.add_argument("--exclude-depthwise", action="store_true", help="depthwise Conv(group==C_in) 전부 FP32로")
+ap.add_argument("--exclude-prefix", default="", help="이 접두사로 시작하는 노드 전부 FP32로 (쉼표)")
+# 부분 문자열 매칭. FX GraphModule에서 export한 그래프는 노드 이름 규칙이 다르다
+# (/features/features.0/... 대신 /features_0_.../). 두 규칙을 한 번에 다루기 위한 것.
+ap.add_argument("--exclude-match", default="", help="이 부분 문자열을 포함하는 노드 전부 FP32로 (쉼표)")
+# 그래프 순서 기준. 이름 규칙에 의존하지 않는다 — FX가 계층을 평탄화하면 features.1.block.0이
+# /block.0.0/block.0.0.0/Conv 가 되는 식으로 이름이 바뀌어 접두사/부분 매칭이 빗나간다
+# (실제로 0개 제외되어 스템이 양자화되고 0.383으로 붕괴했다). 스템 절벽은 "첫 depthwise Conv
+# 까지"라는 위치로 정의되므로 그 위치까지의 노드를 전부 제외한다.
+ap.add_argument("--exclude-until", default="", help="그래프 순서로 이 부분 문자열을 처음 포함하는 노드까지 전부 FP32로")
+ap.add_argument("--exclude-until-depthwise", action="store_true", help="그래프 순서로 첫 depthwise Conv까지 전부 FP32로")
 ap.add_argument("--seed", type=int, default=0)
 a = ap.parse_args()
 random.seed(a.seed); np.random.seed(a.seed)
@@ -125,6 +142,37 @@ prep = out / "roadnet_prep.onnx"
 quant_pre_process(a.model, str(prep), skip_symbolic_shape=False)
 print(f"전처리: {prep}")
 
+# ---- 제외 노드 목록 구성 --------------------------------------------------
+mp = onnx.load(str(prep))
+inits = {t.name: t for t in mp.graph.initializer}
+exclude = [n.strip() for n in a.exclude_nodes.split(",") if n.strip()]
+prefixes = [n.strip() for n in a.exclude_prefix.split(",") if n.strip()]
+matches = [n.strip() for n in a.exclude_match.split(",") if n.strip()]
+dw = []
+for node in mp.graph.node:
+    if node.op_type == "Conv":
+        g = next((att.i for att in node.attribute if att.name == "group"), 1)
+        w = inits.get(node.input[1])
+        cin = (w.dims[1] * g) if w is not None else None
+        if g > 1 and cin is not None and g == cin:
+            dw.append(node.name)
+    if prefixes and any(node.name.startswith(px) for px in prefixes):
+        exclude.append(node.name)
+    if matches and any(mt in node.name for mt in matches):
+        exclude.append(node.name)
+if a.exclude_depthwise:
+    exclude += dw
+if a.exclude_until or a.exclude_until_depthwise:
+    for node in mp.graph.node:
+        exclude.append(node.name)
+        hit = (a.exclude_until and a.exclude_until in node.name) or \
+              (a.exclude_until_depthwise and node.name in dw)
+        if hit:
+            break
+exclude = list(dict.fromkeys(exclude))
+print(f"depthwise Conv {len(dw)}개 감지; FP32로 제외하는 노드 {len(exclude)}개"
+      + (f": {exclude[:6]}{' ...' if len(exclude) > 6 else ''}" if exclude else ""))
+
 q_path = out / f"roadnet_int8_{a.activation}.onnx"
 act = QuantType.QInt8 if a.activation == "int8" else QuantType.QUInt8
 method = {"minmax": CalibrationMethod.MinMax, "entropy": CalibrationMethod.Entropy,
@@ -140,6 +188,7 @@ quantize_static(
     reduce_range=False,
     calibrate_method=method,
     op_types_to_quantize=[t.strip() for t in a.op_types.split(",") if t.strip()] or None,
+    nodes_to_exclude=exclude or None,
     extra_options={"ActivationSymmetric": a.act_symmetric, "WeightSymmetric": True},
 )
 m = onnx.load(str(q_path))
@@ -177,7 +226,7 @@ print("=== 평가 (CARLA val) ===")
 fp32_c = evaluate(a.model, carla_va, "FP32 v2")
 int8_c = evaluate(q_path, carla_va, f"INT8 ({a.activation})")
 
-res = {"args": vars(a), "onnx_nodes": kinds,
+res = {"args": vars(a), "onnx_nodes": kinds, "excluded_nodes": exclude, "depthwise_nodes": dw,
        "rscd": {"fp32": fp32_r, "int8": int8_r},
        "carla": {"fp32": fp32_c, "int8": int8_c}}
 (out / f"metrics_{a.activation}.json").write_text(json.dumps(res, indent=1))
