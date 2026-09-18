@@ -91,15 +91,18 @@ def teardown(world, orig, sensors, actors):
     try: world.apply_settings(orig)
     except Exception: pass
 
+CLASSES = ("normal", "wet", "black_ice")
+cap = {c: int(a.target / len(CLASSES) * 1.15) for c in CLASSES}   # 약간의 여유
+count = {c: 0 for c in CLASSES}
 saved, meta, ep = 0, [], 0
 towns = [t.strip() for t in a.towns.split(",")]
 t_start = time.time()
 cur_town = None
 world = client.get_world()
 
-while saved < a.target:
+while saved < a.target and not all(count[c] >= cap[c] for c in CLASSES):
     town = towns[ep % len(towns)]
-    wname = WNAMES[ep % len(WNAMES)]
+    wname = WNAMES[int(rng.integers(len(WNAMES)))]
     ep += 1
     if cur_town != town:
         world = client.load_world(town); cur_town = town
@@ -185,15 +188,17 @@ while saved < a.target:
                 cls = "wet" if surface == "wet" else "normal"
                 img = bgr                            # 엔진 렌더링 그대로
 
+            if count[cls] >= cap[cls]:
+                continue                             # 클래스 균형 유지
             crop = cv2.resize(roi_crop(img), (224, 224), interpolation=cv2.INTER_AREA)
             name = f"{saved:06d}_{town}_{wname}_{cls}.jpg"
             cv2.imwrite(str(out / "images" / name), crop, [cv2.IMWRITE_JPEG_QUALITY, 92])
             meta.append({"file": name, "cls": cls, "town": town, "weather": wname, "surface": surface, "cover": round(cover, 3)})
-            saved += 1; ep_saved += 1
+            saved += 1; ep_saved += 1; count[cls] += 1
             if saved % 500 == 0:
                 el = time.time() - t_start
                 eta = (a.target - saved) / max(saved / el, 1e-6) / 60
-                print(f"[{saved}/{a.target}] {el/60:.1f}분 경과 {saved/el:.1f}장/s  남은시간 약 {eta:.0f}분  ({town}/{wname})", flush=True)
+                print(f"[{saved}/{a.target}] {el/60:.1f}분 {saved/el:.0f}장/s  남은 {eta:.0f}분  {dict(count)}", flush=True)
         print(f"  ep{ep} {town}/{wname}: {ep_saved}장", flush=True)
     finally:
         teardown(world, orig, sensors, actors)
