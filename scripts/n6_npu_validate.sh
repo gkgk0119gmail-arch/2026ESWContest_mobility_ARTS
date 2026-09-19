@@ -14,21 +14,25 @@ RESET=${RESET:-0}   # 1이면 gdbserver -k(리셋 후 halt): 개발 부팅 모�
 case $M in
   D)   ONNX=$HOME/icepredict/models/mp_D_min/roadnet_int8_int8.onnx ;;
   hyb) ONNX=$HOME/icepredict/models/roadnet_v2_hybrid_plain/roadnet_int8_signed.onnx ;;
+  hybfsbl2) ONNX=$HOME/icepredict/models/roadnet_v2_hybrid_plain/roadnet_int8_signed.onnx
+           PROF="icepredict-fsbl2@$HOME/icepredict/fw/neuralart_icepredict.json" ;;
   hybfsbl) ONNX=$HOME/icepredict/models/roadnet_v2_hybrid_plain/roadnet_int8_signed.onnx
            PROF="icepredict-fsbl@$HOME/icepredict/fw/neuralart_icepredict.json" ;;   # FSBL 회피 풀 (npuRAM+hyperRAM)
   *) echo "D|hyb|hybfsbl"; exit 2 ;;
 esac
 LOG=$HOME/icepredict/logs/npuval_$M; mkdir -p "$LOG"
-pkill -x arm-none-eabi-gdb 2>/dev/null; pkill -x ST-LINK_gdbserver 2>/dev/null; sleep 1   # -x: 정확한 프로세스명만 (자기매칭 방지)
+# comm은 15자로 잘려 pkill -x "ST-LINK_gdbserver"가 절대 안 맞는다 → 포트/cmdline 기준으로 정리
+fuser -k 61234/tcp 61235/tcp 2>/dev/null; pkill -f "ST-LINK_gdbserver" 2>/dev/null; pkill -f "arm-none-eabi-gdb -q" 2>/dev/null; sleep 1
 
 echo "== 1) 가중치 블롭 → 외부 플래시 0x71000000 ($(stat -c %s "$RAW") B)"
 "$CP/STM32_Programmer_CLI" -c port=SWD mode=UR -hardRst -el "$EL" -d "$RAW" 0x71000000 -v 2>&1 | grep -iE "voltage|verified|error" | head -3
 
 echo "== 2) GDB 서버 (persistent, halt)"
 KFLAG=""; [ "$RESET" = 1 ] && KFLAG="-k"
-"$GS" -p 61234 -d -s $KFLAG --halt -e -l 1 -cp "$CP" > "$LOG/gdbserver.log" 2>&1 &
+APFLAG=""; [ -n "${APID:-}" ] && APFLAG="-m $APID"   # N6는 AP가 여러 개 — CM55 AP를 지정해야 halt가 된다
+"$GS" -p 61234 -d -s $KFLAG $APFLAG --halt -e -l 1 -cp "$CP" > "$LOG/gdbserver.log" 2>&1 &
 sleep 4; grep -iE "listen|waiting|error|halt|device" "$LOG/gdbserver.log" | head -5
-if grep -qiE "Error in initializing|Failed to halt" "$LOG/gdbserver.log"; then echo "!! gdbserver halt 실패 — 중단 (RESET=$RESET). 개발 모드(BOOT1 오른쪽)에서 RESET=1로 재시도"; pkill -x ST-LINK_gdbserver; exit 3; fi
+if grep -qiE "Error in initializing|Failed to halt" "$LOG/gdbserver.log"; then echo "!! gdbserver halt 실패 — 중단 (RESET=$RESET). 개발 모드(BOOT1 오른쪽)에서 RESET=1로 재시도"; pkill -f "ST-LINK_gdbserver"; exit 3; fi
 
 echo "== 3) ELF 적재 + 실행 (UART 배너 12초 캡처)"
 stty -F /dev/ttyACM0 921600 raw -echo

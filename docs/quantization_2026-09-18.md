@@ -156,3 +156,32 @@ relocatable 생성도 동작한다 (`network_rel.bin`, PATH에 arm-gcc 필요).
 | hybfsbl | 동일 모델 | icepredict-fsbl | **통합 대상 배치** — hyperRAM 비용 실측 |
 `validate --mode host`는 Neural-ART에서 미지원 → 실보드가 유일한 검증 경로. 외부 플래시 소거·GDB halt는
 개발/프로그래밍 모드(BOOT1 오른쪽)에서만 된다 (실행 모드: 'failed to erase memory', 'No device found').
+
+---
+
+## 2026-09-19 실보드 실측 (STM32N6570-DK, NPU_Validation 펌웨어, `validate --mode target`)
+
+| 변형 | 배치 | 추론/샘플 | 스템 SW(epoch 2+5) | NPU 시간 비중 | ONNX 대비 cos / nse |
+|---|---|---|---|---|---|
+| D | allmems (cpuRAM2) | 186.8 ms | — | 7.6% | 0.971 / 0.946 |
+| hyb | allmems (cpuRAM2) | 199.8 ms | 152 + 38 | 7.6% | 0.9954 / 0.9915 |
+| hybfsbl | cpuRAM2 512K + **hyperRAM 784K** | 233.3 ms | 152 + 38 | 10.3% | 0.9954 / 0.9915 |
+| **hybfsbl2** | **AXISRAM1 1M + cpuRAM2 512K, hyperRAM 0** | **199.1 ms** | 135 + 29 | 7.7% | 0.9954 / 0.9915 |
+
+결론
+- **지연의 82%(164 ms)가 FP32로 남긴 스템**(features.0 Conv 3×3@224² + 첫 depthwise)이 CM55 float로 도는 비용이다.
+  NPU 94 epoch는 전부 합쳐 ~20 ms. 스템을 int8로 올리면 ~35–40 ms가 된다. **혼합 정밀도는 정확도는 살렸지만
+  지연 예산(30 ms)에서는 실패** — 스템 int8화가 필수다.
+- hyperRAM 페널티 33 ms는 풀 v2로 제거됐다. 풀 v2 = `icepredict_fsbl2.mpool`: flexMEM 0x34000000 400K +
+  cpuRAM1 0x34064000 624K(AXISRAM1 전체) + cpuRAM2 512K, hyperRAM 0. 우리 FSBL(0x34180400~)과 겹치지 않는다.
+- 보드 기준 ONNX 대비 cos 0.9954 — 호스트 int8 시뮬과 보드 NPU 실행이 일치한다 (D는 0.971로 더 나쁨: 모델 자체 차이).
+
+측정 펌웨어 변경 (ST 설치본 `Projects/STM32N6570-DK/Applications/NPU_Validation`, 원본은 `.orig`로 보관)
+- 링커 `AXISRAM1_S`: 0x34000000/1024K → **0x34180000/512K** (우리 FSBL과 같은 자리). 풀 v2가 0x34000000~을 활성으로
+  쓰므로 원래 자리에 두면 모델이 펌웨어를 덮어써 죽는다 (실제로 `read timeout`, `Lost target connection`).
+- `misc_toolbox.c` `SCB->VTOR = 0x34000000` 하드코딩 → `(uint32_t)g_pfnVectors`. 재링크 후 이게 없으면 첫 인터럽트에서 죽는다.
+- 개발 모드 적재는 `ST-LINK_gdbserver -m 1 -k --halt` (AP1 = Cortex-M55; AP0은 halt 실패). `pkill -x`는 15자 comm에
+  안 맞으니 포트(`fuser -k 61234/tcp`)로 정리. 러너: `scripts/n6_npu_validate.sh D|hyb|hybfsbl|hybfsbl2` (`APID=1 RESET=1`).
+
+다음: 스템 int8화. 절벽 텐서(스템 hardswish 출력)의 양자화 범위만 백분위 클리핑(`scripts/stem_clip_quant.py`,
+ORT `TensorQuantOverrides`) → 안 되면 스템을 클리핑된 고정 범위 fake-quant로 QAT.
