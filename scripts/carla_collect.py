@@ -223,12 +223,17 @@ while saved < a.target and not all(count[c] >= cap[c] for c in ONLY):
                 sub = "full" if cover >= a.ice_cover_split else "edge"
                 if icount[sub] >= icap[sub]:
                     continue                         # edge/full 한쪽만 쏠리지 않게
-                img = composite_ice(bgr, seg, mask, rng=rng, **random_ice_params(rng, night))
+                img, spec_map = composite_ice(bgr, seg, mask, rng=rng, return_spec=True,
+                                              **random_ice_params(rng, night))
+                spec = float(spec_map[ys:ye, xs:xe].mean())      # ROI 평균 반사도 (합성이 쓴 값)
             elif cover > 0.03:
                 continue                             # 얼음이 살짝만 걸친 구간은 라벨 노이즈
             else:
                 cls = "wet" if surface == "wet" else "normal"
                 img = bgr                            # 엔진 렌더링 그대로
+                # 엔진 렌더링 젖음은 합성이 아니라 R을 모른다. 날씨 파라미터에서 유도한다:
+                # 젖은 아스팔트는 표면이 거칠어 얼음만큼 거울이 되지 않으므로 0.35배로 둔다 (가정, 문서화).
+                spec = 0.35 * wparams.get("wetness", 0) / 100.0 if surface == "wet" else 0.02
 
             if count[cls] >= cap[cls]:
                 continue                             # 클래스 균형 유지
@@ -237,7 +242,8 @@ while saved < a.target and not all(count[c] >= cap[c] for c in ONLY):
                 continue                             # 야간 무내용 프레임 (배울 게 없다)
             name = f"{a.start_seq + saved:06d}_{town}_{wname}_{cls}.jpg"
             cv2.imwrite(str(out / "images" / name), crop, [cv2.IMWRITE_JPEG_QUALITY, 92])
-            meta.append({"file": name, "cls": cls, "town": town, "weather": wname, "surface": surface, "cover": round(cover, 3)})
+            meta.append({"file": name, "cls": cls, "town": town, "weather": wname, "surface": surface,
+                         "cover": round(cover, 3), "spec": round(spec, 4)})
             saved += 1; ep_saved += 1; count[cls] += 1
             if sub: icount[sub] += 1
             if saved % 500 == 0:
@@ -254,6 +260,10 @@ print(f"총 {saved}장  {(time.time()-t_start)/60:.1f}분")
 print("클래스:", dict(Counter(m["cls"] for m in meta)))
 print("날씨 :", dict(Counter(m["weather"] for m in meta)))
 print("맵   :", dict(Counter(m["town"] for m in meta)))
+import numpy as _np2
+for _c in CLASSES:
+    _v = [m["spec"] for m in meta if m["cls"] == _c]
+    if _v: print(f"반사도 {_c:10s}: 평균 {_np2.mean(_v):.3f} 중앙 {_np2.median(_v):.3f} 범위 {min(_v):.3f}~{max(_v):.3f}")
 icov = [m["cover"] for m in meta if m["cls"] == "black_ice"]
 if icov:
     import numpy as _np

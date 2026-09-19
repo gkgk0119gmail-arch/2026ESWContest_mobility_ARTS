@@ -117,7 +117,8 @@ def composite_ice(bgr: np.ndarray, semantic: np.ndarray, ice_mask: np.ndarray, *
                   specular: float = 1.0, darkening: float = 0.20, roughness_px: float = 0.6,
                   thickness: float = 0.35, glare: float = 0.0, compress: float = 1.0, luma: float = 0.95,
                   feather_px: float = 9.0, edge_noise: float = 0.45,
-                  rng: np.random.Generator | None = None) -> np.ndarray:
+                  rng: np.random.Generator | None = None,
+                  return_spec: bool = False):
     """ice_mask(도로 영역과 교집합) 픽셀에 블랙아이스 외형을 합성. 경계는 부드럽게 페더링.
 
     specular   프레넬 반사율 전체 배율 (1.0 = 이론값)
@@ -133,7 +134,7 @@ def composite_ice(bgr: np.ndarray, semantic: np.ndarray, ice_mask: np.ndarray, *
     else:
         alpha = np.clip(ice_mask.astype(np.float32), 0, 1) * road_mask(semantic)
     if alpha.sum() < 50:
-        return bgr
+        return (bgr, np.zeros_like(alpha)) if return_spec else bgr
     src = bgr.astype(np.float32)
     h, w = bgr.shape[:2]
 
@@ -179,7 +180,12 @@ def composite_ice(bgr: np.ndarray, semantic: np.ndarray, ice_mask: np.ndarray, *
             out = out * np.clip(m0 * luma / m1, 0.35, 3.0)
 
     a3 = alpha[:, :, None]
-    return np.clip(src * (1 - a3) + out * a3, 0, 255).astype(np.uint8)
+    composed = np.clip(src * (1 - a3) + out * a3, 0, 255).astype(np.uint8)
+    if return_spec:
+        # 반사도 라벨: 이 픽셀이 실제로 얼마나 거울처럼 반사했는가 = alpha · R.
+        # 학습 라벨을 '합성이 실제로 쓴 물리량'으로 두면 모델이 우리가 정의한 것을 정확히 배운다.
+        return composed, (alpha * R[:, :, 0]).astype(np.float32)
+    return composed
 
 def random_ice_params(rng: np.random.Generator, night: bool = False) -> dict:
     """도메인 랜덤화: 얼음 두께·조명에 따른 외형 변화.

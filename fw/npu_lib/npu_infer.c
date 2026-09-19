@@ -103,8 +103,29 @@ static void npu_hw_config(void)
   printf("NPU: [1e] risaf done\n");
 }
 
+/* NPU/npuRAM 클럭. 우리 CubeMX 설정은 IC6(NPU)=PLL1/4=300MHz, IC11(AXISRAM3~6)=PLL1/3=400MHz라 검증 펌웨어
+   (1GHz/900MHz)보다 느리다. CPU 클럭(UART 보율·ETH 파생)은 건드리지 않고 PLL2=800MHz를 켜 IC6/IC11만 옮긴다 —
+   hello_world의 no-overdrive 변형(NPU 800MHz)과 같은 값이라 VOS scale1에서 overdrive 없이 허용된다. */
+static void npu_clocks_up(void)
+{
+  RCC_OscInitTypeDef osc = {0};
+  osc.OscillatorType = RCC_OSCILLATORTYPE_NONE;
+  osc.PLL1.PLLState = RCC_PLL_NONE; osc.PLL3.PLLState = RCC_PLL_NONE; osc.PLL4.PLLState = RCC_PLL_NONE;
+  osc.PLL2.PLLState = RCC_PLL_ON; osc.PLL2.PLLSource = RCC_PLLSOURCE_HSI;
+  osc.PLL2.PLLM = 8; osc.PLL2.PLLN = 100; osc.PLL2.PLLP1 = 1; osc.PLL2.PLLP2 = 1; osc.PLL2.PLLFractional = 0;   /* 64/8*100 = 800MHz */
+  if (HAL_RCC_OscConfig(&osc) != HAL_OK) { printf("NPU: PLL2 config failed - keeping default clocks\n"); return; }
+  RCC_ClkInitTypeDef clk = {0}; HAL_RCC_GetClockConfig(&clk);
+  clk.ClockType = RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_CPUCLK;
+  clk.IC6Selection.ClockSelection  = RCC_ICCLKSOURCE_PLL2; clk.IC6Selection.ClockDivider  = 1;
+  clk.IC11Selection.ClockSelection = RCC_ICCLKSOURCE_PLL2; clk.IC11Selection.ClockDivider = 1;
+  if (HAL_RCC_ClockConfig(&clk) != HAL_OK) { printf("NPU: IC6/IC11 config failed\n"); return; }
+  printf("NPU: clocks NPU(IC6)=%lu Hz npuRAM(IC11)=%lu Hz cpu=%lu\n",
+         (unsigned long)HAL_RCC_GetPCLKFreqIC6(), (unsigned long)HAL_RCC_GetPCLKFreqIC11(), (unsigned long)SystemCoreClock);
+}
+
 int npu_init(void)
 {
+  npu_clocks_up();
   int r = external_flash_init();
   if (r) return r;
   printf("NPU: [1] hw_config\n");

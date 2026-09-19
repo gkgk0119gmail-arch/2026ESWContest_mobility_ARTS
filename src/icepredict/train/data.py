@@ -5,7 +5,7 @@
 인덱스(경로, cls4_idx)는 처음 한 번 스캔해 index_<split>.txt 로 캐시한다 (100만 파일 스캔 ≈ 수십 초).
 """
 from __future__ import annotations
-import os, random
+import json, os, random
 from pathlib import Path
 import torch
 from torch.utils.data import Dataset, WeightedRandomSampler
@@ -164,3 +164,40 @@ def finetune_tf(size=224):
         T.RandomApply([T.Lambda(lambda x: (x + torch.randn_like(x) * 0.02).clamp(0, 1))], p=0.4),
         T.Normalize(MEAN, STD),
     ])
+
+
+# ---- 반사도(멀티태스크) 데이터셋 ------------------------------------------
+# CARLA 수집기가 meta.json에 프레임별 spec(ROI 평균 반사도)을 남긴다. 얼음은 합성이 실제로 쓴
+# alpha·R 평균이고, 엔진 렌더 젖음은 날씨 wetness에서 유도한 값이다 (carla_collect.py 주석 참고).
+# RSCD 실사진에는 이 라벨이 없으므로 has_spec=0으로 표시해 손실에서 제외한다.
+class SpecDataset(Dataset):
+    def __init__(self, items: list[tuple[str, int, float, float]], tf):
+        self.items, self.tf = items, tf
+    def __len__(self):
+        return len(self.items)
+    def __getitem__(self, i):
+        p, c, spec, has = self.items[i]
+        img = decode_jpeg(read_file(p), mode=ImageReadMode.RGB)
+        return self.tf(img), c, torch.tensor(spec, dtype=torch.float32), torch.tensor(has, dtype=torch.float32)
+
+def build_carla_spec_index(root: Path) -> list[tuple[str, int, float, float]]:
+    """(경로, 클래스, spec, has_spec=1). meta.json이 없으면 파일명 라벨만 쓰고 has_spec=0."""
+    root = Path(root)
+    meta_p = root / "meta.json"
+    by_file = {}
+    if meta_p.exists():
+        for m in json.loads(meta_p.read_text()):
+            if "spec" in m:
+                by_file[m["file"]] = float(m["spec"])
+    out = []
+    for p, c in build_carla_index(root):
+        name = Path(p).name
+        if name in by_file:
+            out.append((p, c, by_file[name], 1.0))
+        else:
+            out.append((p, c, 0.0, 0.0))
+    return out
+
+def with_spec(items: list[tuple[str, int]], spec: float = 0.0, has: float = 0.0):
+    """RSCD 등 반사도 라벨이 없는 목록을 SpecDataset 형식으로."""
+    return [(p, c, spec, has) for p, c in items]
