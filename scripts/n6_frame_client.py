@@ -26,12 +26,17 @@ def preprocess(img_bgr):
 def quantize(x):
     return np.clip(np.round(x / IN_SCALE) + IN_ZP, -128, 127).astype(np.int8)
 
-def send_frame(sock, addr, q_nchw, frame_id, timeout=3.0):
+def send_frame(sock, addr, q_nchw, frame_id, timeout=3.0, gap_us=0):
+    """청크를 gap_us 간격으로 보낸다. 0으로 몰아 보내면 보드의 NetX 패킷 풀이 넘쳐 일부가 버려지고
+    프레임이 완성되지 않는다 (108개 × 1.4KB 버스트 vs 풀 수십 개)."""
     data = q_nchw.tobytes(); n = (len(data) + CHUNK - 1) // CHUNK
     t0 = time.perf_counter()
     for i in range(n):
         pl = data[i * CHUNK:(i + 1) * CHUNK]
         sock.sendto(struct.pack(HDR, frame_id, i, n, len(pl), 0) + pl, addr)
+        if gap_us:
+            t_next = time.perf_counter() + gap_us / 1e6
+            while time.perf_counter() < t_next: pass
     sock.settimeout(timeout)
     d, _ = sock.recvfrom(128)
     rtt = (time.perf_counter() - t0) * 1e3
@@ -47,6 +52,8 @@ def main():
     ap.add_argument("--image", help="테스트 이미지 (없으면 회색 상수 이미지)")
     ap.add_argument("--onnx", default="", help="대조용 int8 QDQ ONNX (데스크탑에만 있으면 생략)")
     ap.add_argument("--repeat", type=int, default=3)
+    ap.add_argument("--gap-us", type=int, default=300, help="청크 간격 (0=버스트)")
+    ap.add_argument("--bench", type=int, default=0, help="N프레임 연속 전송 처리율 측정")
     a = ap.parse_args()
     if a.image:
         img = cv2.imread(a.image); assert img is not None, a.image
@@ -55,17 +62,25 @@ def main():
     x = preprocess(img); q = quantize(x)
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     for k in range(a.repeat):
-        r = send_frame(s, (a.ip, a.port), q, frame_id=1000 + k)
+        r = send_frame(s, (a.ip, a.port), q, frame_id=1000 + k, gap_us=a.gap_us)
         p = softmax(r["logits"])
-        print(f"[{k}] 보드: logits={np.round(r['logits'],3)} p={dict(zip(CLASSES, np.round(p,3)))} "
-              f"risk={r['risk']:.3f} alarm={r['alarm']} level={r['level']}  NPU {r['infer_us']/1000:.2f}ms  "
-              f"보드총 {r['total_us']/1000:.1f}ms  RTT {r['rtt_ms']:.1f}ms")
+        pj = " ".join(f"{c[:5]}={v:.3f}" for c, v in zip(CLASSES, p))
+        print(f"[{k}] 보드 logits={np.round(r['logits'],3).tolist()} {pj} | risk={r['risk']:.3f} alarm={r['alarm']} "
+              f"lvl={r['level']} | NPU {r['infer_us']/1000:.1f}ms 보드총 {r['total_us']/1000:.1f}ms RTT {r['rtt_ms']:.1f}ms")
+    if a.bench:
+        t0 = time.perf_counter(); ok = 0; npu = []
+        for k in range(a.bench):
+            try:
+                r = send_frame(s, (a.ip, a.port), q, frame_id=5000 + k, gap_us=a.gap_us); ok += 1; npu.append(r["infer_us"])
+            except socket.timeout: pass
+        dt = time.perf_counter() - t0
+        print(f"연속 {a.bench}프레임: 성공 {ok}, {ok/dt:.1f} fps (프레임당 {dt/max(ok,1)*1000:.1f}ms, NPU 평균 {np.mean(npu)/1000:.1f}ms)")
     if a.onnx:
         import onnxruntime as ort
         so = ort.SessionOptions(); so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
         sess = ort.InferenceSession(a.onnx, so, providers=["CPUExecutionProvider"])
         lo = sess.run(None, {sess.get_inputs()[0].name: x[None]})[0][0]
-        print(f"ORT  : logits={np.round(lo,3)} p={dict(zip(CLASSES, np.round(softmax(lo),3)))}")
+        print(f"ORT  logits={np.round(lo,3).tolist()} " + " ".join(f"{c[:5]}={v:.3f}" for c, v in zip(CLASSES, softmax(lo))))
         print(f"차이 : 최대 |Δlogit| {np.abs(lo - r['logits']).max():.3f}, argmax {'일치' if lo.argmax()==r['logits'].argmax() else '불일치'}")
 
 if __name__ == "__main__":
