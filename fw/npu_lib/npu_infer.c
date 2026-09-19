@@ -112,15 +112,20 @@ static void npu_clocks_up(void)
   osc.OscillatorType = RCC_OSCILLATORTYPE_NONE;
   osc.PLL1.PLLState = RCC_PLL_NONE; osc.PLL3.PLLState = RCC_PLL_NONE; osc.PLL4.PLLState = RCC_PLL_NONE;
   osc.PLL2.PLLState = RCC_PLL_ON; osc.PLL2.PLLSource = RCC_PLLSOURCE_HSI;
-  osc.PLL2.PLLM = 8; osc.PLL2.PLLN = 100; osc.PLL2.PLLP1 = 1; osc.PLL2.PLLP2 = 1; osc.PLL2.PLLFractional = 0;   /* 64/8*100 = 800MHz */
+  /* NPU_MHZ: 800(기본) 또는 1000. 1000은 hello_world overdrive 설정과 같은 값(PLL2 M=8 N=125)이다.
+     CPU/버스는 건드리지 않으므로 VOS는 그대로 두고, 동작하지 않으면 HAL이 실패를 돌려준다. */
+#ifndef NPU_MHZ
+#define NPU_MHZ 800
+#endif
+  osc.PLL2.PLLM = 8; osc.PLL2.PLLN = (NPU_MHZ) / 8; osc.PLL2.PLLP1 = 1; osc.PLL2.PLLP2 = 1; osc.PLL2.PLLFractional = 0;   /* 64/8*N */
   if (HAL_RCC_OscConfig(&osc) != HAL_OK) { printf("NPU: PLL2 config failed - keeping default clocks\n"); return; }
   RCC_ClkInitTypeDef clk = {0}; HAL_RCC_GetClockConfig(&clk);
   clk.ClockType = RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_CPUCLK;
   clk.IC6Selection.ClockSelection  = RCC_ICCLKSOURCE_PLL2; clk.IC6Selection.ClockDivider  = 1;
   clk.IC11Selection.ClockSelection = RCC_ICCLKSOURCE_PLL2; clk.IC11Selection.ClockDivider = 1;
   if (HAL_RCC_ClockConfig(&clk) != HAL_OK) { printf("NPU: IC6/IC11 config failed\n"); return; }
-  printf("NPU: clocks NPU(IC6)=%lu Hz npuRAM(IC11)=%lu Hz cpu=%lu\n",
-         (unsigned long)HAL_RCC_GetPCLKFreqIC6(), (unsigned long)HAL_RCC_GetPCLKFreqIC11(), (unsigned long)SystemCoreClock);
+  /* IC6/IC11 주파수 조회 API가 HAL에 없다 — 설정값으로 출력 */
+  printf("NPU: clocks IC6/IC11 = PLL2 %d MHz, cpu %lu Hz\n", (int)NPU_MHZ, (unsigned long)SystemCoreClock);
 }
 
 int npu_init(void)
