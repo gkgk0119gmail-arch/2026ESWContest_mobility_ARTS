@@ -27,7 +27,7 @@ from icepredict.common.protocol import PORT_PC_PUB
 CTX_FMT, INFER_FMT, VD_FMT = "<I5f", "<I6f", "<IfBBHI"
 VD_SZ = struct.calcsize(VD_FMT)
 # NPU 프레임 경로 (보드 UDP 5559): 청크 <IHHHH + payload, 응답 <I4ffBBHII. 펌웨어 app_netxduo.c와 일치.
-FR_HDR, FR_VD, FR_CHUNK, FR_BYTES = "<IHHHH", "<I4ffBBHII", 1400, 150528
+FR_HDR, FR_VD, FR_CHUNK, FR_BYTES = "<IHHHH", "<I4fffBBHII", 1400, 150528   # 응답에 spec 추가
 NAN = float("nan")
 
 ap = argparse.ArgumentParser()
@@ -70,9 +70,9 @@ def board_frame(q_bytes):
         d, _ = udp_f.recvfrom(128)
     except socket.timeout:
         return None
-    fid, l0, l1, l2, l3, risk, alarm, level, _pad, infer_us, total_us = struct.unpack(FR_VD, d)
+    fid, l0, l1, l2, l3, spec, risk, alarm, level, _pad, infer_us, total_us = struct.unpack(FR_VD, d)
     if fid != fr_id: return None
-    return {"logits": [l0, l1, l2, l3], "risk": risk, "alarm": bool(alarm), "level": level, "infer_us": infer_us, "total_us": total_us}
+    return {"logits": [l0, l1, l2, l3], "spec": spec, "risk": risk, "alarm": bool(alarm), "level": level, "infer_us": infer_us, "total_us": total_us}
 t0 = time.time()
 
 def board_infer(p, spec, lane):

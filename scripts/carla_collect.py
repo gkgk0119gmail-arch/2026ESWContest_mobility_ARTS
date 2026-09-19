@@ -225,12 +225,18 @@ while saved < a.target and not all(count[c] >= cap[c] for c in ONLY):
                     continue                         # edge/full 한쪽만 쏠리지 않게
                 img, spec_map = composite_ice(bgr, seg, mask, rng=rng, return_spec=True,
                                               **random_ice_params(rng, night))
-                spec = float(spec_map[ys:ye, xs:xe].mean())      # ROI 평균 반사도 (합성이 쓴 값)
+                # 반사도 라벨: ROI **전체 평균**을 쓰면 얼음이 ROI 일부만 덮을 때 값이 희석된다.
+                # 실측(v3): 얼음 평균 0.207 < 젖음 0.272 로 순서가 뒤집혔다 — 융합에 쓸 수 없다.
+                # 정작 경고가 필요한 것이 그 경계 프레임이므로, "전방 노면에서 가장 거울 같은 부분"을
+                # 뜻하는 p90을 쓴다. 부분 덮임에서도 값이 유지돼 분류기보다 먼저 올라간다.
+                _sm = spec_map[ys:ye, xs:xe]
+                spec = float(np.percentile(_sm, 90))
             elif cover > 0.03:
                 continue                             # 얼음이 살짝만 걸친 구간은 라벨 노이즈
             else:
                 cls = "wet" if surface == "wet" else "normal"
                 img = bgr                            # 엔진 렌더링 그대로
+                spec_map = None
                 # 엔진 렌더링 젖음은 합성이 아니라 R을 모른다. 날씨 파라미터에서 유도한다:
                 # 젖은 아스팔트는 표면이 거칠어 얼음만큼 거울이 되지 않으므로 0.35배로 둔다 (가정, 문서화).
                 spec = 0.35 * wparams.get("wetness", 0) / 100.0 if surface == "wet" else 0.02
@@ -243,7 +249,8 @@ while saved < a.target and not all(count[c] >= cap[c] for c in ONLY):
             name = f"{a.start_seq + saved:06d}_{town}_{wname}_{cls}.jpg"
             cv2.imwrite(str(out / "images" / name), crop, [cv2.IMWRITE_JPEG_QUALITY, 92])
             meta.append({"file": name, "cls": cls, "town": town, "weather": wname, "surface": surface,
-                         "cover": round(cover, 3), "spec": round(spec, 4)})
+                         "cover": round(cover, 3), "spec": round(spec, 4),
+                         "spec_mean": round(float(spec_map[ys:ye, xs:xe].mean()), 4) if sub else round(spec, 4)})
             saved += 1; ep_saved += 1; count[cls] += 1
             if sub: icount[sub] += 1
             if saved % 500 == 0:

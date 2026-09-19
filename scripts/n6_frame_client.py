@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 IN_SCALE, IN_ZP = 0.018658448, -14
 MEAN = np.array([0.485, 0.456, 0.406], np.float32).reshape(3, 1, 1)
 STD = np.array([0.229, 0.224, 0.225], np.float32).reshape(3, 1, 1)
-HDR = "<IHHHH"; VD = "<I4ffBBHII"; CHUNK = 1400
+HDR = "<IHHHH"; VD = "<I4fffBBHII"; CHUNK = 1400   # 응답에 spec(반사도) 추가 = 40B
 CLASSES = ("normal", "wet", "black_ice", "pothole")
 
 def preprocess(img_bgr):
@@ -40,9 +40,9 @@ def send_frame(sock, addr, q_nchw, frame_id, timeout=3.0, gap_us=0):
     sock.settimeout(timeout)
     d, _ = sock.recvfrom(128)
     rtt = (time.perf_counter() - t0) * 1e3
-    fid, l0, l1, l2, l3, risk, alarm, level, _pad, infer_us, total_us = struct.unpack(VD, d)
-    return dict(frame_id=fid, logits=np.array([l0, l1, l2, l3]), risk=risk, alarm=bool(alarm), level=level,
-                infer_us=infer_us, total_us=total_us, rtt_ms=rtt)
+    fid, l0, l1, l2, l3, spec, risk, alarm, level, _pad, infer_us, total_us = struct.unpack(VD, d)
+    return dict(frame_id=fid, logits=np.array([l0, l1, l2, l3]), spec=spec, risk=risk, alarm=bool(alarm),
+                level=level, infer_us=infer_us, total_us=total_us, rtt_ms=rtt)
 
 def softmax(z): e = np.exp(z - z.max()); return e / e.sum()
 
@@ -66,7 +66,7 @@ def main():
         p = softmax(r["logits"])
         pj = " ".join(f"{c[:5]}={v:.3f}" for c, v in zip(CLASSES, p))
         print(f"[{k}] 보드 logits={np.round(r['logits'],3).tolist()} {pj} | risk={r['risk']:.3f} alarm={r['alarm']} "
-              f"lvl={r['level']} | NPU {r['infer_us']/1000:.1f}ms 보드총 {r['total_us']/1000:.1f}ms RTT {r['rtt_ms']:.1f}ms")
+              f"lvl={r['level']} spec={r['spec']:.3f} | NPU {r['infer_us']/1000:.1f}ms 보드총 {r['total_us']/1000:.1f}ms RTT {r['rtt_ms']:.1f}ms")
     if a.bench:
         t0 = time.perf_counter(); ok = 0; npu = []
         for k in range(a.bench):
