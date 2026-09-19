@@ -82,6 +82,10 @@ ap.add_argument("--exclude-match", default="", help="이 부분 문자열을 포
 # 까지"라는 위치로 정의되므로 그 위치까지의 노드를 전부 제외한다.
 ap.add_argument("--exclude-until", default="", help="그래프 순서로 이 부분 문자열을 처음 포함하는 노드까지 전부 FP32로")
 ap.add_argument("--exclude-until-depthwise", action="store_true", help="그래프 순서로 첫 depthwise Conv까지 전부 FP32로")
+# 특정 텐서의 양자화 범위를 고정한다 (ORT TensorQuantOverrides). 예: 스템 hardswish 게이트 입력은
+# HardSigmoid가 [-3,3] 밖에서 포화하므로 그 범위로 잘라 양자화해도 정확히 동치다 (오차 <= 6/255/6).
+# 이렇게 하면 게이트 경로(DQ+Mul+HardSigmoid+Q, 실보드 15ms)를 float으로 남길 필요가 없다.
+ap.add_argument("--override-tensor", action="append", default=[], help="NAME:LO:HI — 그 텐서를 [LO,HI] 범위로 양자화 (여러 번 가능)")
 ap.add_argument("--seed", type=int, default=0)
 a = ap.parse_args()
 random.seed(a.seed); np.random.seed(a.seed)
@@ -173,6 +177,17 @@ exclude = list(dict.fromkeys(exclude))
 print(f"depthwise Conv {len(dw)}개 감지; FP32로 제외하는 노드 {len(exclude)}개"
       + (f": {exclude[:6]}{' ...' if len(exclude) > 6 else ''}" if exclude else ""))
 
+overrides = {}
+for spec in a.override_tensor:
+    name, lo, hi = spec.rsplit(":", 2); lo, hi = float(lo), float(hi)
+    if a.activation == "uint8":
+        sc = (hi - lo) / 255.0; zp = int(round(-lo / sc))
+        overrides[name] = [{"scale": np.array(sc, dtype=np.float32), "zero_point": np.array(np.clip(zp, 0, 255), dtype=np.uint8)}]
+    else:
+        sc = max(abs(lo), abs(hi)) / 127.0
+        overrides[name] = [{"scale": np.array(sc, dtype=np.float32), "zero_point": np.array(0, dtype=np.int8)}]
+    print(f"범위 고정: {name} → [{lo}, {hi}]")
+
 q_path = out / f"roadnet_int8_{a.activation}.onnx"
 act = QuantType.QInt8 if a.activation == "int8" else QuantType.QUInt8
 method = {"minmax": CalibrationMethod.MinMax, "entropy": CalibrationMethod.Entropy,
@@ -189,7 +204,8 @@ quantize_static(
     calibrate_method=method,
     op_types_to_quantize=[t.strip() for t in a.op_types.split(",") if t.strip()] or None,
     nodes_to_exclude=exclude or None,
-    extra_options={"ActivationSymmetric": a.act_symmetric, "WeightSymmetric": True},
+    extra_options=dict({"ActivationSymmetric": a.act_symmetric, "WeightSymmetric": True},
+                       **({"TensorQuantOverrides": overrides} if overrides else {})),
 )
 m = onnx.load(str(q_path))
 kinds = {}

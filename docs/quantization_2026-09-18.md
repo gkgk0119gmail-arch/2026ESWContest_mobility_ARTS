@@ -222,3 +222,28 @@ s_c = 채널 p99.99 범위 / 중앙값 (하한 0.05). float으로 남는 건 112
 → `qdq_u8_to_i8` → `stedgeai generate icepredict-fsbl2` → `n6_npu_validate.sh eq`.
 남은 SW 52%는 Q/DQ·게이트·SW ctrl 등 작은 조각들. CARLA ice 0.632는 스템 양자화 비용 — 균등화 그래프 위에서
 짧은 QAT를 돌리면 회복 여지가 있다(아직 안 함).
+
+### 최종 (eq3): 게이트 경로까지 int8 — 실보드 **21.7 ms**, cos 0.9992
+게이트 입력 x(Mul_s 출력)는 HardSigmoid가 [−3,3] 밖에서 포화하므로 **그 범위로 잘라 양자화해도 정확히 동치**
+(오차 ≤ 6/255/6 ≈ 0.004). `--override-tensor ".../Conv_output_0_unscaled:-3:3"` 하나로 float 노드가 0개가 된다.
+
+| 모델 | RSCD acc / ice | CARLA ice | NPU HW/SW | 실보드 | HW% | cos |
+|---|---|---|---|---|---|---|
+| 스템 FP32 하이브리드 | 0.8885 / 0.964 | 0.788 | 94/24 | 199.1 ms | 8% | 0.9954 |
+| eq (게이트 float) | 0.8842 / 0.970 | 0.632 | 96/21 | 38.2 ms | 41% | 0.9982 |
+| **eq3 (전량 int8)** | **0.8800 / 0.977** | 0.604 | **97/16** | **21.7 ms** | **73%** | **0.9992** |
+
+실보드 분해: HW 97 epoch 18.4 ms, SW 16 epoch 3.3 ms(최대 0.53 ms), SW ctrl 2.5 ms. 남은 것은 후반 SE 블록의 HardSigmoid
+float 조각들과 입력 QuantizeLinear뿐이다. 입력을 uint8 이미지로 받고 정규화를 Conv0에 접으면 입력 변환(~1.8 ms)과
+호스트 전송량(602KB→150KB/프레임)이 함께 준다 — 통합 단계에서 할 것.
+
+**배포 산출물** (데스크탑)
+- 모델: `~/icepredict/models/roadnet_v2_eq/ptq3/roadnet_int8_signed.onnx` (QDQ, signed int8, 입력 f32 [1,3,224,224], 출력 int8 [1,4])
+- NPU 코드: `~/icepredict/models/n6_gen_eq3/out/{network.c,network.h,stai_network.c,stai_network.h,network_atonbuf.xSPI2.raw}`
+  (가중치 블롭 1.19MB → 외부 플래시 0x71000000, 프로파일 `icepredict-fsbl2`, 활성 AXISRAM1 1M + cpuRAM2 512K + npuRAM)
+- 재현: `stem_equalize.py` → `ptq_int8_n6.py --activation uint8 --override-tensor <Mul_s출력>:-3:3` → `qdq_u8_to_i8.py`
+  → `stedgeai generate --st-neural-art icepredict-fsbl2@neuralart_icepredict.json`
+
+남은 과제: CARLA ice recall 0.677 → 0.604 (스템 양자화 비용). 균등화 그래프를 PyTorch에 이식해 짧은 QAT를 돌리면 회복
+여지. 그리고 **우리 NetXDuo FSBL 펌웨어에 통합** — ll_aton 런타임 + network.c + NPU 초기화(캐시·클럭·RIF)를 넣고
+`infer` 패킷 대신 이미지를 받아 보드가 직접 추론.
