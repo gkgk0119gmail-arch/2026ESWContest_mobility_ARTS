@@ -58,8 +58,8 @@ ap.add_argument("--no-ice-render", action="store_true", help="카메라 프레�
 ap.add_argument("--ice-seed", type=int, default=7, help="얼음 외관 파라미터 시드 (프레임마다 고정)")
 # 융합을 STM32N6에서 돌린다. 학교망이 유선→무선을 차단하므로 데스크탑이 bind하고
 # Pi 브리지(scripts/n6_bridge.py)가 connect한다 — 방향을 뒤집어야 연결이 된다.
-ap.add_argument("--fusion", choices=["local", "n6"], default="local",
-                help="local=이 프로세스에서 융합, n6=STM32N6 보드에서 융합")
+ap.add_argument("--fusion", choices=["local", "n6", "n6npu"], default="local",
+                help="local=이 프로세스에서 융합, n6=보드에서 융합(추론은 여기), n6npu=보드 NPU가 추론+융합 (ROI 이미지를 보낸다)")
 ap.add_argument("--n6-bind", default="tcp://*:5558", help="Pi 브리지가 접속할 주소")
 ap.add_argument("--n6-timeout", type=float, default=3.0, help="브리지 응답 대기(초)")
 ap.add_argument("--no-video", action="store_true")
@@ -154,7 +154,15 @@ try:
                                               for k, v in ice_params.items()))
 
     # ---- 1차/2차 판정기 --------------------------------------------------
-    det = None if (a.disable_primary or a.gt_detect) else RoadNetDetector(a.model)
+    det = None if (a.disable_primary or a.gt_detect or a.fusion == "n6npu") else RoadNetDetector(a.model)
+    # n6npu: 모델 입력 형식 (eq3 int8 네트워크, atonn이 입력 양자화를 망 밖으로 뺌). scripts/n6_frame_client.py와 동일.
+    NPU_IN_SCALE, NPU_IN_ZP = 0.018658448, -14
+    NPU_MEAN = np.array([0.485, 0.456, 0.406], np.float32).reshape(3, 1, 1); NPU_STD = np.array([0.229, 0.224, 0.225], np.float32).reshape(3, 1, 1)
+    def npu_quantize_roi(bgr_frame):
+        roi = camcfg.crop_roi(bgr_frame)
+        im = cv2.resize(roi, (224, 224), interpolation=cv2.INTER_AREA)
+        x = (im[:, :, ::-1].astype(np.float32).transpose(2, 0, 1) / 255.0 - NPU_MEAN) / NPU_STD
+        return np.clip(np.round(x / NPU_IN_SCALE) + NPU_IN_ZP, -128, 127).astype(np.int8).tobytes()
     ctx = build_context(WeatherObs(temp_c=-3.0, humidity=88.0, temp_trend_c_per_h=-1.0),
                         LocationCtx(feature="bridge", hour=5 if not a.night else 23))
     fuser = RiskFuser(ctx.weights, threshold=ctx.threshold)
@@ -162,7 +170,7 @@ try:
     # ---- 융합을 보드로 보낼 경우: Pi 브리지 연결 대기 ----
     n6 = None
     n6_stats = {"board": 0, "fallback": 0, "board_ns_sum": 0}
-    if a.fusion == "n6":
+    if a.fusion in ("n6", "n6npu"):
         import zmq
         zctx = zmq.Context()
         n6 = zctx.socket(zmq.REQ)
@@ -198,6 +206,8 @@ try:
         tag += "_icerender"
     if a.fusion == "n6":
         tag += "_n6"
+    if a.fusion == "n6npu":
+        tag += "_n6npu"
     vw = None
     events, rows = [], []
     state = "DRIVE"           # DRIVE → WARN → BRAKE → STOPPED / SLIP → EMERG
@@ -240,6 +250,19 @@ try:
                 ahead = dist - patch.extent[0]
                 risk = 1.0 if 0 < ahead <= a.detect_range else 0.0
                 fired = risk > 0
+            elif view is not None and a.fusion == "n6npu":
+                vd = None
+                try:
+                    n6.send_multipart([json.dumps({"kind": "frame"}).encode(), npu_quantize_roi(view)])
+                    vd = n6.recv_json()
+                except zmq.Again:
+                    vd = None
+                if vd and vd.get("ok"):
+                    lg = np.array(vd["logits"], np.float32); e = np.exp(lg - lg.max()); p = e / e.sum()
+                    risk = float(vd["risk"]); fired = bool(vd["alarm"])
+                    n6_stats["board"] += 1; n6_stats["board_ns_sum"] += int(vd["infer_us"]) * 1000
+                else:
+                    n6_stats["fallback"] += 1; fired = False   # 보드 무응답: 이 프레임은 판정 없음 (로컬 모델이 없다)
             elif view is not None and det is not None:
                 p = det.infer(np.ascontiguousarray(view[:, :, ::-1]))
                 # 반사도/차선 헤드는 미학습 → None으로 제외 (0/1을 넣으면 가중 합에서
@@ -349,12 +372,14 @@ try:
     if vw: vw.release()
     (out / f"events_{tag}.json").write_text(json.dumps({"args": vars(a), "events": events}, indent=1))
     (out / f"trace_{tag}.json").write_text(json.dumps(rows))
-    if a.fusion == "n6":
+    if a.fusion in ("n6", "n6npu"):
         tot = n6_stats["board"] + n6_stats["fallback"]
         avg = n6_stats["board_ns_sum"] / max(n6_stats["board"], 1) / 1000.0
         print(f"\n=== 융합 경로 ===")
-        print(f"  보드 판정 {n6_stats['board']}프레임, 로컬 폴백 {n6_stats['fallback']}프레임 "
-              f"({n6_stats['fallback']/max(tot,1)*100:.1f}%), 보드 평균 {avg:.2f}us")
+        print(f"  보드 {'NPU 추론+' if a.fusion == 'n6npu' else ''}판정 {n6_stats['board']}프레임, "
+              f"{'무응답' if a.fusion == 'n6npu' else '로컬 폴백'} {n6_stats['fallback']}프레임 ({n6_stats['fallback']/max(tot,1)*100:.1f}%), "
+              f"보드 평균 {avg/1000:.2f}ms" if a.fusion == "n6npu" else
+              f"  보드 판정 {n6_stats['board']}프레임, 로컬 폴백 {n6_stats['fallback']}프레임 ({n6_stats['fallback']/max(tot,1)*100:.1f}%), 보드 평균 {avg:.2f}us")
         if n6_stats["fallback"]:
             print("  ※ 폴백이 있었다 — 그 프레임의 판정은 보드가 아니라 이 프로세스가 했다")
         try:

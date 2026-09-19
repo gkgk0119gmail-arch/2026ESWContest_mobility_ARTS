@@ -26,6 +26,8 @@ from icepredict.common.protocol import PORT_PC_PUB
 
 CTX_FMT, INFER_FMT, VD_FMT = "<I5f", "<I6f", "<IfBBHI"
 VD_SZ = struct.calcsize(VD_FMT)
+# NPU 프레임 경로 (보드 UDP 5559): 청크 <IHHHH + payload, 응답 <I4ffBBHII. 펌웨어 app_netxduo.c와 일치.
+FR_HDR, FR_VD, FR_CHUNK, FR_BYTES = "<IHHHH", "<I4ffBBHII", 1400, 150528
 NAN = float("nan")
 
 ap = argparse.ArgumentParser()
@@ -34,6 +36,8 @@ ap.add_argument("--board-port", type=int, default=5557)
 ap.add_argument("--desktop", default="165.132.135.77")
 ap.add_argument("--desktop-port", type=int, default=PORT_PC_PUB)
 ap.add_argument("--timeout", type=float, default=0.5, help="보드 UDP 응답 대기(초)")
+ap.add_argument("--frame-port", type=int, default=5559)
+ap.add_argument("--gap-us", type=int, default=150, help="프레임 청크 간격 — 버스트면 보드 NetX 풀이 넘친다")
 a = ap.parse_args()
 
 board = (a.board, a.board_port)
@@ -47,7 +51,28 @@ rep.connect(endpoint)     # 데스크탑이 bind, 우리가 connect (차단 방�
 print(f"[bridge] ZMQ REP → {endpoint}   보드 UDP → {a.board}:{a.board_port}", flush=True)
 
 seq = 0
-stats = {"infer": 0, "ctx": 0, "timeout": 0, "board_ns_sum": 0}
+stats = {"infer": 0, "ctx": 0, "timeout": 0, "board_ns_sum": 0, "frame": 0, "frame_timeout": 0, "npu_us_sum": 0}
+fr_id = 0
+udp_f = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); udp_f.settimeout(2.0)
+
+def board_frame(q_bytes):
+    """int8 NCHW 150528B를 청크로 보내 보드 NPU 추론+융합 판정을 받는다. 실패 시 None."""
+    global fr_id
+    fr_id = (fr_id + 1) & 0xFFFFFFFF
+    n = (len(q_bytes) + FR_CHUNK - 1) // FR_CHUNK
+    for i in range(n):
+        pl = q_bytes[i * FR_CHUNK:(i + 1) * FR_CHUNK]
+        udp_f.sendto(struct.pack(FR_HDR, fr_id, i, n, len(pl), 0) + pl, (a.board, a.frame_port))
+        if a.gap_us:
+            t_next = time.perf_counter() + a.gap_us / 1e6
+            while time.perf_counter() < t_next: pass
+    try:
+        d, _ = udp_f.recvfrom(128)
+    except socket.timeout:
+        return None
+    fid, l0, l1, l2, l3, risk, alarm, level, _pad, infer_us, total_us = struct.unpack(FR_VD, d)
+    if fid != fr_id: return None
+    return {"logits": [l0, l1, l2, l3], "risk": risk, "alarm": bool(alarm), "level": level, "infer_us": infer_us, "total_us": total_us}
 t0 = time.time()
 
 def board_infer(p, spec, lane):
@@ -77,10 +102,19 @@ def board_ctx(threshold, alpha, beta, gamma, hysteresis=0.1):
 try:
     while True:
         try:
-            msg = rep.recv_json()
+            parts = rep.recv_multipart()
         except KeyboardInterrupt:
             break
-        kind = msg.get("kind")
+        msg = json.loads(parts[0]); kind = msg.get("kind")
+
+        if kind == "frame":                                   # [json, int8 bytes]
+            q = parts[1] if len(parts) > 1 else b""
+            r = board_frame(q) if len(q) == FR_BYTES else None
+            if r is None:
+                stats["frame_timeout"] += 1; rep.send_json({"ok": False, "error": "board frame timeout/len"})
+            else:
+                stats["frame"] += 1; stats["npu_us_sum"] += r["infer_us"]; r["ok"] = True; rep.send_json(r)
+            continue
 
         if kind == "ctx":
             board_ctx(msg["threshold"], msg["alpha"], msg["beta"], msg["gamma"],
@@ -113,8 +147,7 @@ except KeyboardInterrupt:
     pass
 finally:
     el = time.time() - t0
-    n = max(stats["infer"], 1)
-    print(f"\n[bridge] 종료 — infer {stats['infer']}건, ctx {stats['ctx']}건, "
-          f"타임아웃 {stats['timeout']}건, 보드 평균 {stats['board_ns_sum']/n/1000:.2f}us, "
-          f"{el:.1f}초", flush=True)
+    n = max(stats["infer"], 1); nf = max(stats["frame"], 1)
+    print(f"\n[bridge] 종료 — infer {stats['infer']}건, ctx {stats['ctx']}건, 타임아웃 {stats['timeout']}건, 보드 평균 {stats['board_ns_sum']/n/1000:.2f}us | "
+          f"NPU 프레임 {stats['frame']}건, 실패 {stats['frame_timeout']}건, NPU 평균 {stats['npu_us_sum']/nf/1000:.1f}ms | {el:.1f}초", flush=True)
     rep.close(0); ctx.term()
