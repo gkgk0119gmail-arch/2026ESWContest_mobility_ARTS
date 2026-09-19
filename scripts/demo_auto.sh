@@ -11,17 +11,22 @@ BOARD=192.168.50.158
 : > "$STATUS"
 say() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$STATUS"; }
 
-say "=== 0) 데스크탑 배포 체인 완료 대기 (최대 50분) ==="
-for i in $(seq 1 150); do
-  ssh -o BatchMode=yes "$DESK" 'pgrep -f "spec_deploy_auto.s[h]" >/dev/null' || break
+say "=== 0) 데스크탑 배포 완료 대기 (최대 60분) ==="
+# 프로세스 부재로 판단하면 안 된다 — 체인이 아직 시작 전이거나 재시작 중이면 곧바로 오판한다
+# (실제로 그렇게 조기 종료했다). 상태 파일의 완료/중단 표식만 믿는다.
+DONE=""
+for i in $(seq 1 180); do
+  ST=$(ssh -o BatchMode=yes "$DESK" 'cat ~/icepredict/logs/spec_deploy_status.txt 2>/dev/null')
+  case "$ST" in
+    *"배포 완료"*)   DONE=ok;   break ;;
+    *"판정 FAIL"*)   DONE=fail; break ;;
+    *"!! 중단"*)     DONE=abort; break ;;
+  esac
   sleep 20
 done
-ST=$(ssh -o BatchMode=yes "$DESK" 'tail -3 ~/icepredict/logs/spec_deploy_status.txt 2>/dev/null')
-say "데스크탑 마지막 상태: $ST"
-case "$ST" in
-  *"배포 완료"*) : ;;
-  *) say "배포가 완료되지 않았다 — 데모를 돌리지 않는다"; exit 0 ;;
-esac
+say "데스크탑 결과: ${DONE:-timeout}"
+[ "$DONE" = ok ] || { say "배포가 완료되지 않았다 — 데모를 돌리지 않는다"; \
+  ssh -o BatchMode=yes "$DESK" 'tail -6 ~/icepredict/logs/spec_deploy_status.txt 2>/dev/null' | tee -a "$STATUS"; exit 0; }
 
 say "=== 1) 보드 생존 확인 ==="
 ping -c 2 -W 2 "$BOARD" > /dev/null 2>&1 || { say "보드 ping 실패 — 중단"; exit 1; }
