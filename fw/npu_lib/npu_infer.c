@@ -1,5 +1,6 @@
 #include "npu_infer.h"
 #include <string.h>
+#include <stdio.h>
 #include "stm32n6xx_hal.h"
 #include "stm32n6570_discovery_xspi.h"
 #include "ll_aton_runtime.h"
@@ -29,21 +30,61 @@ static void set_risaf_default(RISAF_TypeDef *risaf)
 
 static int external_flash_init(void)
 {
-  /* 우리 FSBL 시스템 초기화가 XSPI2를 리셋하므로 가중치(0x71000000)를 읽으려면 메모리맵을 다시 켠다 */
+  /* 우리 FSBL 시스템 초기화가 XSPI2를 리셋하므로 가중치(0x71000000)를 읽으려면 메모리맵을 다시 켠다.
+     BSP는 XSPI2 커널 클럭 200MHz를 가정한다 — 우리 클럭 설정(CubeMX)에는 지정이 없어 여기서 잡는다:
+     IC3 = PLL1 / N, N = round(PLL1 / 200MHz). PLL1은 CPU 클럭(IC1) 소스라 켜져 있다. */
+  uint32_t pll1 = HAL_RCCEx_GetPLL1CLKFreq();
+  uint32_t div = (pll1 + 100000000u) / 200000000u; if (div < 1) div = 1; if (div > 256) div = 256;
+  RCC_PeriphCLKInitTypeDef pc = {0};
+  pc.PeriphClockSelection = RCC_PERIPHCLK_XSPI2;
+  pc.Xspi2ClockSelection  = RCC_XSPI2CLKSOURCE_IC3;
+  pc.ICSelection[RCC_IC3].ClockSelection = RCC_ICCLKSOURCE_PLL1;
+  pc.ICSelection[RCC_IC3].ClockDivider   = div;
+  if (HAL_RCCEx_PeriphCLKConfig(&pc) != HAL_OK) return -50;
+  printf("NPU: PLL1 %lu Hz -> IC3 /%lu -> XSPI2 %lu Hz\n", (unsigned long)pll1, (unsigned long)div,
+         (unsigned long)HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_XSPI2));
+
   BSP_XSPI_NOR_Init_t f;
   f.InterfaceMode = MX66UW1G45G_OPI_MODE;
   f.TransferRate  = MX66UW1G45G_DTR_TRANSFER;
-  if (BSP_XSPI_NOR_Init(0, &f) != BSP_ERROR_NONE) return -1;
-  if (BSP_XSPI_NOR_EnableMemoryMappedMode(0) != BSP_ERROR_NONE) return -2;
+  int32_t b = BSP_XSPI_NOR_Init(0, &f);
+  if (b != BSP_ERROR_NONE) return -100 + b;                 /* -104 periph(HAL_XSPI_Init) / -105 component(flash ID·config) */
+  b = BSP_XSPI_NOR_EnableMemoryMappedMode(0);
+  if (b != BSP_ERROR_NONE) return -200 + b;
+  volatile uint32_t *w = (volatile uint32_t *)0x71000000u;   /* 메모리맵이 실제로 동작하는지: 블롭 첫 워드 */
+  printf("NPU: weights @0x71000000 = %08lx %08lx\n", (unsigned long)w[0], (unsigned long)w[1]);
   return 0;
 }
 
 static void npu_hw_config(void)
 {
+  /* NPU 활성 풀(AXISRAM3~6)과 CACHEAXI SRAM은 부팅 기본이 셧다운/언클럭이다. NetXDuo 펌웨어는 쓸 일이
+     없어 켠 적이 없고, 그 상태로 npuRAM에 쓰면 버스폴트가 난다 (hello_world misc_toolbox.c 이식). */
+  printf("NPU: [1a] sram on\n");
+  RCC->MEMENR |= RCC_MEMENR_AXISRAM3EN | RCC_MEMENR_AXISRAM4EN | RCC_MEMENR_AXISRAM5EN | RCC_MEMENR_AXISRAM6EN;
+  RCC->MEMENR |= RCC_MEMENR_CACHEAXIRAMEN;
+  __HAL_RCC_AXISRAM1_MEM_CLK_ENABLE(); __HAL_RCC_AXISRAM2_MEM_CLK_ENABLE();
+  __HAL_RCC_FLEXRAM_MEM_CLK_ENABLE();
+  __HAL_RCC_RAMCFG_CLK_ENABLE();
+  RAMCFG_SRAM2_AXI->CR &= ~RAMCFG_CR_SRAMSD;
+  RAMCFG_SRAM3_AXI->CR &= ~RAMCFG_CR_SRAMSD; RAMCFG_SRAM4_AXI->CR &= ~RAMCFG_CR_SRAMSD;
+  RAMCFG_SRAM5_AXI->CR &= ~RAMCFG_CR_SRAMSD; RAMCFG_SRAM6_AXI->CR &= ~RAMCFG_CR_SRAMSD;
+  MEMSYSCTL->MSCR |= MEMSYSCTL_MSCR_DCACTIVE_Msk | MEMSYSCTL_MSCR_ICACTIVE_Msk;
+  /* npuRAM3 첫 워드 쓰기/읽기 — 여기서 죽으면 SRAM 전원 문제 */
+  volatile uint32_t *t = (volatile uint32_t *)0x34200000u; *t = 0xA5A55A5Au;
+  printf("NPU: [1a'] npuRAM3 rw %s\n", (*t == 0xA5A55A5Au) ? "OK" : "FAIL");
+
+  printf("NPU: [1b] npu clk/reset\n");
   __HAL_RCC_NPU_CLK_ENABLE();
+  __HAL_RCC_NPU_CLK_SLEEP_ENABLE();
   __HAL_RCC_NPU_FORCE_RESET();
   __HAL_RCC_NPU_RELEASE_RESET();
+#ifdef __HAL_RCC_CACHEAXI_CLK_ENABLE
+  __HAL_RCC_CACHEAXI_CLK_ENABLE();
+#endif
+  printf("NPU: [1c] cache\n");
   npu_cache_enable();
+  printf("NPU: [1d] rif\n");
   RIMC_MasterConfig_t mc = {0};
   mc.MasterCID = RIF_CID_1;
   mc.SecPriv   = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
@@ -59,15 +100,20 @@ static void npu_hw_config(void)
   set_risaf_default(RISAF8_S);  /* NPU cache */
   set_risaf_default(RISAF15_S); /* NPU cache cfg */
   set_risaf_default(RISAF12_S); /* OCTOSPI2 0x70000000 (가중치) */
+  printf("NPU: [1e] risaf done\n");
 }
 
 int npu_init(void)
 {
   int r = external_flash_init();
   if (r) return r;
+  printf("NPU: [1] hw_config\n");
   npu_hw_config();
+  printf("NPU: [2] rt init\n");
   LL_ATON_RT_RuntimeInit();
+  printf("NPU: [3] net init\n");
   LL_ATON_RT_Init_Network(&NN_Instance_network);
+  printf("NPU: [4] buffers\n");
   const LL_Buffer_InfoTypeDef *ib = LL_ATON_Input_Buffers_Info(&NN_Instance_network);
   const LL_Buffer_InfoTypeDef *ob = LL_ATON_Output_Buffers_Info(&NN_Instance_network);
   if (!ib || !ob) return -3;
@@ -75,6 +121,7 @@ int npu_init(void)
   s_out = (int8_t *)LL_Buffer_addr_start(&ob[0]);
   s_in_bytes  = LL_Buffer_len(&ib[0]);
   s_out_bytes = LL_Buffer_len(&ob[0]);
+  printf("NPU: in %p (%lu B) out %p (%lu B)\n", (void *)s_in, (unsigned long)s_in_bytes, (void *)s_out, (unsigned long)s_out_bytes);
   if (s_in_bytes != NPU_IN_BYTES || s_out_bytes != NPU_OUT_N) return -4;   /* 생성물과 헤더 상수 불일치 */
   s_ready = 1;
   return 0;
