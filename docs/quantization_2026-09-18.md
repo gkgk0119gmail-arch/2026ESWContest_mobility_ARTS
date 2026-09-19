@@ -185,3 +185,40 @@ relocatable 생성도 동작한다 (`network_rel.bin`, PATH에 arm-gcc 필요).
 
 다음: 스템 int8화. 절벽 텐서(스템 hardswish 출력)의 양자화 범위만 백분위 클리핑(`scripts/stem_clip_quant.py`,
 ORT `TensorQuantOverrides`) → 안 되면 스템을 클리핑된 고정 범위 fake-quant로 QAT.
+
+---
+
+## 2026-09-19 해결: 스템 int8화 — 실보드 **38.2 ms** (199 ms → 5.2배), cos 0.9982
+
+### 진짜 원인 (진단 2회 수정 끝에)
+features.0 **hardswish 출력의 채널 간 범위 편차 565×** — 채널 11이 희소 스파이크(중앙 −0.05, p99 38, max 175),
+하위 채널은 0.3. per-tensor 스케일이 채널 11에 맞춰지면 나머지 15개 채널이 2~3단계로 뭉개지고, depthwise는
+채널을 섞지 않아 그 손상이 그대로 출력 붕괴가 된다. depthwise **출력**의 편차는 2.5×로 정상이었다(→ 그 출력을
+겨냥한 클리핑·CLE는 무효). 가중치 편차 690×는 그 거울상(활성 큰 채널 ↔ 가중치 작음).
+
+### 실패한 시도와 이유
+- 스템 텐서 클리핑 p99.9/99.99/99.999: 0.36/0.31/— — 몸통 간 100× 차이는 꼬리를 잘라도 남는다
+- hardswish **뒤** 1×1 depthwise 균등화 Conv(v1): 0.363 — 그 Conv도 양자화 대상이라 ORT가 그 **입력**(불균형
+  텐서)에 per-tensor Q를 먼저 박는다. 문제를 한 노드 뒤로 옮겼을 뿐
+- hardswish **앞** CLE는 hardswish가 양의 동차함수가 아니라 부정확(항등 구간 15%)
+
+### 성공: 균등화를 Conv0에 접어 넣고 게이트만 float (`scripts/stem_equalize.py`, 수학적 동치 1.9e-06)
+```
+Conv0'(채널 c 가중치·편향 ÷ s_c) → x' = x/s_c          [int8, 균형]
+Mul_s(x', s_c) → x   (게이트 계산 전용)                   [FLOAT 제외 — 여기 Q하면 절벽 재현]
+HardSigmoid(x) → h ∈ [0,1]                              [FLOAT 제외]
+Mul_hs(x', h) → hardswish(x)/s_c                        [int8, |y'| ≤ |x'|]
+dw3x3'(채널 c 가중치 × s_c)  = dw3x3(hardswish(x))       [정확히 동치]
+```
+s_c = 채널 p99.99 범위 / 중앙값 (하한 0.05). float으로 남는 건 112²×16 원소 Mul·HardSigmoid 둘뿐.
+
+| 모델 | RSCD acc | RSCD ice | CARLA ice | NPU HW/SW | **실보드** | cos |
+|---|---|---|---|---|---|---|
+| 스템 FP32 하이브리드 (hybfsbl2) | 0.8885 | 0.964 | 0.788 | 94/24 | 199.1 ms | 0.9954 |
+| **균등화 전량 int8 (eq)** | **0.8842** | **0.970** | 0.632 | **96/21** | **38.2 ms** | **0.9982** |
+| FP32 v2 | 0.9008 | 0.983 | 0.677 | — | — | — |
+
+파이프라인: `qat_to_plain` → `stem_equalize` → `ptq_int8_n6 --activation uint8 --exclude-nodes <Mul_s,HardSigmoid>`
+→ `qdq_u8_to_i8` → `stedgeai generate icepredict-fsbl2` → `n6_npu_validate.sh eq`.
+남은 SW 52%는 Q/DQ·게이트·SW ctrl 등 작은 조각들. CARLA ice 0.632는 스템 양자화 비용 — 균등화 그래프 위에서
+짧은 QAT를 돌리면 회복 여지가 있다(아직 안 함).

@@ -67,6 +67,11 @@ ap.add_argument("--fp32-modules", default="features.0,features.1.block.0",
 # 양자화하면 공적응이 깨져 0.69로 떨어졌다. 같은 관습으로 단련하면 FP32로 뽑아 ORT PTQ해도
 # 정확도가 이어지고, 그래프는 atonn이 잘 흡수하는 ORT 형태(HW 88/SW 14)를 얻는다.
 ap.add_argument("--act-dtype", default="quint8", choices=["quint8", "qint8", "qint8sym", "qint8sym128"])
+# 스템을 FP32로 빼는 대신 **고정 범위**로 양자화해 QAT한다. 절벽의 원인이 스템 hardswish 출력의
+# per-tensor 스케일이 긴 꼬리에 끌리는 것이므로, 범위를 [-c, c]로 못 박고(관측자 없음) 가중치가
+# 그 범위에 적응하게 한다. c는 stem_clip_quant.py의 백분위 통계로 정한다. 0이면 미사용.
+ap.add_argument("--stem-clip", type=float, default=0.0,
+                help="스템(features.0, features.1.block.0) 활성을 [-c,c] 고정 범위 fake-quant로 (0=스템 FP32 유지)")
 ap.add_argument("--smoke", action="store_true")
 ap.add_argument("--seed", type=int, default=0)
 a = ap.parse_args()
@@ -143,6 +148,17 @@ wt_fq = tq.FakeQuantize.with_args(
 qconfig = tq.QConfig(activation=act_fq, weight=wt_fq)
 qconfig_mapping = tq.QConfigMapping().set_global(qconfig)
 fp32_mods = [m.strip() for m in a.fp32_modules.split(",") if m.strip()]
+if a.stem_clip > 0:
+    c = a.stem_clip
+    if a.act_dtype == "quint8":
+        stem_act = tq.FixedQParamsFakeQuantize.with_args(scale=2 * c / 255.0, zero_point=128, dtype=torch.quint8, quant_min=0, quant_max=255)
+    else:
+        stem_act = tq.FixedQParamsFakeQuantize.with_args(scale=c / 127.0, zero_point=0, dtype=torch.qint8, quant_min=-127, quant_max=127)
+    stem_q = tq.QConfig(activation=stem_act, weight=wt_fq)
+    for name in fp32_mods:
+        qconfig_mapping = qconfig_mapping.set_module_name(name, stem_q)
+    print(f"스템 {fp32_mods}: 고정 범위 [-{c}, {c}] int8 fake-quant (FP32 아님)")
+    fp32_mods = []
 for name in fp32_mods:
     qconfig_mapping = qconfig_mapping.set_module_name(name, None)
 if fp32_mods:

@@ -14,6 +14,10 @@ RESET=${RESET:-0}   # 1이면 gdbserver -k(리셋 후 halt): 개발 부팅 모�
 case $M in
   D)   ONNX=$HOME/icepredict/models/mp_D_min/roadnet_int8_int8.onnx ;;
   hyb) ONNX=$HOME/icepredict/models/roadnet_v2_hybrid_plain/roadnet_int8_signed.onnx ;;
+  full) ONNX=/home/yax/icepredict/models/roadnet_v2_int8/roadnet_int8_int8.onnx
+        PROF="icepredict-fsbl2@$HOME/icepredict/fw/neuralart_icepredict.json" ;;
+  eq) ONNX=/home/yax/icepredict/models/roadnet_v2_eq/ptq2/roadnet_int8_signed.onnx
+      PROF="icepredict-fsbl2@$HOME/icepredict/fw/neuralart_icepredict.json" ;;
   hybfsbl2) ONNX=$HOME/icepredict/models/roadnet_v2_hybrid_plain/roadnet_int8_signed.onnx
            PROF="icepredict-fsbl2@$HOME/icepredict/fw/neuralart_icepredict.json" ;;
   hybfsbl) ONNX=$HOME/icepredict/models/roadnet_v2_hybrid_plain/roadnet_int8_signed.onnx
