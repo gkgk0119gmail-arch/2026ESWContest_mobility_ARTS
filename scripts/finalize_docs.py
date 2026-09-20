@@ -23,6 +23,8 @@ import pathlib
 import re
 import subprocess
 
+import numpy as np
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MAP = ROOT / "docs/presentation_evidence_map.md"
 # rtos_latency_bench 는 파이에서 실제로 벤치를 돌린다. 유휴 측정이 오염되지 않게
@@ -115,6 +117,15 @@ def main():
     print(f"  실사진 표본 {st['n']:,}장 (블랙아이스 {st['ice_n']:,}장, 정답률 {100*st['ice_acc']:.1f} %)")
     print(f"  NPU 최악 추론 {st['npu_max_ms']:.2f} ms")
 
+    # 리눅스 깨어남 지연도 다시 잰다 — 벤치를 돌릴 때마다 최악값이 바뀐다
+    lin = None
+    try:
+        v = np.loadtxt(ROOT / "logs/rtos_bench/bench_cyclic_idle.txt") / 1000.0
+        lin = float(v[np.isfinite(v)].max())
+        print(f"  리눅스 유휴 최악 깨어남 {lin:,.0f} us")
+    except Exception:
+        pass
+
     # 보드 WCET 는 주행마다 쌓인다 — 근거 지도의 숫자도 같이 움직여야 한다
     wc = None
     try:
@@ -131,6 +142,14 @@ def main():
         import datetime as _dt
         s = re.sub(r"기준 \d{4}-\d{2}-\d{2} \d{2}:\d{2}\.",
                    "기준 " + _dt.datetime.now().strftime("%Y-%m-%d %H:%M") + ".", s)
+        if lin:
+            s = re.sub(r"리눅스 꼬리 [\d,]+ µs 대 보드 수직선",
+                       f"리눅스 꼬리 {lin:,.0f} µs 대 보드 수직선", s)
+            s = re.sub(r"리눅스는 [\d,]+ µs 까지 늘어진 꼬리",
+                       f"리눅스는 {lin:,.0f} µs 까지 늘어진 꼬리", s)
+            s = re.sub(r"\*\*유휴에서도 최대 [\d.]+ ms\*\* 늦게 깨어남 = 제어 주기의 \d+ %",
+                       f"**유휴에서도 최대 {lin/1000:.1f} ms** 늦게 깨어남 = "
+                       f"제어 주기의 {100*lin/20000:.0f} %", s)
         if wc:
             s = re.sub(r"깨어남·연산·응답 합쳐 \*\*[\d.]+ µs\*\*, 주기의 [\d.]+ %\. [\d,]+ 샘플",
                        f"깨어남·연산·응답 합쳐 **{wc['max_us']:.1f} µs**, "

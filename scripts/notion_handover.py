@@ -157,6 +157,15 @@ def facts() -> dict:
             f["wet_fa"] = float((wet >= th).mean())
     except Exception:
         pass
+    # 리눅스 깨어남 지연 (벤치를 다시 돌리면 값이 바뀐다 — 하드코딩하지 않는다)
+    try:
+        for tag, key in (("idle", "lin_idle"), ("load", "lin_load")):
+            v = np.loadtxt(ROOT / f"logs/rtos_bench/bench_cyclic_{tag}.txt") / 1000.0
+            v = v[np.isfinite(v)]
+            f[f"{key}_max_us"] = float(v.max())
+            f[f"{key}_mean_us"] = float(v.mean())
+    except Exception:
+        pass
     # 운영 문턱
     try:
         import sys
@@ -330,14 +339,17 @@ def build(f: dict) -> list[dict]:
     B.append(para(
         "심사에서 가장 먼저 나올 질문이 \"그 계산 라즈베리파이에서 하면 안 되나?\" 다. "
         "보드 펌웨어가 쓰는 C 코드를 파이에서 그대로 컴파일해 같은 조건으로 재서 답을 만들었다."))
+    lin = f.get("lin_idle_max_us", 4677.0)
+    lin_l = f.get("lin_load_max_us", 3331.0)
     B.append(table([
         ["조건", "평균 지연", "최악 지연"],
-        ["Pi 5 리눅스 · 유휴", "64 µs", "4,677 µs"],
-        ["Pi 5 리눅스 · 부하", "64 µs", "3,331 µs"],
+        ["Pi 5 리눅스 · 유휴", f"{f.get('lin_idle_mean_us', 64):.0f} µs", f"{lin:,.0f} µs"],
+        ["Pi 5 리눅스 · 부하", f"{f.get('lin_load_mean_us', 64):.0f} µs", f"{lin_l:,.0f} µs"],
         ["STM32N6 + ThreadX (전체 응답)",
          f"{f.get('busy_mean', 12.5):.1f} µs", f"{f.get('wcet_max', 17.9):.1f} µs"],
     ]))
-    B.append(bullet("리눅스는 **아무것도 안 돌 때도** 4.7 ms 늦게 깨어난다 — 제어 주기 20 ms 의 23 %"))
+    B.append(bullet(f"리눅스는 **아무것도 안 돌 때도** {lin/1000:.1f} ms 늦게 깨어난다 — "
+                    f"제어 주기 20 ms 의 {100*lin/20000:.0f} %"))
     B.append(bullet(f"보드는 깨어남·연산·응답을 다 합쳐 {f.get('wcet_max',17.9):.1f} µs, 주기의 0.09 %"))
     B.append(bullet(
         f"보드가 스스로 증명한다: NPU 가 25.5 ms 추론을 도는 중에도 2차 응답이 "
