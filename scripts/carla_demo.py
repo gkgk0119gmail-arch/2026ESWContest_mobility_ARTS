@@ -1398,15 +1398,18 @@ try:
         except Exception as _e:
             print(f"[wcet] 누적 로그 기록 실패: {_e}", flush=True)
     # 판정 규칙 A/B — 같은 주행선에서 타원과 직사각형이 각각 언제 확정했나
+    # 둘 다 발화하지 않아도 기록한다 — "안 터졌다"는 것 자체가 증거일 때가 있다
+    # (조향 지연 보정을 넣은 뒤 대조군에서 침묵하는 것이 그렇다).
     rule_ab = None
-    if t_rule["ellipse"] or t_rule["box"]:
+    if not a.no_secondary:
         _pe = next((e["t"] for e in events if e["event"] == "patch_enter"), None)
         def _pack(v):
             if not v: return None
             t_, tg, ay_, ye_ = v
             return {"t": round(t_, 2), "trigger": tg, "ay_g": ay_, "yaw_err": ye_,
                     "after_enter": (round(t_ - _pe, 2) if _pe is not None else None)}
-        rule_ab = {"ellipse": _pack(t_rule["ellipse"]), "box": _pack(t_rule["box"])}
+        rule_ab = {"ellipse": _pack(t_rule["ellipse"]), "box": _pack(t_rule["box"]),
+                   "yaw_lag_s": float(getattr(slip, "yaw_lag_s", 0.0))}
         e_, b_ = rule_ab["ellipse"], rule_ab["box"]
         if e_ and b_:
             rule_ab["gain_s"] = round(b_["t"] - e_["t"], 2)

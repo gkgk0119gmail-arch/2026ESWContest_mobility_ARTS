@@ -141,30 +141,60 @@ def main():
     L.append("- 더 키우면 지연 자체가 잔차가 되어 여유가 다시 나빠지고 탐지도 느려진다 — "
              "0.08 부터 35 km/h 가 4.56 → 5.06 s 로 뛴다.\n")
 
-    # 실제 확인 주행
+    # 실제 확인 주행 — 보드는 **옛 펌웨어**(보정 없음), 호스트 참조는 **새 코드**(보정 있음).
+    # 같은 주행선 위에서 둘을 나란히 볼 수 있다. 펌웨어를 못 구우니 이게 가장 깨끗한 비교다.
     runs = []
     for tag in ("lag_ctrl_k50", "lag_ice_k35", "lag_ice_k50"):
-        p = ROOT / f"logs/carla_demo/events_{tag}.json"
-        if not p.exists():
+        fp = ROOT / f"logs/carla_demo/events_{tag}.json"
+        if not fp.exists():
             continue
-        d = json.load(open(p))
+        d = json.load(open(fp))
         ev = d.get("events", [])
         k = {}
         for e in ev:
             k.setdefault(e["event"], e)
         pe, ss = k.get("patch_enter"), k.get("secondary_slip")
-        runs.append((tag, ss, (round(ss["t"] - pe["t"], 2) if ss and pe else None),
-                     d.get("args", {}).get("control_no_ice", False)))
+        ab = d.get("rule_ab") or {}
+        runs.append(dict(tag=tag, board=ss,
+                         et=(round(ss["t"] - pe["t"], 2) if ss and pe else None),
+                         # rule_ab 가 아예 없으면(옛 기록) 보드 이벤트의 local_agrees 로 읽는다.
+                         # 보드가 발화했는데 local_agrees 가 False 면 호스트 참조는 침묵한 것이다.
+                         has_ab=bool(ab),
+                         host=ab.get("ellipse"), host_box=ab.get("box"),
+                         noice=bool(d.get("args", {}).get("control_no_ice"))))
     if runs:
         L.append("\n## 5. 고친 코드로 실제 돌려 봤다\n\n")
-        L.append("| 주행 | 빙판 | 2차 발화 | 진입→확정 |\n|---|---|---|---|\n")
-        for tag, ss, et, noice in runs:
-            L.append(f"| {tag} | {'없음(대조군)' if noice else '있음'} | "
-                     f"{'**발화**' if ss else '없음'} | {f'{et:.2f} s' if et is not None else '-'} |\n")
-        ctrl = [r for r in runs if r[3]]
-        if ctrl and not any(r[1] for r in ctrl):
-            L.append("\n**대조군에서 더는 발화하지 않는다.** 고치기 전 같은 조건에서 23.74 s 에 "
-                     "발화했던 주행이다.\n")
+        L.append("펌웨어는 못 구웠다. 그래서 **보드는 보정 없는 옛 코드**로 돌고, "
+                 "호스트 참조 두 개가 **보정이 들어간 새 코드**로 같은 입력을 같이 본다.\n")
+        L.append("같은 주행선 위의 비교라 시뮬을 두 번 돌리는 것보다 깨끗하다.\n\n")
+        L.append("| 주행 | 빙판 | 보드(보정 없음) | 호스트 타원(보정 있음) | 호스트 사각형(보정 있음) |\n")
+        L.append("|---|---|---|---|---|\n")
+        def f_(v, has):
+            if v:
+                return f"**{v['t']:.2f} s**"
+            return "발화 없음" if has else "발화 없음 (기록 방식 이전)"
+        for r in runs:
+            b = "발화 없음" if not r["board"] else f"**{r['board']['t']:.2f} s** ({r['board']['trigger']})"
+            L.append(f"| {r['tag']} | {'없음(대조군)' if r['noice'] else '있음'} | {b} | "
+                     f"{f_(r['host'], r['has_ab'])} | {f_(r['host_box'], r['has_ab'])} |\n")
+        ctrl = [r for r in runs if r["noice"]]
+        if ctrl:
+            board_fired = any(r["board"] for r in ctrl)
+            host_fired = any(r["host"] or r["host_box"] for r in ctrl)
+            # 보드가 발화했는데 로컬이 동의하지 않았다 = 호스트 참조는 침묵했다는 직접 증거
+            disagreed = [r for r in ctrl if r["board"] and r["board"].get("local_agrees") is False]
+            if disagreed:
+                L.append("\n주행 기록에 `local_agrees: false` 로 남아 있다 — "
+                         "보드가 발화한 그 순간 호스트 참조는 **동의하지 않았다**.\n")
+            L.append("\n")
+            if board_fired and not host_fired:
+                L.append("**보정 없는 보드는 또 발화했고, 보정이 들어간 코드는 발화하지 않았다.**\n")
+                L.append("같은 입력·같은 주행선이므로 차이는 보정 하나뿐이다. 고쳐진 것이 맞다.\n")
+            elif not board_fired and not host_fired:
+                L.append("이번에는 보드도 발화하지 않았다 — 같은 장면을 다시 만나지 못한 것이다. "
+                         "판단은 §4 의 오프라인 스윕으로 한다.\n")
+            elif host_fired:
+                L.append("**보정이 들어갔는데도 발화했다.** τ 를 다시 봐야 한다.\n")
 
     L.append("\n## 6. 남은 것\n\n")
     L.append("- tau 는 CARLA 차량(Tesla Model 3 기본 물리)으로 고른 값이다. 실차에 올리면 "
