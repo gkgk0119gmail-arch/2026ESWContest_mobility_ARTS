@@ -26,14 +26,14 @@ rsync -az "$SP/scripts/" $H5:~/icepredict/code/scripts/ > /dev/null 2>&1
 rsync -az "$SP/src/"     $H5:~/icepredict/code/src/     > /dev/null 2>&1
 
 carla_ok || restart_carla || exit 1
-run(){  # $1 태그  $2 속도  $3 추가인자
+run(){  # $1 태그  $2 속도  $3.. 추가인자 (1차 끄기 포함 여부까지 호출자가 정한다)
   local TAG=$1 KPH=$2; shift 2
   carla_ok || restart_carla || return 1
   ping -c 1 -W 2 "$BOARD" > /dev/null 2>&1 || { say "보드 무응답"; return 1; }
   say "=== $TAG (${KPH} km/h) ==="
   timeout 30 ssh -o BatchMode=yes $H5 "cd ~/icepredict/code && setsid nohup timeout 900 $PY scripts/carla_demo.py \
     --target-kph $KPH --weather ClearNoon --tag $TAG --views split \
-    --disable-primary --fusion n6npu --traffic 0 --ice-seed 7 $* \
+    --fusion n6npu --traffic 0 --ice-seed 7 $* \
     > ~/icepredict/logs/demo_$TAG.log 2>&1 < /dev/null &" || true
   sleep 25
   bash "$SP/scripts/n6_bridge_restart.sh" 150 "/tmp/n6b_$TAG.log" "165.132.135.75" > /dev/null 2>&1
@@ -52,14 +52,20 @@ run(){  # $1 태그  $2 속도  $3 추가인자
 }
 
 # ① 예전에 2차가 헛발질한 대조군
-run lag_ctrl_k50 50 --control-no-ice --log-dyn '~/icepredict/logs/dync2_k50.csv'
+run lag_ctrl_k50 50 --disable-primary --control-no-ice --log-dyn '~/icepredict/logs/dync2_k50.csv'
 # ② 탐지가 얼마나 늦어졌나
-run lag_ice_k35 35 --friction 0.08 --patch-len 140 --log-dyn '~/icepredict/logs/dyn2_k35.csv'
-run lag_ice_k50 50 --friction 0.08 --patch-len 140 --log-dyn '~/icepredict/logs/dyn2_k50.csv'
+run lag_ice_k35 35 --disable-primary --friction 0.08 --patch-len 140 --log-dyn '~/icepredict/logs/dyn2_k35.csv'
+run lag_ice_k50 50 --disable-primary --friction 0.08 --patch-len 140 --log-dyn '~/icepredict/logs/dyn2_k50.csv'
+
+# ③ 발표 첫 장에 쓸 서사 그림용 주행 — 확정 계층이 들어간 뒤로 1차가 잡는 깨끗한 주행이 없다.
+#    왼쪽 칸(1차가 잡는다)과 오른쪽 칸(1차 끄고 2차가 받는다)을 같은 날씨·속도로 새로 찍는다.
+run story_primary   40 --friction 0.08 --patch-len 100
+run story_secondary 40 --disable-primary --friction 0.08 --patch-len 100
 
 say "=== 회수 ==="
 rsync -az $H5:~/icepredict/logs/carla_demo/ "$SP/logs/carla_demo/" 2>/dev/null
 rsync -az $H5:~/icepredict/logs/dyn2_k*.csv $H5:~/icepredict/logs/dync2_k*.csv "$SP/logs/" 2>/dev/null
 python3 "$SP/scripts/merge_wcet.py" > /dev/null 2>&1
 python3 "$SP/scripts/yawlag_report.py" 2>&1 | tail -25 | tee -a "$ST"
+python3 "$SP/scripts/story_figure.py" --left story_primary --right story_secondary 2>&1 | tail -2 | tee -a "$ST"
 say "=== 조향 지연 보정 확인 완료 ==="
