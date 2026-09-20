@@ -34,13 +34,16 @@ REGEN = ["rtos_latency_bench", "summarize_runs", "analyze_detection", "rscd_brea
          "story_figure", "range_resolution"]
 
 
-def photo_stats():
+def photo_stats():  # noqa: C901
     f = ROOT / "logs/rscd_board_samples.jsonl"
     if not f.exists():
         return None
+    import numpy as _np
     n = 0
     ice_hit = ice_n = 0
     us_max = 0
+    miss_p, miss_spec = [], []
+    risk_by = {c: [] for c in ("normal", "wet", "black_ice", "pothole")}
     for l in open(f):
         if not l.strip():
             continue
@@ -50,13 +53,32 @@ def photo_stats():
             continue
         n += 1
         us_max = max(us_max, int(r.get("us", 0)))
-        if r.get("cls") == "black_ice":
+        c = r.get("cls")
+        if c in risk_by:
+            risk_by[c].append(float(r.get("risk", 0.0)))
+        if c == "black_ice":
             ice_n += 1
             p = r.get("p") or []
             if p and max(range(len(p)), key=lambda i: p[i]) == 2:
                 ice_hit += 1
+            elif p:
+                miss_p.append(float(p[2]))
+                miss_spec.append(float(r.get("spec", 0.0)))
+    th = 0.603
+    try:
+        import sys as _s
+        _s.path.insert(0, str(ROOT / "src"))
+        from icepredict.pi.context import LocationCtx, WeatherObs, build_context
+        th = build_context(WeatherObs(temp_c=-3.0, humidity=88.0, temp_trend_c_per_h=-1.0),
+                           LocationCtx(feature="bridge", hour=5)).threshold
+    except Exception:
+        pass
+    rates = {c: (float((_np.array(v) >= th).mean()) if v else 0.0) for c, v in risk_by.items()}
     return dict(n=n, ice_n=ice_n, ice_acc=(ice_hit / ice_n if ice_n else 0.0),
-                npu_max_ms=us_max / 1000.0)
+                npu_max_ms=us_max / 1000.0, miss_n=len(miss_p),
+                miss_rate=(len(miss_p) / ice_n if ice_n else 0.0),
+                miss_p_max=(max(miss_p) if miss_p else 0.0),
+                th=th, rates=rates)
 
 
 def main():
@@ -122,6 +144,18 @@ def main():
                    f"실사진 {st['n']:,}장으로 말합니다", s)
         s = re.sub(r"실사진 \d{1,3}(?:,\d{3})*장 표본별 판정",
                    f"실사진 {st['n']:,}장 표본별 판정", s)
+        # 놓친 얼음 사진 비율
+        s = re.sub(r"실사진 얼음 \d{1,3}(?:,\d{3})*장 중 \*\*[\d.]+ % \(\d+장\) 를 놓친다\*\*",
+                   f"실사진 얼음 {st['ice_n']:,}장 중 "
+                   f"**{100*st['miss_rate']:.1f} % ({st['miss_n']}장) 를 놓친다**", s)
+        s = re.sub(r"놓친 사진의 얼음확률 [\d.]+~[\d.]+",
+                   f"놓친 사진의 얼음확률 0.00~{st['miss_p_max']:.2f}", s)
+        # 운영점 경보율
+        r_ = st["rates"]
+        s = re.sub(r"문턱 [\d.]+ 에서 얼음 [\d.]+ %, 젖음 [\d.]+ %, 포트홀 [\d.]+ %, 정상 [\d.]+ %",
+                   f"문턱 {st['th']:.2f} 에서 얼음 {100*r_['black_ice']:.1f} %, "
+                   f"젖음 {100*r_['wet']:.1f} %, 포트홀 {100*r_['pothole']:.1f} %, "
+                   f"정상 {100*r_['normal']:.1f} %", s)
         s = re.sub(r"(편차 [\d.]+ ms \(평균의 [\d.]+ %\), )\d{1,3}(?:,\d{3})* 회",
                    rf"\g<1>{st['n']:,} 회", s)
         s = re.sub(r"`정리/05`, `figures/real_confusion.jpg`", "`정리/05`, `figures/real_confusion.jpg`", s)
