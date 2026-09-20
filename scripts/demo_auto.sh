@@ -33,7 +33,8 @@ ping -c 2 -W 2 "$BOARD" > /dev/null 2>&1 || { say "보드 ping 실패 — 중단
 python3 "$SP/scripts/n6_frame_client.py" --ip "$BOARD" --repeat 1 2>/dev/null | tail -1 | tee -a "$STATUS"
 
 say "=== 2) 데모 (데스크탑 bind → Pi 브리지 connect) ==="
-ssh -o BatchMode=yes "$DESK" 'cd ~/icepredict/code && nohup timeout 1500 ~/icepredict/venv/bin/python scripts/carla_demo.py --target-kph 40 --fusion n6npu > ~/icepredict/logs/demo_v3.log 2>&1 < /dev/null & disown'
+# ssh 는 원격 백그라운드 작업이 끝날 때까지 돌아오지 않았다 (실제로 브리지를 못 띄워 교착) → setsid 로 세션 분리 + timeout 보호
+timeout 30 ssh -o BatchMode=yes "$DESK" 'cd ~/icepredict/code && setsid nohup timeout 1500 ~/icepredict/venv/bin/python scripts/carla_demo.py --target-kph 40 --fusion n6npu > ~/icepredict/logs/demo_v3.log 2>&1 < /dev/null &' || true
 sleep 25
 bash "$SP/scripts/n6_bridge_restart.sh" 150 /tmp/n6b_v3.log > /dev/null 2>&1
 say "브리지 연결: $(tail -1 /tmp/n6b_v3.log | cut -c1-80)"
@@ -48,11 +49,18 @@ rsync -az "$DESK":~/icepredict/logs/carla_demo/ "$SP/logs/carla_demo/" 2>/dev/nu
 NEW=$(ls -t "$SP"/logs/carla_demo/demo_*n6npu*.mp4 2>/dev/null | head -1)
 if [ -z "$NEW" ]; then say "새 영상이 없다 — 이전 영상은 그대로 둔다"; exit 0; fi
 say "새 영상: $(basename "$NEW") ($(stat -c %s "$NEW") B)"
-mkdir -p "$SP/logs/carla_demo/_old"
-for f in "$SP"/logs/carla_demo/demo_*.mp4; do
+for f in "$SP"/logs/carla_demo/demo*.mp4; do
   [ "$f" = "$NEW" ] && continue
-  mv "$f" "$SP/logs/carla_demo/_old/" && say "이전 영상 이동: $(basename "$f")"
+  rm -f "$f" && say "이전 영상 삭제: $(basename "$f")"
 done
+rm -rf "$SP/logs/carla_demo/_old"
+# 바탕화면 전달 폴더도 새 영상 하나만 남긴다 (사용자 지시: 새 영상 만들면 이전 영상은 지운다)
+DEST="$SP/icepredict_영상"; mkdir -p "$DEST"
+rm -f "$DEST"/*.mp4   # (find 는 심링크 폴더를 안 따라간다)
+if [ "$(readlink -f "$DEST")" = "$(readlink -f "$SP/logs/carla_demo")" ]; then
+  say "전달: $DEST 는 logs/carla_demo 의 심링크 — 같은 파일 $(basename "$NEW")"
+else
+  cp "$NEW" "$DEST/" && say "전달: $DEST/$(basename "$NEW")"
+fi
 say "남은 영상: $(ls "$SP"/logs/carla_demo/*.mp4 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
-say "(_old/ 는 확인 후 지우면 된다 — 자동 삭제하지 않는다)"
 say "=== 완료 ==="

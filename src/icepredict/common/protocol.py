@@ -45,6 +45,12 @@ class ContextMsg:
     weather: dict = field(default_factory=dict)   # temp, humidity, dew_point, precip ...
     location: dict = field(default_factory=dict)  # lat, lon, feature(bridge/tunnel/none)
     reason: str = ""
+    # 1차(카메라) 방어를 믿을 수 있는 조건인가. 폭우처럼 젖은 노면과 얼음을 못 가르는
+    # 상황에서는 False 가 되고, 그때는 1차를 끄고 2차(IMU)에 맡긴다.
+    # 근거: 빙판이 **없는** 대조군에서도 폭우 주행의 최대 위험도가 0.963 이었다
+    # (`logs/carla_demo/정리/07`, `rain-false-alarm` 기록). 어떤 문턱으로도 못 막는다.
+    primary_trustworthy: bool = True
+    distrust_reason: str = ""
 
 @dataclass
 class InferMsg:

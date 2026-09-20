@@ -17,7 +17,11 @@ new = '''      float p[4];
 #if NPU_OUT_N >= 5
       /* 5번째 출력 = 반사도 로짓 (시그모이드는 모델 밖). 융합 beta(0.45)가 이 신호를 쓴다. */
       float sl = NPU_OUT_SCALE * ((float)q[4] - (float)NPU_OUT_ZP);
-      v.spec = 1.0f / (1.0f + expf(-sl));
+      float sr = 1.0f / (1.0f + expf(-sl));                        /* 물리 반사율 (마름 ~0.09, 얼음 ~0.40) */
+      /* 융합의 spec은 '0~1 위험도'인데 헤드는 물리 반사율을 낸다. 그 구간을 펴는 선형 보정.
+         CARLA 검증셋 실측: 보정 없으면 얼음 발화율 0.716(분류만 0.784보다 낮다), 보정하면 0.845. */
+      v.spec = (sr - NPU_SPEC_LO) / (NPU_SPEC_HI - NPU_SPEC_LO);
+      if (v.spec < 0.0f) v.spec = 0.0f; else if (v.spec > 1.0f) v.spec = 1.0f;
       inf.spec = v.spec;
 #else
       v.spec = -1.0f;                                              /* 반사도 헤드 없음 */

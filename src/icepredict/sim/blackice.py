@@ -42,16 +42,53 @@ def spawn_ice_patch(world, waypoint, length_m=30.0, width_m=6.0, friction=0.02) 
     actor = world.spawn_actor(bp, tf)
     return IcePatch(transform=tf, extent=(length_m / 2, width_m / 2, 3.0), friction=friction, actor=actor)
 
+def _wrap_pi(a: float) -> float:
+    return (a + math.pi) % (2 * math.pi) - math.pi
+
+
+def next_keeping_lane(wp, step: float):
+    """wp 에서 step 만큼 앞의 waypoint 중 **본선을 유지하는** 것 하나.
+
+    CARLA 의 `Waypoint.next()` 는 분기에서 여러 갈래를 모두 돌려주는데 `[0]` 은 순서 보장이 없다.
+    Town04 처럼 나들목이 있는 고속도로에서는 이 때문에 램프로 새어 다른 도로(road_id)로 건너뛴다.
+    실제로 정차 차량이 자차 차로(43/-4)가 아니라 47/-1 에 428 m 떨어져 놓이는 버그가 여기서 났다.
+    고르는 기준은 물리적 사실에 가깝게: 교차로 밖이면 교차로 밖을 먼저, 그다음 진행 방향이 덜 꺾이는 것,
+    같으면 차로 번호가 유지되는 것.
+    """
+    cands = wp.next(step)
+    if not cands:
+        return None
+    same = [w for w in cands if w.road_id == wp.road_id and w.lane_id == wp.lane_id]
+    if same:
+        return same[0]
+    yaw0 = math.radians(wp.transform.rotation.yaw)
+    in_junction = bool(getattr(wp, "is_junction", False))
+
+    def key(w):
+        jpen = 0 if (in_junction or not bool(getattr(w, "is_junction", False))) else 1
+        dyaw = abs(_wrap_pi(math.radians(w.transform.rotation.yaw) - yaw0))
+        return (jpen, round(dyaw, 3), 0 if w.lane_id == wp.lane_id else 1)
+
+    return min(cands, key=key)
+
+
+def follow_lane(wp, distance_m: float, step: float = 2.0):
+    """wp 에서 차로를 따라 distance_m 앞까지 걸어간 waypoint. 끊기면 마지막 지점을 돌려준다."""
+    moved = 0.0
+    while moved < distance_m:
+        s = min(step, distance_m - moved)
+        nxt = next_keeping_lane(wp, max(s, 0.5))
+        if nxt is None:
+            break
+        wp = nxt
+        moved += s
+    return wp
+
+
 def waypoint_ahead(carla_map, vehicle, distance_m: float):
     """차량 현재 차선에서 distance_m 앞의 waypoint (차선 유지)."""
     wp = carla_map.get_waypoint(vehicle.get_location(), project_to_road=True)
-    step, moved = 2.0, 0.0
-    while moved < distance_m:
-        nxt = wp.next(step)
-        if not nxt:
-            break
-        wp = nxt[0]; moved += step
-    return wp
+    return follow_lane(wp, distance_m)
 
 # ---- 2) 카메라 추론 -------------------------------------------------------
 from icepredict.sim.camera import ROI_TOP, ROI_BOTTOM, ROI_LEFT, ROI_RIGHT

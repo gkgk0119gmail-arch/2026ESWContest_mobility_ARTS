@@ -159,7 +159,12 @@ int npu_infer_s8(const int8_t *in, int8_t out[NPU_OUT_N], uint32_t *infer_us)
 {
   if (!s_ready) return -1;
   if (in != s_in) memcpy(s_in, in, NPU_IN_BYTES);
-  SCB_CleanDCache_by_Addr((uint32_t *)((uintptr_t)s_in & ~31u), (int32_t)(NPU_IN_BYTES + 64));   /* NPU가 메모리에서 읽는다 */
+  /* 두 캐시를 모두 손봐야 한다.
+     - CPU D-cache: memcpy 결과가 아직 캐시에만 있으면 NPU가 헌 값을 읽는다
+     - **NPU 캐시**: 이걸 빼먹으면 NPU가 첫 추론 때 채운 라인을 계속 재사용해 입력이 바뀌어도
+       출력이 고정된다. 실제로 보드가 서로 다른 이미지 3장에 자가진단과 똑같은 값을 돌려줬다. */
+  SCB_CleanDCache_by_Addr((uint32_t *)((uintptr_t)s_in & ~31u), (int32_t)(NPU_IN_BYTES + 64));
+  npu_cache_invalidate();
   uint32_t t0 = DWT->CYCCNT;
   LL_ATON_RT_Reset_Network(&NN_Instance_network);
   LL_ATON_RT_RetValues_t st;
@@ -168,7 +173,8 @@ int npu_infer_s8(const int8_t *in, int8_t out[NPU_OUT_N], uint32_t *infer_us)
     if (st == LL_ATON_RT_WFE) LL_ATON_OSAL_WFE();
   } while (st != LL_ATON_RT_DONE);
   uint32_t t1 = DWT->CYCCNT;
-  SCB_InvalidateDCache_by_Addr((uint32_t *)((uintptr_t)s_out & ~31u), 64);                         /* NPU가 쓴 출력을 읽기 전에 */
+  npu_cache_invalidate();                                                                          /* NPU가 쓴 출력을 메모리로 */
+  SCB_InvalidateDCache_by_Addr((uint32_t *)((uintptr_t)s_out & ~31u), 64);                         /* CPU가 헌 캐시를 읽지 않게 */
   memcpy(out, s_out, NPU_OUT_N);
   if (infer_us) *infer_us = (uint32_t)(((uint64_t)(t1 - t0) * 1000000ULL) / SystemCoreClock);
   return 0;

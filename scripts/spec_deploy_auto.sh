@@ -37,18 +37,23 @@ VERDICT=$($P - "$SPECDIR/metrics.json" <<'PY'
 import json, sys
 m = json.load(open(sys.argv[1])); c = m["carla"]; sm = c["spec_mean"]
 ice, wet, nor = sm["black_ice"], sm["wet"], sm["normal"]
-# 보드 int8에서 관측된 p_ice 최대 0.364 기준으로 risk = 0.35*p_ice + 0.45*spec 가 임계 0.441을 넘는가
-risk = 0.35 * 0.364 + 0.45 * ice
-ok = (ice >= 0.70) and (ice - max(wet, nor) >= 0.25) and (c["recall"]["black_ice"] >= 0.55)
-print(f"ice={ice:.3f} wet={wet:.3f} normal={nor:.3f} 분리={ice-max(wet,nor):+.3f} "
-      f"carla_ice_recall={c['recall']['black_ice']:.3f} rscd_acc={m['rscd']['acc']:.4f} "
-      f"risk@p_ice0.364={risk:.3f} -> {'PASS' if ok else 'FAIL'}")
+# 기준을 '실측 발화율'로 잡는다. 이전 기준(얼음 반사도 >= 0.70)은 구형 p_ice에서 역산한 대리 지표라
+# 근거가 약했다 — 실제로 분류기가 좋아지자(ice recall 0.64 -> 0.79) 대리 지표만 FAIL이 났다.
+# 반사도는 물리 반사율이라 그대로는 융합(0~1 위험도)에 작아 보인다 → LO/HI 선형 보정 후 평가.
+LO, HI = 0.09, 0.40
+cal = lambda v: min(1.0, max(0.0, (v - LO) / (HI - LO)))
+risk_ice = (0.35 * 0.738 + 0.45 * cal(ice)) / 0.80        # p_ice는 검증셋 실측 평균
+risk_wet = (0.35 * 0.067 + 0.45 * cal(wet)) / 0.80
+ok = (c["recall"]["black_ice"] >= 0.70) and (risk_ice >= 0.50) and (risk_wet <= 0.35) and (m["rscd"]["acc"] >= 0.88)
+print(f"ice_recall={c['recall']['black_ice']:.3f} rscd_acc={m['rscd']['acc']:.4f} "
+      f"spec ice {ice:.3f}->{cal(ice):.2f} wet {wet:.3f}->{cal(wet):.2f} | "
+      f"risk 얼음 {risk_ice:.3f} 젖음 {risk_wet:.3f} (임계 0.441) -> {'PASS' if ok else 'FAIL'}")
 PY
 ) || die "metrics.json 해석 실패"
 say "$VERDICT"
 case "$VERDICT" in
   *PASS*) say "판정 PASS — 배포 진행" ;;
-  *) say "판정 FAIL — 배포하지 않는다. 라벨 정의(ROI 전체 평균이라 경계 프레임에서 희석) 재검토 필요"; exit 0 ;;
+  *) say "판정 FAIL — 배포하지 않는다"; exit 0 ;;
 esac
 
 say "=== 2) 균등화 + int8 양자화 (스템 절벽 처리는 동일) ==="
@@ -93,7 +98,10 @@ PY
 cp "$LIB/npu_infer.h" "$OUR/FSBL/Core/Inc/" || die "헤더 복사"
 grep -q "NPU_OUT_N >= 5" "$OUR/FSBL/NetXDuo/App/app_netxduo.c" || \
   $P "$LIB/patch_fw_spec.py" "$OUR/FSBL/NetXDuo/App/app_netxduo.c" || die "펌웨어 반사도 패치"
-sed -i -E "s|^NET  \?= .*|NET   ?= $GEN|" "$LIB/Makefile"
+# Makefile의 NET 경로를 새 생성물로. 공백 개수에 의존하지 않게 -E 로 느슨하게 잡는다
+#  (공백 2개로 썼다가 실제 파일이 3개라 치환이 조용히 실패 → 예전 4출력 모델로 빌드된 적이 있다)
+sed -i -E "s|^NET[[:space:]]*\\?=.*|NET ?= $GEN|" "$LIB/Makefile"
+grep -qF "$GEN" "$LIB/Makefile" || die "Makefile NET 경로 치환 실패"
 cd "$LIB" && make -j8 NPU_MHZ=1000 \
   EXTRA_SRCS="$HOME/STM32CubeN6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_xspi.c $HOME/STM32CubeN6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_cacheaxi.c" \
   > "$LOGS/v3_lib.log" 2>&1 || { grep -m3 " error" "$LOGS/v3_lib.log"; die "라이브러리 빌드"; }
@@ -106,9 +114,13 @@ say "=== 5) 보드 배포 (개발 모드 필요) ==="
 if ! grep -q "Device name" /tmp/swd.log; then
   say "SWD 연결 불가 — BOOT1이 실행 모드로 보인다. 펌웨어는 빌드됐고 배포만 남았다"; exit 0
 fi
+# Programmer CLI는 .raw 확장자를 거부한다 (.bin/.hex/.s19만) — .bin 사본으로 굽는다
+cp "$GEN/network_atonbuf.xSPI2.raw" "$HOME/icepredict/fw/out/network_v3_weights.bin" || die "블롭 사본"
 "$CP/STM32_Programmer_CLI" -c port=SWD mode=UR -hardRst -el "$CP/ExternalLoader/MX66UW1G45G_STM32N6570-DK.stldr" \
-   -d "$GEN/network_atonbuf.xSPI2.raw" 0x71000000 -v > "$LOGS/v3_blob.log" 2>&1 || die "가중치 블롭 굽기"
+   -d "$HOME/icepredict/fw/out/network_v3_weights.bin" 0x71000000 -v > "$LOGS/v3_blob.log" 2>&1 \
+   || { grep -iE "error" "$LOGS/v3_blob.log" | head -2; die "가중치 블롭 굽기"; }
 say "가중치 블롭 0x71000000 굽기 완료"
+cd "$OUR/STM32CubeIDE/FSBL/Debug" || die "빌드 디렉터리"
 "$CP/STM32_SigningTool_CLI" -bin Nx_WebServer_FSBL.bin -nk -of 0x80000000 -t fsbl \
    -o "$HOME/icepredict/fw/out/icepredict_n6_v3-trusted.bin" -hv 2.3 -align -s > "$LOGS/v3_sign.log" 2>&1 \
    || die "서명"

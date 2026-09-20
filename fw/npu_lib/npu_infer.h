@@ -10,6 +10,8 @@
 #define NPU_IN_SCALE   0.018658448f
 #define NPU_IN_ZP      (-14)
 #define NPU_OUT_SCALE  0.0294518489f
+#define NPU_SPEC_LO    0.09f   /* 반사도 보정 하한 (마른 아스팔트) */
+#define NPU_SPEC_HI    0.40f   /* 반사도 보정 상한 (강한 빙판) */
 #define NPU_OUT_ZP     (-23)
 int      npu_init(void);                                            /* 0 = OK. XSPI NOR 메모리맵, NPU 클럭/RIF/RISAF, LL_ATON 초기화 */
 int      npu_infer_s8(const int8_t *in, int8_t out[NPU_OUT_N], uint32_t *infer_us);  /* 0 = OK */

@@ -43,7 +43,7 @@ class Kalman2:
 @dataclass
 class SlipEvent:
     t: float
-    trigger: str        # "lat_acc" / "yaw_rate"
+    trigger: str        # "lat_acc" / "yaw_rate" / "combo" (둘 다 임계 아래지만 합쳐서 넘음)
     ay_g: float
     yaw_err: float
 
@@ -52,8 +52,12 @@ class SlipDetector:
     rate_hz: float = 1000.0
     wheelbase_m: float = 2.7
     max_steer_rad: float = math.radians(35)  # steer -1~1 → 조향각
+    v_ch_mps: float = 17.0                    # 특성속도 — 고속 언더스티어 보정 (C 코어 SLIP_V_CH_MPS 와 동일)
     lat_acc_thr_g: float = 0.3
     yaw_err_thr: float = 0.35                 # rad/s
+    # 판정 형태: True = 타원, False = 예전 직사각형(OR). C 코어의 SLIP_RULE_ELLIPSE 와 같이 움직여야 한다.
+    # 35 km/h 빙판에서 ay_g 가 0.287 로 임계 0.300 에 4 % 못 미쳐 3.2 s 를 더 기다린 것을 고친다.
+    ellipse_rule: bool = True
     confirm_samples: int = 5                  # 5ms 연속
     min_speed_mps: float = 2.0
     kf_ay: Kalman2 = field(init=False)
@@ -70,7 +74,7 @@ class SlipDetector:
 
     def expected_yaw(self, speed_mps: float, steer: float) -> float:
         delta = steer * self.max_steer_rad
-        return speed_mps * math.tan(delta) / self.wheelbase_m
+        return speed_mps * math.tan(delta) / self.wheelbase_m / (1.0 + (speed_mps / self.v_ch_mps) ** 2)
 
     def reset(self):
         self._hits = 0
@@ -88,14 +92,19 @@ class SlipDetector:
         yaw_err = yaw_f - yaw_exp
         lat_hit = abs(ay_g) >= self.lat_acc_thr_g
         yaw_hit = abs(yaw_err) >= self.yaw_err_thr
-        if lat_hit or yaw_hit:
+        if self.ellipse_rule:
+            hit = (ay_g / self.lat_acc_thr_g) ** 2 + (yaw_err / self.yaw_err_thr) ** 2 >= 1.0
+        else:
+            hit = lat_hit or yaw_hit
+        if hit:
             self._hits += 1
         else:
             self._hits = 0
             self._armed = True
         if self._hits >= self.confirm_samples and self._armed:
             self._armed = False   # 한 번 확정하면 정상 복귀 전까지 재발화 금지
-            return SlipEvent(t=t, trigger="lat_acc" if lat_hit else "yaw_rate", ay_g=ay_g, yaw_err=yaw_err)
+            trig = "lat_acc" if lat_hit else ("yaw_rate" if yaw_hit else "combo")
+            return SlipEvent(t=t, trigger=trig, ay_g=ay_g, yaw_err=yaw_err)
         return None
 
 def emergency_command(ev: SlipEvent) -> dict:

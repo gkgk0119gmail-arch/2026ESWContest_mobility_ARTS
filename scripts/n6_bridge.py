@@ -28,6 +28,11 @@ CTX_FMT, INFER_FMT, VD_FMT = "<I5f", "<I6f", "<IfBBHI"
 VD_SZ = struct.calcsize(VD_FMT)
 # NPU 프레임 경로 (보드 UDP 5559): 청크 <IHHHH + payload, 응답 <I4ffBBHII. 펌웨어 app_netxduo.c와 일치.
 FR_HDR, FR_VD, FR_CHUNK, FR_BYTES = "<IHHHH", "<I4fffBBHII", 1400, 150528   # 응답에 spec 추가
+# 2차 방어(IMU 미끄러짐 감지) 경로 (보드 UDP 5557, 32B): 펌웨어 patch_fw_slip.py 의 ip_imu_t / ip_slip_t 와 일치
+# v3: 60B 요청(차선 오차·주변 차 간격·종가속·제동 명령 포함) / 28B 응답(emerg, mode 포함) — 펌웨어 patch_fw_slip.py 와 일치
+IMU_FMT, SLIP_FMT = "<I15fI", "<IBBBBffIff"     # v7: 68B (ice_lane_off, front_rel_v 추가)
+IMU_MAGIC, IMU_RESET = 0x31554D49, 0x30554D49        # 'IMU1' / 'IMU0'
+SLIP_SZ = struct.calcsize(SLIP_FMT)
 NAN = float("nan")
 
 ap = argparse.ArgumentParser()
@@ -51,7 +56,8 @@ rep.connect(endpoint)     # 데스크탑이 bind, 우리가 connect (차단 방�
 print(f"[bridge] ZMQ REP → {endpoint}   보드 UDP → {a.board}:{a.board_port}", flush=True)
 
 seq = 0
-stats = {"infer": 0, "ctx": 0, "timeout": 0, "board_ns_sum": 0, "frame": 0, "frame_timeout": 0, "npu_us_sum": 0}
+stats = {"infer": 0, "ctx": 0, "timeout": 0, "board_ns_sum": 0, "frame": 0, "frame_timeout": 0, "npu_us_sum": 0,
+         "imu": 0, "imu_timeout": 0, "imu_ns_sum": 0, "slip": 0}
 fr_id = 0
 udp_f = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); udp_f.settimeout(2.0)
 
@@ -92,6 +98,27 @@ def board_infer(p, spec, lane):
         return None
     _s, risk, alarm, level, _pad, lat = struct.unpack(VD_FMT, data)
     return {"risk": risk, "alarm": bool(alarm), "level": level, "board_ns": lat}
+
+MODE_NAME = {0: "none", 1: "lane_keep", 2: "evade_left", 3: "evade_right", 4: "hard_stop", 5: "stopped"}
+def board_imu(ay, gz, speed, steer, dt, min_speed, reset=False, lane_err=0.0, lat_off=0.0,
+              gap_front=999.0, gap_left=999.0, gap_right=999.0, ax=0.0, brake_cmd=0.0, ice_lane_off=0.0, front_rel_v=0.0):
+    """IMU 한 샘플(+차선 오차·주변 차 간격)을 보드에 보내 미끄러짐 판정과 비상 제어 명령을 받는다. 실패 시 None."""
+    global seq
+    seq += 1
+    udp.sendto(struct.pack(IMU_FMT, seq, float(ay), float(gz), float(speed), float(steer), float(dt), float(min_speed),
+                           float(lane_err), float(lat_off), float(gap_front), float(gap_left), float(gap_right),
+                           float(ax), float(brake_cmd), float(ice_lane_off), float(front_rel_v), IMU_RESET if reset else IMU_MAGIC), board)
+    try:
+        data, _ = udp.recvfrom(64)
+    except socket.timeout:
+        return None
+    if len(data) != SLIP_SZ:
+        return None
+    s_, slip, trig, emerg, mode, ay_g, yaw_err, lat, brake, steer_cmd = struct.unpack(SLIP_FMT, data)
+    if s_ != seq:
+        return None
+    return {"slip": bool(slip), "trigger": {1: "lat_acc", 2: "yaw_rate", 3: "low_mu"}.get(trig, "none"), "ay_g": ay_g, "yaw_err": yaw_err,
+            "latency_ns": lat, "brake": brake, "steer": steer_cmd, "emerg": bool(emerg), "mode": MODE_NAME.get(mode, str(mode))}
 
 def board_ctx(threshold, alpha, beta, gamma, hysteresis=0.1):
     global seq
@@ -135,6 +162,23 @@ try:
                 r["ok"] = True
                 rep.send_json(r)
 
+        elif kind in ("imu", "imu_reset"):
+            r = board_imu(msg.get("ay", 0.0), msg.get("gz", 0.0), msg.get("speed", 0.0), msg.get("steer", 0.0),
+                          msg.get("dt", 0.02), msg.get("min_speed", 0.0), reset=(kind == "imu_reset"),
+                          lane_err=msg.get("lane_err", 0.0), lat_off=msg.get("lat_off", 0.0),
+                          gap_front=msg.get("gap_front", 999.0), gap_left=msg.get("gap_left", 999.0), gap_right=msg.get("gap_right", 999.0),
+                          ax=msg.get("ax", 0.0), brake_cmd=msg.get("brake_cmd", 0.0),
+                          ice_lane_off=msg.get("ice_lane_off", 0.0), front_rel_v=msg.get("front_rel_v", 0.0))
+            if r is None:
+                stats["imu_timeout"] += 1
+                rep.send_json({"ok": False, "error": "board imu timeout/len (펌웨어에 slip 경로가 없을 수 있다)"})
+            else:
+                stats["imu"] += 1; stats["imu_ns_sum"] += r["latency_ns"]; stats["slip"] += int(r["slip"])
+                if r["slip"]:
+                    print(f"[bridge] 보드 SLIP ({r['trigger']}) ay_g={r['ay_g']:.2f} yaw_err={r['yaw_err']:.2f} "
+                          f"→ mode {r['mode']} brake {r['brake']:.2f} steer {r['steer']:+.3f} ({r['latency_ns']/1000:.1f}us)", flush=True)
+                r["ok"] = True; rep.send_json(r)
+
         elif kind == "ping":
             rep.send_json({"ok": True, "board": a.board})
 
@@ -149,5 +193,6 @@ finally:
     el = time.time() - t0
     n = max(stats["infer"], 1); nf = max(stats["frame"], 1)
     print(f"\n[bridge] 종료 — infer {stats['infer']}건, ctx {stats['ctx']}건, 타임아웃 {stats['timeout']}건, 보드 평균 {stats['board_ns_sum']/n/1000:.2f}us | "
-          f"NPU 프레임 {stats['frame']}건, 실패 {stats['frame_timeout']}건, NPU 평균 {stats['npu_us_sum']/nf/1000:.1f}ms | {el:.1f}초", flush=True)
+          f"NPU 프레임 {stats['frame']}건, 실패 {stats['frame_timeout']}건, NPU 평균 {stats['npu_us_sum']/nf/1000:.1f}ms | "
+          f"IMU {stats['imu']}건(미끄러짐 {stats['slip']}건), 실패 {stats['imu_timeout']}건, 보드 평균 {stats['imu_ns_sum']/max(stats['imu'],1)/1000:.1f}us | {el:.1f}초", flush=True)
     rep.close(0); ctx.term()

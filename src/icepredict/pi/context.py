@@ -73,9 +73,38 @@ def freezing_prior(w: WeatherObs, loc: LocationCtx) -> tuple[float, str]:
         prior = min(prior, 0.05)
     return min(1.0, max(0.0, prior)), ", ".join(reasons)
 
-def threshold_from_prior(prior: float, hi: float = 0.7, lo: float = 0.4) -> float:
-    """prior 0 → hi(0.7), prior 1 → lo(0.4). 계획서: 위험도 0.92 → 임계값 0.4 부근."""
-    return hi - (hi - lo) * prior
+# 실사진 25,140 장(STM32N6 인-더-루프, `logs/rscd_board_samples.jsonl`)으로 교정한 문턱 구간.
+#
+# 왜 바꿨나: 예전 값은 hi=0.7 / lo=0.4 였다. 결빙 가능성이 높을수록 문턱을 낮춘다는 설계 자체는
+# 맞지만, 낮추는 **바닥**이 근거 없이 0.4 였다. 실측 결과 위험도 분포에는 절벽이 있다 —
+#
+#   문턱 0.560 → 얼음 97.3 %, 최악 오경보 60.3 %
+#   문턱 0.570 → 얼음 97.2 %, 최악 오경보  6.8 %     ← 여기서 한 번에 떨어진다
+#   문턱 0.600 → 얼음 96.8 %, 최악 오경보  1.9 %
+#
+# 즉 0.57 아래로 내려가면 얼음 탐지는 거의 안 늘면서 오경보만 폭증한다. 그런데 예전 map 은
+# 결빙 prior 가 높을 때(데모 기본 0.863) 문턱을 0.441 로 — **절벽 아래로** 내리고 있었다.
+# 그것이 대조군 주행에서 관측된 40 % 오경보의 직접 원인이다.
+#
+# 새 구간: lo 를 절벽 위(0.58)로 올리고 hi 는 0.75 로 둔다. 그러면
+#   prior 0.000(결빙 불가)  → 0.750  최악 오경보 0.7 %
+#   prior 0.863(데모 기본)  → 0.603  최악 오경보 1.9 %   ← 실측 권고 운영점과 일치
+#   prior 0.956(영하 폭우)  → 0.588  최악 오경보 2.5 %
+# 어느 경우에도 절벽 아래로 내려가지 않는다.
+#
+# 이 값은 `ctx` 메시지로 주행 중 보드에 내려가므로 **펌웨어를 다시 굽지 않아도 된다.**
+THRESHOLD_HI = 0.75      # 결빙 가능성 0 — 가장 보수적
+THRESHOLD_LO = 0.58      # 결빙 가능성 1 — 가장 허용적이되 절벽(0.57) 위
+THRESHOLD_CLIFF = 0.57   # 이 아래로는 오경보가 한 자릿수 → 60 % 로 튄다 (실측)
+
+
+def threshold_from_prior(prior: float, hi: float = THRESHOLD_HI, lo: float = THRESHOLD_LO) -> float:
+    """결빙 prior 0 → hi, 1 → lo 로 선형 보간. 실측 절벽 아래로는 내려가지 않는다.
+
+    구간 근거는 위 주석과 `logs/carla_demo/정리/05_실사진_대규모평가.md` 참조.
+    """
+    th = hi - (hi - lo) * max(0.0, min(1.0, prior))
+    return max(th, THRESHOLD_CLIFF)
 
 def weights_from_context(loc: LocationCtx, w: WeatherObs) -> Weights:
     night = loc.hour >= 19 or loc.hour < 6
@@ -87,9 +116,26 @@ def weights_from_context(loc: LocationCtx, w: WeatherObs) -> Weights:
         return Weights(alpha=0.55, beta=0.15, gamma=0.30)
     return Weights(alpha=0.5, beta=0.3, gamma=0.2)
 
+# 이 강수량을 넘으면 카메라(1차)를 믿지 않는다. 젖은 노면의 반사가 얼음과 구분되지 않기 때문이다.
+# 근거: 빙판이 없는 대조군에서 폭우 주행의 최대 위험도 0.963, 젖은노면+교통 0.727 —
+# 문턱·연속프레임·가중치 재조정 어느 것으로도 막지 못했다 (`정리/07`, `06`).
+# 5 mm/h 는 '강한 비'의 통상 기준이고, 그 이하(약한 비·젖은 노면)는 문턱 교정으로 충분했다.
+PRECIP_DISTRUST_MM = 5.0
+
+
+def primary_trust(w: WeatherObs) -> tuple[bool, str]:
+    """1차 방어를 믿을 수 있는 기상인가. (믿어도 되나, 이유)"""
+    if w.precip_mm >= PRECIP_DISTRUST_MM:
+        return False, f"강수 {w.precip_mm:.1f} mm/h ≥ {PRECIP_DISTRUST_MM:.0f} — 젖은 노면과 얼음 구분 불가"
+    return True, ""
+
+
 def build_context(w: WeatherObs, loc: LocationCtx) -> ContextMsg:
     prior, reason = freezing_prior(w, loc)
+    trust, why = primary_trust(w)
     return ContextMsg(
+        primary_trustworthy=trust,
+        distrust_reason=why,
         risk_prior=round(prior, 3),
         threshold=round(threshold_from_prior(prior), 3),
         weights=weights_from_context(loc, w),

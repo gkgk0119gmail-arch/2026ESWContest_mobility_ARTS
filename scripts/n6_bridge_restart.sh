@@ -12,7 +12,8 @@ if [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF")" 2>/dev/null; then
   sleep 2
 fi
 cd /mnt/ssd/icepredict
-nohup timeout 1200 python3 scripts/n6_bridge.py --gap-us "$GAP" > "$LOG" 2>&1 &
+DESKTOP=${3:-165.132.135.77}      # CARLA 데모를 돌리는 기계 (3090 .77 / 5090 .75)
+nohup timeout 1200 python3 scripts/n6_bridge.py --gap-us "$GAP" --desktop "$DESKTOP" > "$LOG" 2>&1 &
 echo $! > "$PIDF"
 sleep 12
 cat "$LOG"
