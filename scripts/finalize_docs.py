@@ -28,7 +28,8 @@ MAP = ROOT / "docs/presentation_evidence_map.md"
 REGEN = ["summarize_runs", "analyze_detection", "rscd_breakdown", "spec_head_transfer",
          "imu_noise_tolerance", "schedulability", "slip_rule_compare", "variation_report",
          "rule_ab_report", "slip_onset_analysis", "yawlag_report", "ctx_temp_report",
-         "rule_boundary_figure", "latency_figure", "board_verdict_figures", "schedule_figure"]
+         "rule_boundary_figure", "latency_figure", "board_verdict_figures", "schedule_figure",
+         "story_figure"]
 
 
 def photo_stats():
