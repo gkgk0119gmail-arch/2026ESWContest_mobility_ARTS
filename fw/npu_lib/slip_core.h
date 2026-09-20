@@ -40,6 +40,14 @@ static inline float kf2_step(kf2_t *k, float z)
 #define SLIP_V_CH_MPS      17.0f         /* 특성속도: 고속에서 언더스티어로 실제 yaw rate 가 운동학값보다 작다 (1/(1+(v/v_ch)²) 보정).
                                             60 km/h 곡선에서 운동학 모델만 쓰면 잔차 0.3 g 로 오탐이 났다. 값은 주행 로그로 보정한다. */
 #define SLIP_MAX_STEER_RAD 0.61086524f   /* 35° : CARLA steer(-1~1) → 조향각 */
+/* 자전거 모델은 조향에 차량이 **즉시** 반응한다고 가정한다. 실제로는 타이어·관성 때문에
+   요 응답이 뒤따라온다. 빙판 없는 대조군 50 km/h 주행에서 조향이 80 ms 만에 0.07 → 0.66 으로
+   튀자 모델은 yaw 1.02 rad/s 를 기대했는데 실제는 0.35 였고, 그 지연이 잔차로 잡혀
+   **2차 방어가 정상 노면에서 발화했다**. 미끄러진 게 아니라 아직 안 돌아간 것뿐이다.
+   그래서 기대 yaw 를 1차 지연으로 통과시켜 차량의 실제 응답 속도에 맞춘다.
+   0.06 s 는 실측으로 고른 값이다 (대조군 5주행 여유 0.59, 빙판 탐지 지연 +0.02~0.56 s).
+   더 키우면 여유가 줄고 탐지가 느려진다 — 0.08 부터 35 km/h 가 4.56 → 5.06 s 로 뛴다. */
+#define SLIP_YAWEXP_TAU_S  0.06f
 #define SLIP_LAT_THR_G     0.3f
 #define SLIP_YAW_THR       0.35f
 #define SLIP_LOWMU_BRAKE   0.3f          /* 이 이상 제동 중인데 */
@@ -73,6 +81,7 @@ typedef struct {
   int hits, armed, confirm; float dt, min_speed; int ready;
   int brake_n, lowmu_hits;
   int emerg; uint32_t n_emerg; uint8_t mode; float lat_shift;   /* lat_shift: 회피 시 차선 중심 목표 이동(m) */
+  float ye; int ye_init;                                         /* 기대 yaw 의 1차 지연 상태 */
   int grip_n, grip;                                              /* 접지 회복: 제동 중 감속이 살아난 샘플 수 / 플래그 */
 } slipdet_t;
 
@@ -85,6 +94,7 @@ static inline void slip_reset(slipdet_t *d, float dt, int confirm, float min_spe
   d->dt = dt; d->min_speed = min_speed_mps > 0.f ? min_speed_mps : 2.0f; d->ready = 1;
   d->emerg = 0; d->n_emerg = 0; d->mode = SLIP_MODE_NONE; d->lat_shift = 0.f; d->brake_n = 0; d->lowmu_hits = 0;
   d->grip_n = 0; d->grip = 0;
+  d->ye = 0.f; d->ye_init = 0;
 }
 
 /* 한 샘플 처리. 확정 시 1을 돌려주고 trig/ay_g/yaw_err 를 채운다. (ax, brake_cmd 는 저마찰 감지용; 없으면 0) */
@@ -95,7 +105,11 @@ static inline int slip_step2(slipdet_t *d, float ay, float gz, float speed, floa
   *trig = 0u; *ay_g_out = 0.f; *yaw_err_out = 0.f;
   if (speed < d->min_speed) { d->hits = 0; return 0; }
   float delta = steer * SLIP_MAX_STEER_RAD;
-  float yaw_exp = speed * tanf(delta) / SLIP_WHEELBASE_M / (1.f + (speed / SLIP_V_CH_MPS) * (speed / SLIP_V_CH_MPS));
+  float yaw_raw = speed * tanf(delta) / SLIP_WHEELBASE_M / (1.f + (speed / SLIP_V_CH_MPS) * (speed / SLIP_V_CH_MPS));
+  /* 차량 요 응답 지연 보정 — 급조향 순간의 모델 오차를 미끄러짐으로 오인하지 않게 한다 */
+  if (!d->ye_init) { d->ye = yaw_raw; d->ye_init = 1; }
+  else { float k = d->dt / (SLIP_YAWEXP_TAU_S + d->dt); d->ye += k * (yaw_raw - d->ye); }
+  float yaw_exp = d->ye;
   float ay_g = (ay_f - speed * yaw_exp) / SLIP_G;      /* 조향으로 설명되는 원심가속도 제거 → 잔차 */
   float yaw_err = yaw_f - yaw_exp;
   *ay_g_out = ay_g; *yaw_err_out = yaw_err;

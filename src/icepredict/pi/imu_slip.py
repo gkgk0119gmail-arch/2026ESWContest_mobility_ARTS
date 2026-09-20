@@ -53,6 +53,10 @@ class SlipDetector:
     wheelbase_m: float = 2.7
     max_steer_rad: float = math.radians(35)  # steer -1~1 → 조향각
     v_ch_mps: float = 17.0                    # 특성속도 — 고속 언더스티어 보정 (C 코어 SLIP_V_CH_MPS 와 동일)
+    # 자전거 모델은 조향에 차량이 즉시 반응한다고 가정한다. 실제로는 요 응답이 뒤따라온다.
+    # 보정하지 않으면 급조향 순간의 모델 오차가 미끄러짐으로 잡힌다 — 대조군 50 km/h 에서
+    # 실제로 2차 방어가 정상 노면에서 발화했다. 0.06 s 는 실측으로 고른 값이다.
+    yaw_lag_s: float = 0.06                   # C 코어 SLIP_YAWEXP_TAU_S 와 같이 움직여야 한다
     lat_acc_thr_g: float = 0.3
     yaw_err_thr: float = 0.35                 # rad/s
     # 판정 형태: True = 타원, False = 예전 직사각형(OR). C 코어의 SLIP_RULE_ELLIPSE 와 같이 움직여야 한다.
@@ -64,6 +68,8 @@ class SlipDetector:
     kf_yaw: Kalman2 = field(init=False)
     _hits: int = 0
     _armed: bool = True
+    _ye: float = 0.0
+    _ye_init: bool = False
 
     def __post_init__(self):
         dt = 1.0 / self.rate_hz
@@ -79,6 +85,8 @@ class SlipDetector:
     def reset(self):
         self._hits = 0
         self._armed = True
+        self._ye = 0.0
+        self._ye_init = False
 
     def step(self, t: float, ay: float, gz: float, speed_mps: float, steer: float) -> SlipEvent | None:
         """ay: 측면 가속도(m/s²), gz: yaw rate(rad/s). 정상 코너링 성분을 뺀 잔차로 판정. 확정 시 SlipEvent 반환."""
@@ -87,7 +95,14 @@ class SlipDetector:
         if speed_mps < self.min_speed_mps:
             self._hits = 0
             return None
-        yaw_exp = self.expected_yaw(speed_mps, steer)
+        yaw_raw = self.expected_yaw(speed_mps, steer)
+        # 차량 요 응답 지연 보정 — 급조향 순간의 모델 오차를 미끄러짐으로 오인하지 않게 한다
+        if not self._ye_init:
+            self._ye, self._ye_init = yaw_raw, True
+        else:
+            dt = 1.0 / self.rate_hz
+            self._ye += (dt / (self.yaw_lag_s + dt)) * (yaw_raw - self._ye)
+        yaw_exp = self._ye
         ay_g = (ay_f - speed_mps * yaw_exp) / G      # 조향으로 설명되는 원심가속도 제거 → 잔차
         yaw_err = yaw_f - yaw_exp
         lat_hit = abs(ay_g) >= self.lat_acc_thr_g
