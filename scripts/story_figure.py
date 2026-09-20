@@ -49,7 +49,14 @@ def load(tag):
 
 
 def pick():
-    """1차가 잡은 주행 하나, 1차를 끄고 2차가 받은 주행 하나를 고른다."""
+    """1차가 잡은 주행 하나, 1차를 끄고 2차가 받은 주행 하나를 고른다.
+
+    이 그림 전용으로 찍은 주행(story_primary / story_secondary)이 있으면 그것을 쓴다.
+    없으면 조건에 맞는 아무 주행이나 고른다.
+    """
+    a, b = load("story_primary"), load("story_secondary")
+    if a and b:
+        return a, b
     left = right = None
     for f in sorted(DEMO.glob("events_*.json")):
         tag = f.name[7:-5]
@@ -102,10 +109,11 @@ def panel(axr, axs, d, title, th):
         label, color = st
         for ax in (axr, axs):
             ax.axvline(e["t"], color=color, lw=1.3, ls=":")
-        y = (0.96, 0.88, 0.80)[lane % 3]
+        # 위험도 축은 경보가 나면 위쪽이 곡선으로 차 버린다. 이름은 속도 축 위에 적는다.
+        y = (0.94, 0.84, 0.74)[lane % 3]
         lane += 1
-        axr.text(e["t"], y, " " + label, color=color, fontsize=10,
-                 ha="left", va="top", transform=axr.get_xaxis_transform())
+        axs.text(e["t"], y, " " + label, color=color, fontsize=10,
+                 ha="left", va="top", transform=axs.get_xaxis_transform())
 
     # 1차가 잡은 주행은 빙판에 들어가지 않는다 — 그래서 하늘색 띠가 없다. 그 대신 거리로 말한다.
     pw = next((e for e in d["events"] if e["event"] == "primary_warning"), None)
