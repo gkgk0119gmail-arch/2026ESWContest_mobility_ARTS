@@ -150,6 +150,17 @@ def main():
             s = re.sub(r"\*\*유휴에서도 최대 [\d.]+ ms\*\* 늦게 깨어남 = 제어 주기의 \d+ %",
                        f"**유휴에서도 최대 {lin/1000:.1f} ms** 늦게 깨어남 = "
                        f"제어 주기의 {100*lin/20000:.0f} %", s)
+        try:
+            rows = [json.loads(l) for l in open(ROOT / "logs/board_wcet.jsonl") if l.strip()]
+            busy = [r["avg_us"] for r in rows if r.get("npu_busy")]
+            idle = [r["avg_us"] for r in rows if not r.get("npu_busy")]
+            if busy and idle:
+                bi, ii = sum(busy)/len(busy), sum(idle)/len(idle)
+                s = re.sub(r"NPU 가 25\.5 ms 추론 중에도 2차 응답 [\d.]+ → \*\*[\d.]+ µs\*\* \(\+[\d.]+ µs\)",
+                           f"NPU 가 25.5 ms 추론 중에도 2차 응답 {ii:.1f} → **{bi:.1f} µs** "
+                           f"(+{bi-ii:.1f} µs)", s)
+        except Exception:
+            pass
         if wc:
             s = re.sub(r"깨어남·연산·응답 합쳐 \*\*[\d.]+ µs\*\*, 주기의 [\d.]+ %\. [\d,]+ 샘플",
                        f"깨어남·연산·응답 합쳐 **{wc['max_us']:.1f} µs**, "
