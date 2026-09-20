@@ -39,7 +39,7 @@ def read_ns(p):
 
 
 def board_samples():
-    """HIL 주행에서 표본별로 남은 보드 응답 (µs)."""
+    """HIL 주행에서 표본별로 남은 보드 응답 (us)."""
     out = []
     for f in sorted(glob.glob(str(ROOT / "logs/carla_demo/slip_latency_*.json"))):
         try:
@@ -136,7 +136,8 @@ def timeline_fig():
     bs = board_samples()
     if not bs:
         return None
-    bs.sort(key=lambda r: -len(r[2]))
+    # 1차 NPU 가 실제로 돌던 주행을 먼저 고른다 — RTOS 논거가 가장 잘 보이는 조건이다
+    bs.sort(key=lambda r: (not r[1], -len(r[2])))
     tag, busy, t, us = bs[0]
 
     fig, ax = plt.subplots(figsize=(11.0, 4.4), dpi=150)
@@ -146,9 +147,30 @@ def timeline_fig():
     ax.axhline(float(us.max()), color="#D64550", ls=":", lw=1.4,
                label=f"최악 {us.max():.1f} us")
     ax.set_xlabel("주행 시각 (s)", fontsize=12)
-    ax.set_ylabel("2차 방어 전체 응답 (µs)", fontsize=12)
+    ax.set_ylabel("2차 방어 전체 응답 (us)", fontsize=12)
     ax.set_title(f"보드 응답은 주행 내내 평평하다 — {tag}  ({len(us):,} 표본"
                  + (", 1차 NPU 동시 가동)" if busy else ", 1차 끔)"), fontsize=14)
+    # 계단 변화 찾기 — 1차가 멈추면(정지·게이트) NPU 경합이 사라져 응답이 뚝 떨어진다.
+    # 같은 주행 안에서 선점 비용이 그대로 드러나는 장면이라 놓치면 아깝다.
+    if len(us) > 60:
+        # 전역 중앙값을 쓰면 계단 위치가 뒤로 밀린다. **국소** 창으로 찾는다.
+        k = 25
+        best = None
+        for i in range(k, len(us) - k):
+            d_ = float(np.median(us[i - k:i])) - float(np.median(us[i:i + k]))
+            if best is None or d_ > best[0]:
+                best = (d_, i)
+        if best and best[0] > 0.8:                  # 잡음이 아니라 계단이라고 볼 만한 크기
+            i = best[1]
+            a_, b_ = float(np.median(us[:i])), float(np.median(us[i:]))
+            ax.axvline(float(t[i]), color="#8E7CC3", lw=1.2, ls="-.")
+            ax.annotate(f"여기서 1차가 멈췄다\nNPU 경합 있을 때 {a_:.1f} us → 없을 때 {b_:.1f} us\n"
+                        f"선점 비용 {a_-b_:.1f} us (선점이 없었다면 25,500 us)",
+                        xy=(float(t[i]), b_), xytext=(float(t[i]) + (t[-1] - t[0]) * 0.03,
+                                                      max(25.0, float(us.max()) * 1.35) * 0.72),
+                        fontsize=10.5, color="#5B4A93",
+                        arrowprops=dict(arrowstyle="->", color="#8E7CC3", lw=1.2))
+
     ax.set_ylim(0, max(25.0, float(us.max()) * 1.35))
     ax.grid(alpha=0.22)
     for sp in ("top", "right"):
