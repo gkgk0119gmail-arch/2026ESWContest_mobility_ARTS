@@ -73,7 +73,17 @@ def main():
             continue
         i0 = int(np.argmax(d["inside"].astype(int) > 0))
         A, Y = residuals(d)
-        runs.append((int(m.group(1)), A[i0:], Y[i0:]))
+        # 확정 **이후**는 그리지 않는다. 비상 제어가 급제동·카운터스티어를 걸어 잔차가
+        # ±3 g 까지 튀는데, 그건 감지 이야기가 아니고 그림을 다 덮어 버린다.
+        rad = np.hypot(A / LAT, Y / YAW)
+        stop = len(A)
+        c = 0
+        for i in range(i0, len(A)):
+            c = c + 1 if rad[i] >= 1.0 else 0
+            if c >= 5:
+                stop = min(len(A), i + 6)     # 확정 순간이 보이게 조금만 더
+                break
+        runs.append((int(m.group(1)), A[i0:stop], Y[i0:stop]))
     if not runs:
         print("dyn_k*.csv 가 없다. scripts/speed_dyn_sweep.sh 를 먼저 돌릴 것.")
         return
@@ -110,8 +120,8 @@ def main():
     ax.set_xlabel("횡가속도 잔차  ay_g  (g)", fontsize=12)
     ax.set_ylabel("yaw rate 잔차  yaw_err  (rad/s)", fontsize=12)
     ax.set_title("2차 방어 판정 경계 — 사각형에서 타원으로", fontsize=15)
-    lim_x = max(0.45, float(max(np.abs(A).max() for _, A, _ in runs)) * 1.1)
-    lim_y = max(0.50, float(max(np.abs(Y).max() for _, _, Y in runs)) * 1.1)
+    lim_x = min(0.95, max(0.45, float(max(np.abs(A).max() for _, A, _ in runs)) * 1.15))
+    lim_y = min(1.05, max(0.50, float(max(np.abs(Y).max() for _, _, Y in runs)) * 1.15))
     ax.set_xlim(-lim_x, lim_x)
     ax.set_ylim(-lim_y, lim_y)
     ax.grid(alpha=0.2)
@@ -122,7 +132,8 @@ def main():
     ax.text(0.02, 0.02,
             "점선 사각형 = 기존 판정 (한 축이라도 넘어야 발화)\n"
             "붉은 타원 = 바뀐 판정 (두 축을 합쳐 본다)\n"
-            "점이 클수록 나중 시각 · 빙판 진입 이후만 그렸다",
+            "점이 클수록 나중 시각 · 빙판 진입부터 확정까지만 그렸다\n"
+            "(확정 뒤에는 비상 제어가 걸려 잔차가 3 g 까지 튄다 — 감지 이야기가 아니다)",
             transform=ax.transAxes, fontsize=9.5, color="#555", va="bottom")
     fig.tight_layout()
     FIG.mkdir(parents=True, exist_ok=True)
