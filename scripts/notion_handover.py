@@ -47,8 +47,25 @@ def api(tok, path, method="GET", body=None):
 
 
 def rt(s, bold=False, code=False):
-    return [{"type": "text", "text": {"content": s[:1900]},
-             "annotations": {"bold": bold, "code": code}}]
+    """`**굵게**` 와 `` `코드` `` 를 노션 서식으로 바꿔 준다.
+
+    그냥 문자열로 넘기면 별표와 백틱이 화면에 그대로 찍힌다. 팀이 읽을 문서에서
+    `**중요**` 가 별표째 보이면 읽기 싫어진다. 그래서 여기서 한 번 해석한다.
+    """
+    import re as _re
+    parts, out = _re.split(r"(\*\*[^*]+\*\*|`[^`]+`)", s[:1900]), []
+    for seg in parts:
+        if not seg:
+            continue
+        b, c = bold, code
+        if seg.startswith("**") and seg.endswith("**") and len(seg) > 4:
+            seg, b = seg[2:-2], True
+        elif seg.startswith("`") and seg.endswith("`") and len(seg) > 2:
+            seg, c = seg[1:-1], True
+        out.append({"type": "text", "text": {"content": seg},
+                    "annotations": {"bold": b, "code": c}})
+    return out or [{"type": "text", "text": {"content": ""},
+                    "annotations": {"bold": bold, "code": code}}]
 
 
 def para(s=""):
@@ -127,6 +144,17 @@ def facts() -> dict:
         f["npu_max_ms"] = float(us.max()) / 1000
         f["npu_spread_pct"] = 100 * float(us.max() - us.min()) / float(us.mean())
         f["risk"] = risk; f["y"] = y
+        # 젖음과 얼음이 실사진에서 얼마나 갈리나 — 표본이 늘면 이 값도 따라가야 한다
+        ice, wet = risk[y == 2], risk[y == 1]
+        if len(ice) and len(wet):
+            from itertools import product as _pr  # noqa: F401
+            order = np.argsort(np.concatenate([ice, wet]))
+            ranks = np.empty(len(order)); ranks[order] = np.arange(1, len(order) + 1)
+            f["auc_ice_wet"] = float((ranks[:len(ice)].sum() - len(ice) * (len(ice) + 1) / 2)
+                                     / (len(ice) * len(wet)))
+        th = f.get("th_demo", 0.60)
+        if len(wet):
+            f["wet_fa"] = float((wet >= th).mean())
     except Exception:
         pass
     # 운영 문턱
@@ -313,10 +341,10 @@ def build(f: dict) -> list[dict]:
         "② \"리눅스로는 불가능하다\" — PREEMPT_RT 로 가능하다. **복잡도** 논거로 말해야 한다.", "🚨"))
 
     # ── 5. 1차 방어 3층
-    B.append(head(1, "5. 1차 방어가 오경보를 막는 3층 구조"))
+    B.append(head(1, "5. 1차 방어가 오경보를 막는 4층 구조"))
     B.append(para(
         "오경보를 한 가지 방법으로 막으려다 실패한 기록이 그대로 설계가 됐다. "
-        "세 층이 각각 **다른 종류의 실패**를 막는다."))
+        "네 층이 각각 **다른 종류의 실패**를 막는다."))
     B.append(table([
         ["층", "무엇을 막나", "값", "어떻게 정했나"],
         ["① 문턱", "위험도가 애매한 구간",
@@ -332,6 +360,13 @@ def build(f: dict) -> list[dict]:
          "최악 노면 온도가 0 °C 초과",
          "젖은 노면을 얼음이라 단언(0.87)한 사례. 문턱·프레임·가중치 전부 못 막았다"],
     ]))
+    B.append(callout(
+        "③ 이 제일 중요하다. 폭우에서는 1차가 스스로 \"지금은 못 본다\" 고 선언하고 2차에 맡긴다. "
+        "못 막을 경보를 내는 것보다 낫고, 이중 방어 구조의 존재 이유를 그대로 보여준다.", "🎯"))
+    B.append(codeblk(
+        "[ctx] 실제 날씨 반영: 강수 21.8 mm/h, 태양고도 45도 → 시각 13시\n"
+        "[ctx] 1차 방어 신뢰 불가 → 끄고 2차에 맡긴다: 강수 21.8 mm/h ≥ 5 — 젖은 노면과 얼음 구분 불가"))
+    B.append(para("↑ 발표에서 이 두 줄을 그대로 띄우면 설명이 거의 필요 없다."))
     rg = f.get("road_gap", {})
     B.append(para(
         "④ 는 ③ 과 의미가 다르다. ③ 은 \"카메라를 못 믿겠다 → 2차에 맡긴다\" 이고, "
@@ -350,17 +385,10 @@ def build(f: dict) -> list[dict]:
             "\"얼음이 있을 수 있다\" 로 틀리게 잡아 둔 것이다. 잔설이 있으면 국소 재결빙이 "
             "남으므로 기온과 무관하게 게이트를 열어 둔다."))
         B.append(callout(
-            "주의: 젖은 노면 오경보는 **CARLA 현상**이다. 실사진 25,140장에서는 젖음과 얼음이 "
+            f"주의: 젖은 노면 오경보는 **CARLA 현상**이다. 실사진 {f.get('photo_n',0):,}장에서는 젖음과 얼음이 "
             "거의 완전히 갈린다 (판별 AUC 0.998, 젖은 노면 오경보 1.9 %). "
             "기온 게이트는 실제 결함을 때우는 패치가 아니라 한 겹 더 두는 방어다. "
             "발표에서 \"시뮬에서 오경보가 났다\" 를 근거로 쓰면 안 된다.", "⚠️"))
-    B.append(callout(
-        "③ 이 제일 중요하다. 폭우에서는 1차가 스스로 \"지금은 못 본다\" 고 선언하고 2차에 맡긴다. "
-        "못 막을 경보를 내는 것보다 낫고, 이중 방어 구조의 존재 이유를 그대로 보여준다.", "🎯"))
-    B.append(codeblk(
-        "[ctx] 실제 날씨 반영: 강수 21.8 mm/h, 태양고도 45도 → 시각 13시\n"
-        "[ctx] 1차 방어 신뢰 불가 → 끄고 2차에 맡긴다: 강수 21.8 mm/h ≥ 5 — 젖은 노면과 얼음 구분 불가"))
-    B.append(para("↑ 발표에서 이 두 줄을 그대로 띄우면 설명이 거의 필요 없다."))
 
     return B
 
@@ -523,8 +551,9 @@ def build2(f: dict) -> list[dict]:
     B.append(head(1, "10. 다음 사람이 할 일"))
     B.append(para("우선순위 순서다. 위에서부터 하면 된다."))
     B.append(todo("발표 서사 확정 — 특히 \"시뮬 인식률은 쓰지 않는다\", \"폭우에서는 1차를 신뢰 불가로 선언한다\" 두 가지는 팀 결정이 필요하다"))
-    B.append(todo("보드 펌웨어 한 번 굽기 — ① 판정 규칙 타원(slip_core.h, 코드는 이미 들어감) "
-                  "② 확정 프레임 연속 8 (지금은 호스트에 임시). BOOT1 스위치 + SWD 물리 접근 필요. "
+    B.append(todo("보드 펌웨어 한 번 굽기 — ① 판정 규칙 타원 ② 조향 지연 보정 τ=0.06 s "
+                  "(둘 다 slip_core.h 에 이미 들어감) ③ 확정 프레임 연속 8 (지금은 호스트에 임시). "
+                  "BOOT1 스위치 + SWD 물리 접근 필요. "
                   "명령은 scripts/fw_redeploy.sh 하나다"))
     B.append(todo("D435i 연결 → 차 세워 두고 IMU 10분 기록 → RMS 가 200 mg 예산 안인지 확인 → 칼만 R 갱신"))
     B.append(todo("Hailo 컴파일러(DFC) 계정 받아 설치 → 보드 NPU 수치 독립 교차검증"))

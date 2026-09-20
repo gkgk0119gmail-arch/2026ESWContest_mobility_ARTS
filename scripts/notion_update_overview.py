@@ -35,8 +35,26 @@ def api(tok, path, method="GET", body=None):
         raise SystemExit(f"노션 API 실패 {e.code}: {e.read().decode()[:400]}")
 
 
-def rt(s, bold=False):
-    return [{"type": "text", "text": {"content": s[:1900]}, "annotations": {"bold": bold}}]
+def rt(s, bold=False, code=False):
+    """`**굵게**` 와 `` `코드` `` 를 노션 서식으로 바꿔 준다.
+
+    그냥 문자열로 넘기면 별표와 백틱이 화면에 그대로 찍힌다. 팀이 읽을 문서에서
+    `**중요**` 가 별표째 보이면 읽기 싫어진다. 그래서 여기서 한 번 해석한다.
+    """
+    import re as _re
+    parts, out = _re.split(r"(\*\*[^*]+\*\*|`[^`]+`)", s[:1900]), []
+    for seg in parts:
+        if not seg:
+            continue
+        b, c = bold, code
+        if seg.startswith("**") and seg.endswith("**") and len(seg) > 4:
+            seg, b = seg[2:-2], True
+        elif seg.startswith("`") and seg.endswith("`") and len(seg) > 2:
+            seg, c = seg[1:-1], True
+        out.append({"type": "text", "text": {"content": seg},
+                    "annotations": {"bold": b, "code": c}})
+    return out or [{"type": "text", "text": {"content": ""},
+                    "annotations": {"bold": bold, "code": code}}]
 
 
 def para(s=""):
