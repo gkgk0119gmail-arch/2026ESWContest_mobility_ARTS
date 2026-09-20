@@ -638,3 +638,7 @@ RSCD 라벨 체계가 `fresh_snow` 를 `wet` 으로 매핑해 정답이 "젖음"
 | `scripts/test_context_gates.py` | 강수·기온 게이트 단위 시험 (CARLA 불필요) |
 | `scripts/latency_figure.py` | 리눅스 대 보드 지연 분포를 로그 축 한 장으로 |
 | `scripts/rule_boundary_figure.py` | 잔차 평면에 판정 경계와 실제 궤적을 얹은 그림 |
+| `scripts/story_figure.py` | 이중 방어가 도는 모습 한 장 (발표 첫 장) |
+| `scripts/range_resolution.py` | 경보 거리의 한계를 해상도로 정량화 → `정리/17` |
+| `scripts/finalize_docs.py` | 실측이 늘면 자동 문서·그림을 다시 만들고 근거 지도 숫자를 맞춘다 |
+| `scripts/rscd_board_eval.py --all --resume` | 실사진 **전량**을 보드로 평가 (이미 한 것은 건너뜀) |
