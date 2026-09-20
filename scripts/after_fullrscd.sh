@@ -11,8 +11,8 @@ set -u
 cd /mnt/ssd/icepredict
 say(){ echo "[$(date +%H:%M:%S)] $*" | tee -a /tmp/after_batch_status.txt; }
 say "=== 후속6: after_ctxtemp 종료 대기 ==="
-for i in $(seq 1 60); do pgrep -f "after_ctxtemp.sh" > /dev/null 2>&1 && break; sleep 10; done
-for i in $(seq 1 300); do pgrep -f "after_ctxtemp.sh" > /dev/null 2>&1 || break; sleep 30; done
+for i in $(seq 1 60); do pgrep -f "after_ctxtem[p].sh" > /dev/null 2>&1 && break; sleep 10; done
+for i in $(seq 1 300); do pgrep -f "after_ctxtem[p].sh" > /dev/null 2>&1 || break; sleep 30; done
 # 브리지가 보드를 붙잡고 있으면 안 된다
 for p in $(pgrep -f "n6_bridge.p[y]"); do kill "$p" 2>/dev/null; done
 sleep 3

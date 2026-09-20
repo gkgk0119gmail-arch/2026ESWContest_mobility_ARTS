@@ -5,10 +5,10 @@ cd /mnt/ssd/icepredict
 say(){ echo "[$(date +%H:%M:%S)] $*" | tee -a /tmp/after_batch_status.txt; }
 say "=== 후속2: 변동 스윕 종료 대기 ==="
 for i in $(seq 1 200); do
-  pgrep -f "variation_sweep.sh" > /dev/null 2>&1 || break
+  pgrep -f "variation_swee[p].sh" > /dev/null 2>&1 || break
   sleep 30
 done
-pgrep -f "variation_sweep.sh" > /dev/null 2>&1 && { say "변동 스윕 미종료 — 중단"; exit 1; }
+pgrep -f "variation_swee[p].sh" > /dev/null 2>&1 && { say "변동 스윕 미종료 — 중단"; exit 1; }
 # 자식 배치가 남아 있을 수 있다
 for i in $(seq 1 40); do
   pgrep -f "demo_batch_5090.sh" > /dev/null 2>&1 || break

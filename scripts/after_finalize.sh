@@ -4,8 +4,8 @@ set -u
 cd /mnt/ssd/icepredict
 say(){ echo "[$(date +%H:%M:%S)] $*" | tee -a /tmp/after_batch_status.txt; }
 say "=== 후속8: after_yawlag 종료 대기 ==="
-for i in $(seq 1 90); do pgrep -f "after_yawlag.sh" > /dev/null 2>&1 && break; sleep 10; done
-for i in $(seq 1 500); do pgrep -f "after_yawlag.sh" > /dev/null 2>&1 || break; sleep 30; done
+for i in $(seq 1 90); do pgrep -f "after_yawla[g].sh" > /dev/null 2>&1 && break; sleep 10; done
+for i in $(seq 1 500); do pgrep -f "after_yawla[g].sh" > /dev/null 2>&1 || break; sleep 30; done
 say "=== 문서·그림 실측 재정렬 ==="
 python3 scripts/finalize_docs.py 2>&1 | tail -40 | tee -a /tmp/after_batch_status.txt
 say "=== 단위 시험 ==="
