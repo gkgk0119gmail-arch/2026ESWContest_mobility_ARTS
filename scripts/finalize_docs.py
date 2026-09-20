@@ -25,7 +25,9 @@ import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MAP = ROOT / "docs/presentation_evidence_map.md"
-REGEN = ["summarize_runs", "analyze_detection", "rscd_breakdown", "spec_head_transfer",
+# rtos_latency_bench 는 파이에서 실제로 벤치를 돌린다. 유휴 측정이 오염되지 않게
+# 다른 작업이 모두 끝난 뒤(= 이 스크립트가 도는 시점)에만 돌려야 한다.
+REGEN = ["rtos_latency_bench", "summarize_runs", "analyze_detection", "rscd_breakdown", "spec_head_transfer",
          "imu_noise_tolerance", "schedulability", "slip_rule_compare", "variation_report",
          "rule_ab_report", "slip_onset_analysis", "yawlag_report", "ctx_temp_report",
          "rule_boundary_figure", "latency_figure", "board_verdict_figures", "schedule_figure",
@@ -72,6 +74,16 @@ def main():
             print(f"  {m:24s} {'OK' if r.returncode == 0 else '실패'}")
             if r.returncode != 0:
                 print("    " + (r.stderr.strip().splitlines() or ["(출력 없음)"])[-1])
+
+    # 리눅스 벤치 원본을 /tmp 에서 보존 폴더로 옮겨 둔다 (재부팅에 날아가지 않게)
+    import shutil
+    keep = ROOT / "logs/rtos_bench"
+    keep.mkdir(parents=True, exist_ok=True)
+    for f in pathlib.Path("/tmp").glob("bench_*.txt"):
+        try:
+            shutil.copy2(f, keep / f.name)
+        except Exception:
+            pass
 
     st = photo_stats()
     if not st:
