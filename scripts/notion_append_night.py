@@ -70,15 +70,19 @@ def facts():
             gains.append(ab["gain_s"])
     f["ab_gains"] = gains
 
-    ctrl_n = ctrl_fa = 0
-    for p in glob.glob(str(ROOT / "logs/carla_demo/events_*control*.json")):
+    ctrl_n = ctrl_fa = ctrl_sec = 0
+    # 파일 이름으로 고르면 dync_* 같은 대조군을 놓친다. 인자 플래그가 진실이다.
+    for p in glob.glob(str(ROOT / "logs/carla_demo/events_*.json")):
         d = json.load(open(p))
         if not d.get("args", {}).get("control_no_ice"):
             continue
         ctrl_n += 1
-        if any(e["event"] == "primary_warning" for e in d.get("events", [])):
+        ev = d.get("events", [])
+        if any(e["event"] == "primary_warning" for e in ev):
             ctrl_fa += 1
-    f.update(ctrl_n=ctrl_n, ctrl_fa=ctrl_fa)
+        if any(e["event"] == "secondary_slip" for e in ev):
+            ctrl_sec += 1
+    f.update(ctrl_n=ctrl_n, ctrl_fa=ctrl_fa, ctrl_sec=ctrl_sec)
 
     try:
         rows = [json.loads(l) for l in open(ROOT / "logs/rscd_board_samples.jsonl") if l.strip()]
@@ -140,8 +144,9 @@ def build(f):
 
     B.append(head(2, "11-3. 덤으로 찾은 것 — 2차가 정상 노면에서 발화했다"))
     B.append(para(
-        "대조군(빙판 없음) 50 km/h 주행에서 2차 방어가 발화했다. 1차 오경보는 차를 세우는 데서 "
-        "그치지만 2차 오탐은 정상 주행 중 **급제동·회피**를 건다. 더 위험한 실패다."))
+        f"빙판 없는 대조군 {f['ctrl_n']}건 중 50 km/h 한 건에서 2차 방어가 발화했다. "
+        "1차 오경보는 차를 세우는 데서 그치지만 2차 오탐은 정상 주행 중 **급제동·회피**를 건다. "
+        "더 위험한 실패다."))
     B.append(para(
         "원인은 자전거 모델이 조향에 차량이 **즉시** 반응한다고 가정한 것이다. 조향이 80 ms 만에 "
         "0.07 → 0.66 으로 튀자 모델은 yaw 1.02 rad/s 를 기대했는데 실제는 0.35 였다. "
@@ -161,7 +166,8 @@ def build(f):
     if f["ctrl_n"]:
         B.append(para(
             f"확정 계층(연속 8프레임)을 넣은 뒤 빙판 없는 대조군 {f['ctrl_n']}건 중 "
-            f"오경보가 {f['ctrl_fa']}건으로 줄었다. 남은 것은 전부 **젖은 노면**이다."))
+            f"1차 오경보가 **{f['ctrl_fa']}건**으로 줄었다. 남은 것은 전부 **젖은 노면**이다. "
+            f"(같은 대조군의 2차 오탐은 {f['ctrl_sec']}건 — 위 11-3 에서 고쳤다.)"))
     B.append(para(
         "젖은 노면에서 1차가 노면 확률 0.87 로 얼음이라 단언했다. 문턱·연속프레임·가중치·"
         "강수게이트 어느 것으로도 못 막는다. 영상만으로는 젖음과 얼음이 안 갈린다는 뜻이고, "

@@ -209,7 +209,8 @@ def facts() -> dict:
     # 대조군
     try:
         n = fa = sec = 0
-        for p in glob.glob(str(ROOT / "logs/carla_demo/events_*control*.json")):
+        # 파일 이름으로 고르면 dync_* 같은 대조군을 놓친다. 인자 플래그가 진실이다.
+        for p in glob.glob(str(ROOT / "logs/carla_demo/events_*.json")):
             d = json.load(open(p)); a = d.get("args", {})
             if not a.get("control_no_ice"):
                 continue
