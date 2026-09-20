@@ -93,9 +93,28 @@ def main():
     print(f"  실사진 표본 {st['n']:,}장 (블랙아이스 {st['ice_n']:,}장, 정답률 {100*st['ice_acc']:.1f} %)")
     print(f"  NPU 최악 추론 {st['npu_max_ms']:.2f} ms")
 
+    # 보드 WCET 는 주행마다 쌓인다 — 근거 지도의 숫자도 같이 움직여야 한다
+    wc = None
+    try:
+        rows = [json.loads(l) for l in open(ROOT / "logs/board_wcet.jsonl") if l.strip()]
+        wc = dict(runs=len(rows), samples=sum(r["samples"] for r in rows),
+                  max_us=max(r["max_us"] for r in rows))
+        print(f"  보드 WCET 최악 {wc['max_us']:.1f} us, 표본 {wc['samples']:,}개 ({wc['runs']} 주행)")
+    except Exception:
+        pass
+
     if MAP.exists():
         s = MAP.read_text()
         before = s
+        import datetime as _dt
+        s = re.sub(r"기준 \d{4}-\d{2}-\d{2} \d{2}:\d{2}\.",
+                   "기준 " + _dt.datetime.now().strftime("%Y-%m-%d %H:%M") + ".", s)
+        if wc:
+            s = re.sub(r"깨어남·연산·응답 합쳐 \*\*[\d.]+ µs\*\*, 주기의 [\d.]+ %\. [\d,]+ 샘플",
+                       f"깨어남·연산·응답 합쳐 **{wc['max_us']:.1f} µs**, "
+                       f"주기의 {100*wc['max_us']/20000:.2f} %. {wc['samples']:,} 샘플", s)
+            s = re.sub(r"(`logs/board_wcet.jsonl` — 주행마다 덧붙는 누적 로그, )[\d,]+ 샘플",
+                       rf"\g<1>{wc['samples']:,} 샘플", s)
         # 근거 지도만 고친다 — 주장 문서이지 기록 문서가 아니다
         s = re.sub(r"\d{1,3}(?:,\d{3})*장, 블랙아이스 \*\*\d+\.\d+ %\*\*",
                    f"{st['n']:,}장, 블랙아이스 **{100*st['ice_acc']:.1f} %**", s)
