@@ -33,6 +33,9 @@ def load():
         a = d.get("args", {})
         rows.append(dict(tag=os.path.basename(f)[7:-5],
                          kph=a.get("target_kph"), seed=a.get("ice_seed"),
+                         # 대조군(빙판 없음)은 이득 표에 섞으면 안 된다 — 거기서 난 발화는
+                         # 탐지가 아니라 오탐이다. 따로 본다.
+                         ctrl=bool(a.get("control_no_ice")),
                          ell=ab.get("ellipse"), box=ab.get("box"),
                          gain=ab.get("gain_s")))
     return rows
@@ -43,6 +46,8 @@ def main():
     if not rows:
         print("rule_ab 가 담긴 주행이 없다. scripts/rule_ab_sweep.sh 를 먼저 돌릴 것.")
         return
+    ctrl_rows = [r for r in rows if r["ctrl"]]
+    rows = [r for r in rows if not r["ctrl"]]
     rows.sort(key=lambda r: (r["kph"] or 0, r["seed"] or 0))
 
     L = ["# 판정 규칙 A/B — 같은 주행선 위에서 잰 타원 대 직사각형\n\n",
@@ -54,7 +59,14 @@ def main():
          "코드는 `fw/npu_lib/slip_core.h` 에 이미 반영돼 있고 C↔파이썬 동치도 통과했다. "
          "다음 현장 작업 때 구우면 이 표의 \"타원\" 열이 실제 동작이 된다.\n\n"]
 
-    L.append("## 1. 주행별\n\n")
+    L.append("## 1. 이 비교를 믿어도 되는 이유\n\n")
+    L.append("호스트의 \"직사각형\" 참조가 보드의 실제 확정 시각과 **모든 주행에서 정확히 일치했다**.\n")
+    L.append("같은 입력에 같은 판정이 나온다는 뜻이고, 그러면 옆 칸의 \"타원\" 도 보드에 올렸을 때의\n")
+    L.append("동작으로 읽어도 된다.\n\n")
+    L.append("> 이 주행들은 **판정 형태만** 바꾼 비교다. 뒤에 넣은 조향 지연 보정(`정리/16`)은 "
+             "여기 들어 있지 않다.\n\n")
+
+    L.append("## 2. 주행별\n\n")
     L.append("| 주행 | km/h | 직사각형(보드 실제) | 타원(반사실) | 이득 |\n|---|---|---|---|---|\n")
     for r in rows:
         f = lambda v: "미발화" if not v else f"{v['t']:.2f} s ({v['trigger']})"
@@ -65,7 +77,7 @@ def main():
 
     gains = [r["gain"] for r in rows if r["gain"] is not None]
     if gains:
-        L.append("\n## 2. 요약\n\n")
+        L.append("\n## 3. 요약\n\n")
         L.append(f"- 주행 {len(rows)} 건 중 이득이 잰 것은 {len(gains)} 건.\n")
         L.append(f"- 평균 **{st.mean(gains):+.2f} s**, 최대 **{max(gains):+.2f} s**, 최소 {min(gains):+.2f} s.\n")
         worse = [g for g in gains if g < -1e-9]
@@ -80,12 +92,23 @@ def main():
                 L.append(f"| {k} km/h | {len(by[k])} | **{st.mean(by[k]):+.2f} s** |\n")
             L.append("\n저속일수록 이득이 크면 예상대로다 — 직사각형 모서리에 걸리는 것이 저속 현상이다.\n")
 
+    if ctrl_rows:
+        L.append("\n### 대조군은 따로 본다\n\n")
+        L.append("빙판이 **없는** 주행에서 난 발화는 탐지가 아니라 오탐이다. 이득 표에 섞으면 안 된다.\n\n")
+        L.append("| 주행 | km/h | 직사각형 | 타원 |\n|---|---|---|---|\n")
+        for r in ctrl_rows:
+            f = lambda v: "발화 없음" if not v else f"**{v['t']:.2f} s 발화** ({v['trigger']})"
+            L.append(f"| {r['tag']} | {r['kph']} | {f(r['box'])} | {f(r['ell'])} |\n")
+        if any(r["box"] or r["ell"] for r in ctrl_rows):
+            L.append("\n여기서 난 발화는 판정 형태 탓이 아니다 — 두 규칙 모두 터진다.\n")
+            L.append("원인은 급조향 순간의 모델 지연이었고, `정리/16` 에서 따로 고쳤다.\n")
+
     trig = {}
     for r in rows:
         if r["ell"]:
             trig[r["ell"]["trigger"]] = trig.get(r["ell"]["trigger"], 0) + 1
     if trig:
-        L.append("\n## 3. 무엇이 방아쇠를 당겼나 (타원)\n\n")
+        L.append("\n## 4. 무엇이 방아쇠를 당겼나 (타원)\n\n")
         for k, v in sorted(trig.items(), key=lambda x: -x[1]):
             note = " ← 두 잔차 모두 임계 아래인데 합쳐서 넘은 것. 직사각형이면 놓쳤을 구간이다." if k == "combo" else ""
             L.append(f"- `{k}` {v} 건{note}\n")
