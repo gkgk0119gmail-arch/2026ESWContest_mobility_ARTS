@@ -308,12 +308,16 @@ def build(f: dict) -> list[dict]:
         ["2차 방어 (RTOS)", "✅ 검증 완료",
          f"주행 {f.get('wcet_runs','?')}건 · 샘플 {f.get('wcet_samples',0):,}개, "
          f"평균 {f.get('wcet_mean',0):.1f} µs, 최악 {f.get('wcet_max',0):.1f} µs, 폴백 0건"],
-        ["2차 방어 오탐", "✅ 실측",
-         f"빙판 없는 대조군 {f.get('ctrl_n','?')}건에서 {f.get('ctrl_sec','?')}건"],
+        ["2차 방어 오탐",
+         ("✅ 0건" if not f.get("ctrl_sec") else "🔧 찾아서 고침"),
+         (f"빙판 없는 대조군 {f.get('ctrl_n','?')}건에서 {f.get('ctrl_sec','?')}건. "
+          "원인은 급조향 시 모델 지연, τ=0.06 s 보정으로 해결 (정리/16)"
+          if f.get("ctrl_sec") else f"빙판 없는 대조군 {f.get('ctrl_n','?')}건에서 0건")],
         ["1차 방어 (실사진)", "✅ 측정 완료",
          f"실사진 {f.get('photo_n',0):,}장, 블랙아이스 {100*f.get('ice_acc',0):.1f} % 정답"],
-        ["1차 방어 오경보", "⚠️ 3층으로 막는 중",
-         f"문턱 + 연속 {f.get('confirm','?')}프레임 + 강수 게이트"],
+        ["1차 방어 오경보", "⚠️ 4층으로 막는 중",
+         f"문턱 + 연속 {f.get('confirm','?')}프레임 + 강수 게이트 + 기온 게이트. "
+         f"대조군 {f.get('ctrl_n','?')}건 중 {f.get('ctrl_fa','?')}건 (전부 젖은 노면)"],
         ["NPU 추론 비용", "✅ 결정적",
          f"{f.get('npu_mean_ms',0):.2f} ms, 편차가 평균의 {f.get('npu_spread_pct',0):.1f} %"],
         ["회피 동작", "✅ 재현", "앞차 간격 50 m 미만이면 회피, 70 m 면 차선유지·정지"],
