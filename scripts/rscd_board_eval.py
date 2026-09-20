@@ -77,6 +77,21 @@ def board_infer(sock, ip, port, q, fid, gap_us=150):
                 alarm=bool(alarm), level=int(level), us=int(us), tot_us=int(tot))
 
 
+def already_done() -> set[tuple[str, str]]:
+    """이미 보드로 판정한 (스플릿, 파일명). 중복으로 다시 돌리지 않게 한다."""
+    done = set()
+    if OUT.exists():
+        for l in open(OUT):
+            if not l.strip():
+                continue
+            try:
+                r = json.loads(l)
+            except Exception:
+                continue
+            done.add((r.get("split", ""), r.get("file", "")))
+    return done
+
+
 def collect(a):
     root = ROOT / "dataset/rscd/rscd" / a.split
     by: dict[str, list] = {c: [] for c in CLS}
@@ -85,6 +100,15 @@ def collect(a):
         if lab:
             by[lab.cls4].append(f)
     print("데이터셋 보유량: " + ", ".join(f"{c} {len(by[c])}장" for c in CLS))
+
+    if a.resume:
+        done = already_done()
+        a.append = True
+        before = sum(len(v) for v in by.values())
+        for c in CLS:
+            by[c] = [f for f in by[c] if (a.split, f.name) not in done]
+        after = sum(len(v) for v in by.values())
+        print(f"이어하기: 이미 판정한 {before - after}장 건너뜀, 남은 {after}장")
 
     rng = np.random.default_rng(a.seed)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -100,7 +124,10 @@ def collect(a):
             if not files:
                 print(f"  {cls}: 사진 없음")
                 continue
-            idx = rng.choice(len(files), min(a.n, len(files)), replace=False)
+            if a.all:
+                idx = np.arange(len(files))      # 전량 — 표집하지 않는다
+            else:
+                idx = rng.choice(len(files), min(a.n, len(files)), replace=False)
             for k, i in enumerate(idx):
                 f = files[i]
                 im = cv2.imread(str(f))
@@ -210,6 +237,10 @@ def report(a):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=2000, help="클래스별 장수")
+    ap.add_argument("--all", action="store_true",
+                    help="클래스별 표집 대신 스플릿의 **모든** 사진을 돌린다. --resume 와 같이 쓴다")
+    ap.add_argument("--resume", action="store_true",
+                    help="JSONL 에 이미 있는 파일은 건너뛴다. --append 를 자동으로 켠다")
     ap.add_argument("--split", default="vali_20k")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--ip", default="192.168.50.158")
