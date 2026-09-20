@@ -147,7 +147,8 @@ def facts() -> dict:
     try:
         TAG = re.compile(r"^var_s(\d+)_k(\d+)_mu(\d+)$")
         et, sm, bm = [], [], []
-        ev_cnt = coll = n = 0
+        ev_cnt = coll = n = hard = touch = 0
+        by_kph: dict[int, list[float]] = {}
         for p in glob.glob(str(ROOT / "logs/carla_demo/events_var_*.json")):
             tag = os.path.basename(p)[7:-5]
             if not TAG.match(tag):
@@ -167,10 +168,42 @@ def facts() -> dict:
                 bm.append(k["board_slip_latency"]["max_us"])
             if any(e["event"] == "emergency_mode" and e.get("mode", "").startswith("evade") for e in ev):
                 ev_cnt += 1
-            if any(e["event"] == "collision" for e in ev):
+            col = next((e for e in ev if e["event"] == "collision"), None)
+            if col:
                 coll += 1
+                # 아직 달리는 중 받은 것과, 이미 선 뒤 스치듯 닿은 것을 가른다.
+                # 한 칸에 넣으면 숫자가 거짓말을 한다.
+                stp = (k.get("stopped") or {}).get("t")
+                after_stop = stp is not None and col["t"] >= stp - 0.05
+                if float(col.get("speed_kph", 0.0)) >= 5.0 and not after_stop:
+                    hard += 1
+                else:
+                    touch += 1
+            m = TAG.match(tag)
+            if m and k.get("patch_enter") and k.get("secondary_slip"):
+                by_kph.setdefault(int(m.group(2)), []).append(
+                    k["secondary_slip"]["t"] - k["patch_enter"]["t"])
         f["var_n"] = n; f["var_enter_slip"] = et; f["var_slip_stop"] = sm
         f["var_board_max"] = bm; f["var_evade"] = ev_cnt; f["var_coll"] = coll
+        f["var_hard"] = hard; f["var_touch"] = touch; f["var_by_kph"] = by_kph
+    except Exception:
+        pass
+    # 판정 규칙 A/B (같은 주행선 위에서 타원 대 직사각형)
+    try:
+        gains = []
+        for p in glob.glob(str(ROOT / "logs/carla_demo/events_*.json")):
+            ab = (json.load(open(p)) or {}).get("rule_ab")
+            if ab and ab.get("gain_s") is not None:
+                gains.append(ab["gain_s"])
+        f["ab_n"], f["ab_gains"] = len(gains), gains
+    except Exception:
+        pass
+    # 기온 게이트
+    try:
+        import sys
+        sys.path.insert(0, str(ROOT / "src"))
+        from icepredict.pi.context import ROAD_BELOW_AIR_C
+        f["road_gap"] = ROAD_BELOW_AIR_C
     except Exception:
         pass
     # 대조군
@@ -294,7 +327,32 @@ def build(f: dict) -> list[dict]:
         ["③ 강수 게이트", "원리적으로 못 보는 조건",
          f"강수 {f.get('precip_gate',5.0):.0f} mm/h 이상",
          "폭우는 빙판이 **없어도** 위험도가 0.963까지 간다. 어떤 문턱으로도 못 막는다"],
+        ["④ 기온 게이트", "물리적으로 있을 수 없는 경보",
+         "최악 노면 온도가 0 °C 초과",
+         "젖은 노면을 얼음이라 단언(0.87)한 사례. 문턱·프레임·가중치 전부 못 막았다"],
     ]))
+    rg = f.get("road_gap", {})
+    B.append(para(
+        "④ 는 ③ 과 의미가 다르다. ③ 은 \"카메라를 못 믿겠다 → 2차에 맡긴다\" 이고, "
+        "④ 는 \"얼음이 있을 수 없다 → 얼음 경보를 내지 않는다\" 다. "
+        "**어느 쪽이든 2차 방어는 그대로 돈다** — 따뜻해도 젖은 노면은 미끄럽다."))
+    if rg:
+        B.append(table([
+            ["조건", "노면이 공기보다 낮을 수 있는 폭"],
+            ["낮 · 트인 곳", f"{rg.get('day',2):.0f} °C"],
+            ["낮 · 다리·터널출구·그늘", f"{rg.get('day_exposed',3):.0f} °C"],
+            ["밤 · 트인 곳", f"{rg.get('night',4):.0f} °C"],
+            ["밤 · 다리·터널출구·그늘", f"{rg.get('night_exposed',6):.0f} °C"],
+        ]))
+        B.append(para(
+            "이만큼 빼고도 어는점을 넘어야 \"불가능\" 이라고 말한다. 틀리는 쪽이 있다면 "
+            "\"얼음이 있을 수 있다\" 로 틀리게 잡아 둔 것이다. 잔설이 있으면 국소 재결빙이 "
+            "남으므로 기온과 무관하게 게이트를 열어 둔다."))
+        B.append(callout(
+            "주의: 젖은 노면 오경보는 **CARLA 현상**이다. 실사진 25,140장에서는 젖음과 얼음이 "
+            "거의 완전히 갈린다 (판별 AUC 0.998, 젖은 노면 오경보 1.9 %). "
+            "기온 게이트는 실제 결함을 때우는 패치가 아니라 한 겹 더 두는 방어다. "
+            "발표에서 \"시뮬에서 오경보가 났다\" 를 근거로 쓰면 안 된다.", "⚠️"))
     B.append(callout(
         "③ 이 제일 중요하다. 폭우에서는 1차가 스스로 \"지금은 못 본다\" 고 선언하고 2차에 맡긴다. "
         "못 막을 경보를 내는 것보다 낫고, 이중 방어 구조의 존재 이유를 그대로 보여준다.", "🎯"))
@@ -322,9 +380,46 @@ def build2(f: dict) -> list[dict]:
             ["확정 → 정지", rng(f.get("var_slip_stop", []))],
             ["보드 응답 최악", rng(f.get("var_board_max", []), "µs", 1)],
             ["회피(evade) 선택", f"{f.get('var_evade',0)}/{f['var_n']}건"],
-            ["충돌", f"{f.get('var_coll',0)}/{f['var_n']}건"],
+            ["충돌 — 주행 중 (5 km/h 이상)", f"{f.get('var_hard',0)}/{f['var_n']}건"],
+            ["충돌 — 정지 후 접촉 (5 km/h 미만)", f"{f.get('var_touch',0)}/{f['var_n']}건"],
         ]))
         B.append(bullet("보드 응답 최악값이 조건이 바뀌어도 좁다 — 연산이 입력에 거의 의존하지 않는다는 증거"))
+        B.append(callout(
+            "충돌 숫자를 그대로 \"실패율\" 로 말하면 안 된다. 이 스윕은 정차 차량을 빙판 중심 "
+            "**+45 m** — 빙판 위 정지거리보다 짧은 곳 — 에 일부러 세워 회피를 강제한 배치다. "
+            "최악 조건의 스트레스 값이다. 게다가 일부는 이미 선 뒤 1~4 km/h 로 닿은 접촉이라 "
+            "표에서 갈라 놨다.", "🚨"))
+
+        # 속도가 바꾸는 것 — 오늘 밤 찾은 것
+        bk = f.get("var_by_kph") or {}
+        if len(bk) > 1:
+            B.append(head(2, "속도가 바꾸는 것 — 느릴수록 늦게 잡힌다"))
+            B.append(table([["진입 속도", "빙판 진입 → 확정", "주행"]] +
+                           [[f"{k} km/h", rng(v), f"{len(v)}건"] for k, v in sorted(bk.items())]))
+            B.append(para(
+                "직관과 반대로 보이지만 물리가 그렇다. 요구 횡가속도가 v²/R 이라 빠를수록 "
+                "접지를 먼저 잃고, 잔차도 그만큼 크게 나온다."))
+            B.append(para(
+                "그런데 원인을 파 보니 물리만이 아니었다. 35 km/h 주행의 확정 순간 잔차가 "
+                "**횡가속도 0.287 · yaw 0.353** 이었다. 횡가속도 임계가 0.300 이니 "
+                "**4 % 차이로** 못 넘었고, 그래서 훨씬 느린 yaw 경로가 0.35 에 닿을 때까지 "
+                "3.2 초를 더 기다렸다. 두 잔차를 OR 로 묶은 **직사각형 판정의 모서리에 걸린 것**이다."))
+            B.append(codeblk(
+                "직사각형(기존)  |ay_g| >= 0.30  또는  |yaw_err| >= 0.35\n"
+                "타원(변경)      (ay_g/0.30)^2 + (yaw_err/0.35)^2 >= 1"))
+            B.append(bullet("타원은 직사각형을 **안에 품는다** — 정의상 늦어질 수 없다"))
+            B.append(bullet("둘 다 임계의 0.71 쯤인 구간을 새로 잡는다. 새 상수도 속도 보정도 없다"))
+            B.append(bullet("비용은 곱 2 + 합 1, 분기 수는 그대로 — 보드 WCET 에 영향 없음"))
+            B.append(bullet("합성 검증: 빨라진 조건 3, **기존이 못 잡던 것을 새로 잡은 조건 1**, 느려진 조건 0"))
+            B.append(bullet("정상 주행 오탐 480 시행 중 **0** — 직사각형과 같다"))
+            if f.get("ab_n"):
+                g = f["ab_gains"]
+                B.append(bullet(f"CARLA 실주행 {f['ab_n']}건에서 같은 주행선 위 비교: "
+                                f"평균 **{sum(g)/len(g):+.2f} s**, 최대 **{max(g):+.2f} s**"))
+            B.append(callout(
+                "이 변경은 보드 펌웨어에 **아직 안 올라가 있다**. 굽는 데 BOOT1 스위치 물리 접근과 "
+                "SWD 가 필요해서 원격으로 못 한다. 코드는 fw/npu_lib/slip_core.h 에 들어갔고 "
+                "C↔파이썬 동치도 통과했다. 다음 현장 작업 때 scripts/fw_redeploy.sh 한 번이면 된다.", "🔧"))
     else:
         B.append(para("변동 스윕 결과가 아직 없다. `bash scripts/variation_sweep.sh` 로 만든다."))
 
@@ -345,7 +440,7 @@ def build2(f: dict) -> list[dict]:
         "        ├── figures/               발표용 그림\n"
         "        └── 정리/                  ← 팀이 볼 곳\n"
         "            ├── 00_읽어보기.txt\n"
-        "            ├── 00~11_*.md         근거 문서 12편\n"
+        "            ├── 00~15_*.md         근거 문서 16편\n"
         "            └── A~H/               상황별 영상 폴더"))
     B.append(callout(
         "정리/ 폴더는 원본에 하드링크를 건다. 같은 이름으로 다시 촬영하면 원본은 덮이지만 "
@@ -394,13 +489,22 @@ def build2(f: dict) -> list[dict]:
         ["긴 배치를 백그라운드로만 띄움",
          "프로세스 트리가 회수돼 조용히 죽음",
          "setsid nohup ... & disown 으로 세션에서 떼어낸다"],
+        ["--ice-seed 를 표본 수로 셈",
+         "시드 5종 = 표본 5개라고 생각했는데 결과가 바이트 단위로 같다",
+         "시드는 **주변 차량 배치와 얼음 외관만** 바꾼다. 자차 주행선은 안 바뀐다. "
+         "표본을 늘리려면 속도·마찰·경사를 흔들어야 한다"],
+        ["대조군 로그의 '빙판 진입'",
+         "빙판 없는 대조군인데 '빙판 진입' 이 찍혀 혼란",
+         "--control-no-ice 는 패치 **객체**를 거리 계산용으로 남긴다. 물리도 외관도 정상 노면이다"],
     ]))
 
     # ── 10. 다음에 할 일
     B.append(head(1, "10. 다음 사람이 할 일"))
     B.append(para("우선순위 순서다. 위에서부터 하면 된다."))
     B.append(todo("발표 서사 확정 — 특히 \"시뮬 인식률은 쓰지 않는다\", \"폭우에서는 1차를 신뢰 불가로 선언한다\" 두 가지는 팀 결정이 필요하다"))
-    B.append(todo("확정 프레임(연속 8)을 보드 펌웨어 C 코드에 반영 — 지금은 호스트에 임시로 있다. ST-LINK 와 개발 모드 스위치 필요"))
+    B.append(todo("보드 펌웨어 한 번 굽기 — ① 판정 규칙 타원(slip_core.h, 코드는 이미 들어감) "
+                  "② 확정 프레임 연속 8 (지금은 호스트에 임시). BOOT1 스위치 + SWD 물리 접근 필요. "
+                  "명령은 scripts/fw_redeploy.sh 하나다"))
     B.append(todo("D435i 연결 → 차 세워 두고 IMU 10분 기록 → RMS 가 200 mg 예산 안인지 확인 → 칼만 R 갱신"))
     B.append(todo("Hailo 컴파일러(DFC) 계정 받아 설치 → 보드 NPU 수치 독립 교차검증"))
     B.append(todo("망원 시야(25°) 검토 — 경보 거리를 늘리려면 이 길뿐이다. 원거리 해상도 2.5배"))
@@ -413,6 +517,8 @@ def build2(f: dict) -> list[dict]:
     B.append(num_("logs/carla_demo/정리/05_실사진_대규모평가.md — 1차 방어 성능의 근거"))
     B.append(num_("logs/carla_demo/정리/06_RTOS가_왜_필요한가.md — 대회 주제의 핵심"))
     B.append(num_("logs/carla_demo/정리/10_스케줄가능성_분석.md — 임베디드 SW 로서의 논증"))
+    B.append(num_("logs/carla_demo/정리/11_변동스윕_2차방어분포.md — 2차 방어를 분포로 말하기"))
+    B.append(num_("logs/carla_demo/정리/13_판정규칙_타원.md — 약점을 찾아 고친 기록 (심사에서 강하다)"))
     B.append(num_("docs/research_directions_2026-09-20.md — 전체 분석·결정 기록 (길다, 필요할 때만)"))
     B.append(callout(
         "03_도메인갭.md 은 **반증 기록**이다. 거기 나온 차이(국소 대비 8배)는 "
