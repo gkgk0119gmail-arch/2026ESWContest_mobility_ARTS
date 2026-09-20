@@ -31,7 +31,7 @@ REGEN = ["rtos_latency_bench", "summarize_runs", "analyze_detection", "rscd_brea
          "imu_noise_tolerance", "schedulability", "slip_rule_compare", "variation_report",
          "rule_ab_report", "slip_onset_analysis", "yawlag_report", "ctx_temp_report",
          "rule_boundary_figure", "latency_figure", "board_verdict_figures", "schedule_figure",
-         "story_figure"]
+         "story_figure", "range_resolution"]
 
 
 def photo_stats():
