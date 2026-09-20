@@ -603,20 +603,54 @@ def main():
         return
 
     tok = yaml.safe_load(open(ROOT / "secrets.yaml"))["notion_token"]
-    page = api(tok, "pages", "POST", {
-        "parent": {"page_id": a.parent},
-        "icon": {"type": "emoji", "emoji": "🧑‍🏫"},
-        "properties": {"title": {"title": rt(TITLE)}},
-        "children": blocks[:90],
-    })
-    pid, url = page["id"], page["url"]
-    rest = blocks[90:]
+
+    # 같은 제목의 페이지가 이미 있으면 **주소를 유지한 채 내용만 갈아 끼운다**.
+    # 새로 만들면 주소가 바뀌어 팀원이 저장해 둔 링크가 끊기고, 같은 문서가 둘이 된다.
+    existing = None
+    cur = None
+    while True:
+        q = f"blocks/{a.parent}/children?page_size=100" + (f"&start_cursor={cur}" if cur else "")
+        r = api(tok, q)
+        for b in r["results"]:
+            if b["type"] == "child_page" and b["child_page"]["title"].strip() == TITLE.strip():
+                existing = b["id"]
+        if not r.get("has_more"):
+            break
+        cur = r["next_cursor"]
+
+    if existing:
+        pid = existing
+        n_del = 0
+        for _round in range(40):          # 무한 루프 방지 — 한 번에 100개씩, 최대 4,000개
+            old = api(tok, f"blocks/{pid}/children?page_size=100")
+            if not old["results"]:
+                break
+            for b in old["results"]:
+                api(tok, f"blocks/{b['id']}", "DELETE")
+                n_del += 1
+        page = api(tok, f"pages/{pid}")
+        url = page["url"]
+        print(f"기존 페이지 재사용 — 옛 블록 {n_del}개 비움: {url}")
+        rest = blocks
+    else:
+        page = api(tok, "pages", "POST", {
+            "parent": {"page_id": a.parent},
+            "icon": {"type": "emoji", "emoji": "🧑‍🏫"},
+            "properties": {"title": {"title": rt(TITLE)}},
+            "children": blocks[:90],
+        })
+        pid, url = page["id"], page["url"]
+        rest = blocks[90:]
+        print(f"생성: {url}")
     while rest:
         api(tok, f"blocks/{pid}/children", "PATCH", {"children": rest[:90]})
         rest = rest[90:]
-    print(f"생성: {url}")
 
-    # 부모 페이지 첫 블록 뒤에 바로가기
+    if existing:
+        print(f"\n주소: {url}")
+        return
+
+    # 부모 페이지 첫 블록 뒤에 바로가기 (처음 만들 때만)
     ch = api(tok, f"blocks/{a.parent}/children?page_size=3")
     api(tok, f"blocks/{a.parent}/children", "PATCH", {
         "after": ch["results"][0]["id"],

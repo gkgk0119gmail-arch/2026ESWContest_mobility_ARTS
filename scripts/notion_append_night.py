@@ -235,6 +235,29 @@ def main():
         print("(--dry-run — 올리지 않았다)")
         return
     tok = yaml.safe_load(open(ROOT / "secrets.yaml"))["notion_token"]
+
+    # 같은 절이 이미 붙어 있으면 지우고 다시 붙인다. 두 번 돌렸다고 11절이 둘이 되면 안 된다.
+    MARK = "11. 2026-09-21 새벽 갱신"
+    cur, ids, hit = None, [], False
+    while True:
+        q = f"blocks/{a.page}/children?page_size=100" + (f"&start_cursor={cur}" if cur else "")
+        r = api(tok, q)
+        for b in r["results"]:
+            if b["type"] == "heading_1":
+                txt = "".join(x["plain_text"] for x in b["heading_1"]["rich_text"])
+                if MARK in txt:
+                    hit = True
+            if hit:
+                ids.append(b["id"])
+        if not r.get("has_more"):
+            break
+        cur = r["next_cursor"]
+    if ids:
+        # 구분선까지 같이 지우려면 바로 앞 블록도 봐야 하지만, 구분선 하나쯤은 남아도 무해하다
+        for bid in ids:
+            api(tok, f"blocks/{bid}", "DELETE")
+        print(f"이미 있던 11절 {len(ids)}블록을 지웠다")
+
     rest = B
     while rest:
         api(tok, f"blocks/{a.page}/children", "PATCH", {"children": rest[:90]})
