@@ -51,6 +51,11 @@ class ContextMsg:
     # (`logs/carla_demo/정리/07`, `rain-false-alarm` 기록). 어떤 문턱으로도 못 막는다.
     primary_trustworthy: bool = True
     distrust_reason: str = ""
+    # 얼음이 물리적으로 있을 수 없는 기온인가. False 면 1차의 얼음 경보를 내지 않는다.
+    # primary_trustworthy 와 다르다 — 저쪽은 "못 믿겠다", 이쪽은 "있을 수 없다"이다.
+    # 어느 쪽이든 2차 방어는 그대로 돈다.
+    ice_possible: bool = True
+    no_ice_reason: str = ""
 
 @dataclass
 class InferMsg:

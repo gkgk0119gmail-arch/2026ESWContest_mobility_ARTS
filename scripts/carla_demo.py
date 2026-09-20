@@ -596,6 +596,9 @@ ap.add_argument("--gt-detect", action="store_true", help="카메라 대신 패�
 ap.add_argument("--detect-range", type=float, default=30.0, help="--gt-detect 시 감지 거리(m)")
 ap.add_argument("--night", action="store_true")
 ap.add_argument("--no-ice-render", action="store_true", help="카메라 프레임에 얼음 합성 안 함")
+ap.add_argument("--ctx-temp", type=float, default=-3.0,
+                help="맥락 계층에 넣을 기온(°C). 기본 -3. 영상만으로는 젖은 노면과 얼음을 못 가르므로 "
+                     "이 값이 판단을 가른다. +5 로 주면 같은 화면에서도 1차가 침묵해야 맞다")
 ap.add_argument("--fixed-weather-ctx", action="store_true",
                 help="기상 컨텍스트를 옛 방식대로 고정값(영하 3도·습도 88·강수 0)으로 넘긴다. "
                      "2026-09-21 이전 주행과 비교할 때만 쓴다. 기본은 CARLA 날씨를 실제로 반영하는 것 — "
@@ -890,13 +893,15 @@ try:
         _w = world.get_weather()
         _precip = _w.precipitation / 100.0 * 20.0 + _w.precipitation_deposits / 100.0 * 2.0
         _hour = 23 if _w.sun_altitude_angle < 0 else (5 if _w.sun_altitude_angle < 15 else 13)
-        _obs = WeatherObs(temp_c=-3.0, humidity=min(99.0, 88.0 + _w.precipitation / 10.0),
-                          temp_trend_c_per_h=-1.0, precip_mm=round(_precip, 2))
+        _obs = WeatherObs(temp_c=a.ctx_temp, humidity=min(99.0, 88.0 + _w.precipitation / 10.0),
+                          temp_trend_c_per_h=(-1.0 if a.ctx_temp <= 2.0 else 0.0),
+                          precip_mm=round(_precip, 2))
         ctx = build_context(_obs, LocationCtx(feature="bridge", hour=_hour))
-        print(f"[ctx] 실제 날씨 반영: 강수 {_precip:.1f} mm/h, 태양고도 {_w.sun_altitude_angle:.0f}도 → "
-              f"시각 {_hour}시", flush=True)
+        print(f"[ctx] 실제 날씨 반영: 기온 {a.ctx_temp:+.1f}도, 강수 {_precip:.1f} mm/h, "
+              f"태양고도 {_w.sun_altitude_angle:.0f}도 → 시각 {_hour}시", flush=True)
     else:
-        ctx = build_context(WeatherObs(temp_c=-3.0, humidity=88.0, temp_trend_c_per_h=-1.0),
+        ctx = build_context(WeatherObs(temp_c=a.ctx_temp, humidity=88.0,
+                                       temp_trend_c_per_h=(-1.0 if a.ctx_temp <= 2.0 else 0.0)),
                             LocationCtx(feature="bridge", hour=5 if not night else 23))
     fuser = RiskFuser(ctx.weights, threshold=ctx.threshold)
     # 기상이 1차 방어를 못 믿을 조건이면 스스로 끄고 2차에 맡긴다.
@@ -907,6 +912,18 @@ try:
         a.disable_primary = True
         print(f"[ctx] 1차 방어 신뢰 불가 → 끄고 2차에 맡긴다: "
               f"{getattr(ctx, 'distrust_reason', '')}", flush=True)
+
+    # 기온이 얼음을 허락하지 않으면 얼음 경보 자체를 내지 않는다. 위와 의미가 다르다 —
+    # 저쪽은 "카메라를 못 믿겠다", 이쪽은 "얼음이 있을 수 없다"이다.
+    # 근거: 빙판 없는 젖은 노면 대조군에서 1차가 노면 확률 0.87 로 얼음이라 단언했다.
+    # 확인 10프레임을 통과했고 문턱을 올려도 못 막는다. 영상만으로는 젖음과 얼음이
+    # 갈리지 않는다는 뜻이고, 그러면 갈라 줄 쪽은 맥락뿐이다.
+    # 2차 방어는 끄지 않는다 — 따뜻해도 젖은 노면은 미끄럽다.
+    ice_impossible = not getattr(ctx, "ice_possible", True)
+    if ice_impossible and not a.disable_primary:
+        a.disable_primary = True
+        print(f"[ctx] 얼음 불가능 조건 → 1차 얼음 경보 끔 (2차는 그대로): "
+              f"{getattr(ctx, 'no_ice_reason', '')}", flush=True)
 
     # ---- 융합을 보드로 보낼 경우: Pi 브리지 연결 대기 ----
     n6 = None

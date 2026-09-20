@@ -123,6 +123,43 @@ def weights_from_context(loc: LocationCtx, w: WeatherObs) -> Weights:
 PRECIP_DISTRUST_MM = 5.0
 
 
+# ---- 기온으로 얼음 자체가 불가능한 조건 -------------------------------------
+# 강수 게이트와 의미가 다르다. 강수 게이트는 "카메라를 못 믿겠다 → 2차에 맡긴다"이고,
+# 이쪽은 "얼음이 물리적으로 있을 수 없다 → 얼음 경보를 내지 않는다"이다.
+# 2차 방어는 그대로 돈다 — 따뜻해도 젖은 노면은 미끄럽다.
+#
+# 왜 필요한가: 빙판 없는 젖은 노면 대조군(WetNoon)에서 1차가 노면 확률 0.87 로 얼음이라고
+# 단언했다. 확인 10프레임을 통과했고, 문턱을 +10 °C 수준(0.742)까지 올려도 못 막는다.
+# 영상만으로는 젖음과 얼음이 갈리지 않는다는 뜻이고, 그러면 갈라 줄 쪽은 맥락뿐이다.
+#
+# 노면은 공기보다 차가울 수 있다. 맑은 밤 복사냉각이 가장 심하고, 다리·터널 출구는 더하다.
+# 아래 여유값은 그 최악을 잡은 것이며, 이만큼 빼고도 0 °C 를 넘어야 "불가능"이라고 말한다.
+# 낮에도 흐리면 노면이 공기보다 차가울 수 있다. 그늘·다리는 더하다. 전부 최악으로 잡는다.
+ROAD_BELOW_AIR_C = {"day": 2.0, "day_exposed": 3.0, "night": 4.0, "night_exposed": 6.0}
+ICE_IMPOSSIBLE_MARGIN_C = 0.5     # 0 °C 딱 붙는 것은 불가능이라 하지 않는다
+_EXPOSED = ("bridge", "tunnel_exit", "mountain", "shade")
+
+
+def road_temp_worst_c(w: WeatherObs, loc: LocationCtx) -> float:
+    """노면이 공기보다 얼마나 차가울 수 있는지를 최악으로 잡은 추정 노면 온도."""
+    night = loc.hour >= 19 or loc.hour < 7
+    exposed = loc.feature in _EXPOSED
+    key = (("night_exposed" if exposed else "night") if night
+           else ("day_exposed" if exposed else "day"))
+    return w.temp_c - ROAD_BELOW_AIR_C[key]
+
+
+def ice_possible(w: WeatherObs, loc: LocationCtx) -> tuple[bool, str]:
+    """이 기상·위치에서 블랙아이스가 있을 수 있나. (가능한가, 불가능하다면 이유)"""
+    if w.snow_on_ground:
+        return True, ""          # 쌓인 눈이 있으면 국소적으로 0 °C 이하 구간이 남는다
+    rt = road_temp_worst_c(w, loc)
+    if rt > ICE_IMPOSSIBLE_MARGIN_C:
+        return False, (f"기온 {w.temp_c:+.1f}°C — 최악으로 잡은 노면 온도 {rt:+.1f}°C 가 "
+                       f"어는점보다 높다. 얼음이 아니라 젖은 노면이다")
+    return True, ""
+
+
 def primary_trust(w: WeatherObs) -> tuple[bool, str]:
     """1차 방어를 믿을 수 있는 기상인가. (믿어도 되나, 이유)"""
     if w.precip_mm >= PRECIP_DISTRUST_MM:
@@ -133,9 +170,12 @@ def primary_trust(w: WeatherObs) -> tuple[bool, str]:
 def build_context(w: WeatherObs, loc: LocationCtx) -> ContextMsg:
     prior, reason = freezing_prior(w, loc)
     trust, why = primary_trust(w)
+    possible, no_ice_why = ice_possible(w, loc)
     return ContextMsg(
         primary_trustworthy=trust,
         distrust_reason=why,
+        ice_possible=possible,
+        no_ice_reason=no_ice_why,
         risk_prior=round(prior, 3),
         threshold=round(threshold_from_prior(prior), 3),
         weights=weights_from_context(loc, w),
