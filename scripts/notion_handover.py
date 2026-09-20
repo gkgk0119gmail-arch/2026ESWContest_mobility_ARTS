@@ -242,6 +242,10 @@ def facts() -> dict:
             d = json.load(open(p)); a = d.get("args", {})
             if not a.get("control_no_ice"):
                 continue
+            # 기온 시연(ctxtemp_*)은 대조군이 아니다. -3 °C 에서 경보가 나는 것이 설계된 동작이라
+            # 오경보로 세면 숫자가 거짓말을 한다.
+            if "events_ctxtemp" in p:
+                continue
             ev = d.get("events", [])
             n += 1
             if any(e["event"] == "primary_warning" for e in ev):

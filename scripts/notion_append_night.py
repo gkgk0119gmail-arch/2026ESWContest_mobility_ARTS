@@ -76,6 +76,10 @@ def facts():
         d = json.load(open(p))
         if not d.get("args", {}).get("control_no_ice"):
             continue
+        # 기온 시연(ctxtemp_*)은 대조군이 아니다. -3 °C 에서 경보가 나는 것이 설계된 동작이라
+        # 오경보로 세면 숫자가 거짓말을 한다.
+        if "events_ctxtemp" in p:
+            continue
         ctrl_n += 1
         ev = d.get("events", [])
         if any(e["event"] == "primary_warning" for e in ev):
@@ -87,6 +91,18 @@ def facts():
     try:
         rows = [json.loads(l) for l in open(ROOT / "logs/rscd_board_samples.jsonl") if l.strip()]
         f["photo_n"] = len(rows)
+        # 얼음 대 젖음 판별력 — 표본이 늘면 이 값도 따라가야 한다 (하드코딩 금지)
+        import numpy as _np
+        risk = _np.array([r["risk"] for r in rows])
+        cls = [r["cls"] for r in rows]
+        ice = risk[[c == "black_ice" for c in cls]]
+        wet = risk[[c == "wet" for c in cls]]
+        if len(ice) and len(wet):
+            order = _np.argsort(_np.concatenate([ice, wet]))
+            rk = _np.empty(len(order)); rk[order] = _np.arange(1, len(order) + 1)
+            f["auc_ice_wet"] = float((rk[:len(ice)].sum() - len(ice) * (len(ice) + 1) / 2)
+                                     / (len(ice) * len(wet)))
+            f["wet_fa"] = float((wet >= 0.603).mean())
     except Exception:
         f["photo_n"] = 0
     return f
@@ -181,8 +197,10 @@ def build(f):
         "이쪽은 \"얼음이 있을 수 없다 → 얼음 경보를 내지 않는다\". "
         "**어느 쪽이든 2차 방어는 그대로 돈다** — 따뜻해도 젖은 노면은 미끄럽다.", "🎯"))
     B.append(callout(
-        "젖은 노면 오경보는 **CARLA 현상**이다. 실사진에서는 젖음과 얼음이 거의 완전히 갈린다 "
-        "(판별 AUC 0.998, 젖은 노면 오경보 1.9 %). 기온 게이트는 결함을 때우는 패치가 아니라 "
+        f"젖은 노면 오경보는 **CARLA 현상**이다. 실사진 {f.get('photo_n',0):,}장에서는 젖음과 얼음이 "
+        f"거의 완전히 갈린다 (얼음 대 젖음 판별 AUC {f.get('auc_ice_wet',0.99):.3f}, "
+        f"운영 문턱에서 젖은 노면 오경보 {100*f.get('wet_fa',0.019):.1f} %). "
+        "기온 게이트는 결함을 때우는 패치가 아니라 "
         "한 겹 더 두는 방어다. 발표에서 \"시뮬에서 오경보가 났다\"를 근거로 쓰면 안 된다.", "⚠️"))
 
     if f["photo_n"]:
