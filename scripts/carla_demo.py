@@ -960,6 +960,7 @@ try:
     slip_box = SlipDetector(rate_hz=a.fps, confirm_samples=3,
                             min_speed_mps=a.min_detect_kph / 3.6, ellipse_rule=False)
     t_rule = {"ellipse": None, "box": None}     # 각 규칙의 첫 확정 시각
+    slip_lat: list[tuple] = []                  # 보드 2차 응답 표본별 (t, µs)
     # 2차 방어 판정 주체: 보드(기본) / 로컬. 보드가 IMU 패킷에 답하지 않으면(구 펌웨어) 3회 실패 후 로컬로 내려가고 보고한다.
     slip_board = (n6 is not None) and not a.slip_local
     slip_stats = {"board": 0, "fallback": 0, "ns_sum": 0, "ns_max": 0, "fail_streak": 0}
@@ -1197,6 +1198,12 @@ try:
                 if sv and sv.get("ok"):
                     slip_stats["board"] += 1; slip_stats["ns_sum"] += int(sv["latency_ns"]); slip_stats["fail_streak"] = 0
                     slip_stats["ns_max"] = max(slip_stats["ns_max"], int(sv["latency_ns"]))
+                    # 표본마다 남긴다 — 집계(평균·최댓값)만으로는 "응답이 시간에 걸쳐 평평하다"를
+                    # 그림으로 못 보여준다.
+                    # 표본별로 NPU 가동 여부를 적지는 않는다. 호스트–브리지 통신이 직렬이라
+                    # 프레임 판정을 받은 뒤에야 IMU 를 보내기 때문이다. 주행 단위 플래그
+                    # (npu_busy = 1차 켜짐)만 의미가 있고, 그건 board_slip_latency 에 이미 있다.
+                    slip_lat.append((round(t_sim, 3), round(int(sv["latency_ns"]) / 1000.0, 2)))
                     if sv.get("emerg"):
                         board_ctrl = {"brake": float(sv["brake"]), "steer": float(sv["steer"]), "mode": sv.get("mode", "?")}
                     if sv["slip"]:
@@ -1372,6 +1379,9 @@ try:
     for v_ in vws.values(): v_.release()
     if vws: print("[video] " + ", ".join(f"demo_{tag}_{k}.mp4" for k in vws))
     if slip_stats["board"]:
+        if slip_lat:
+            (out / f"slip_latency_{tag}.json").write_text(json.dumps(
+                {"npu_busy": not a.disable_primary, "samples": slip_lat}))
         _lat = {"t": round(t_sim,2), "event": "board_slip_latency", "samples": slip_stats["board"], "npu_busy": not a.disable_primary,
                 "avg_us": round(slip_stats['ns_sum']/max(slip_stats['board'],1)/1000, 1), "max_us": round(slip_stats['ns_max']/1000, 1)}
         events.append(_lat)
