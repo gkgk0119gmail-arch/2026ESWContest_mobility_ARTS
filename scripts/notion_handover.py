@@ -651,13 +651,20 @@ def main():
 
     # 같은 제목의 페이지가 이미 있으면 **주소를 유지한 채 내용만 갈아 끼운다**.
     # 새로 만들면 주소가 바뀌어 팀원이 저장해 둔 링크가 끊기고, 같은 문서가 둘이 된다.
+    # 노션은 제목 앞의 이모지를 아이콘으로 떼어 간다. 그래서 저장된 제목은
+    # TITLE 과 글자가 다르다. 앞쪽 이모지·공백을 떼고 비교해야 같은 페이지를 찾는다.
+    # (이걸 안 해서 한 번 같은 문서를 둘로 만들었다.)
+    def _norm(t):
+        return t.strip().lstrip("🧑\u200d🏫📋📌🔧💡⭐🎯🚨⚠️🆕 ").strip()
+
+    want = _norm(TITLE)
     existing = None
     cur = None
     while True:
         q = f"blocks/{a.parent}/children?page_size=100" + (f"&start_cursor={cur}" if cur else "")
         r = api(tok, q)
         for b in r["results"]:
-            if b["type"] == "child_page" and b["child_page"]["title"].strip() == TITLE.strip():
+            if b["type"] == "child_page" and _norm(b["child_page"]["title"]) == want:
                 existing = b["id"]
         if not r.get("has_more"):
             break
