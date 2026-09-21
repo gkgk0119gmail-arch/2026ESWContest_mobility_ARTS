@@ -201,7 +201,7 @@ def main():
              "같은 방법으로 다시 골라야 한다 — 조향을 계단 입력으로 주고 yaw 응답을 재면 된다.\n")
     L.append("- 이 보정은 보드 펌웨어에 **아직 안 올라가 있다**. `fw/npu_lib/slip_core.h` 의 "
              "`SLIP_YAWEXP_TAU_S` 에 들어갔고 C↔파이썬 동치도 통과했다. "
-             "다음 현장 작업 때 `scripts/fw_redeploy.sh` 한 번이면 된다.\n")
+             "**보드를 돌려받으면** `scripts/fw_redeploy.sh` 한 번이면 된다. STM32N6 는 2026-09-21 다른 용도로 빠져 지금은 굽지 못한다.\n")
 
     out = ROOT / "logs/carla_demo/정리/16_조향지연보정.md"
     out.parent.mkdir(parents=True, exist_ok=True)
