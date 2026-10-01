@@ -19,25 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-제3자 자료에 대한 고지 (Third-party notice)
-
-위 MIT 라이선스는 이 저장소의 **코드와 팀이 생성한 자료**에만 적용된다.
-팀이 생성한 자료에는 소스 코드, 분석 문서(docs/evidence), 결과 그림(docs/figures),
-주행 이벤트 데이터(docs/data), 시뮬레이션 영상(media), 하드웨어 사진이 포함된다.
-
-`docs/images/ds_*.jpg` 는 공개 데이터셋의 논문·공식 사이트에서 가져온 설명용 인용이며
-MIT 라이선스의 적용을 받지 않는다. 각 자료는 원 저작자의 조건을 따른다.
-
-  RSCD      thu-rsxd.com/rscd · Zhao et al., Data in Brief (2022) · CC BY
-  RoadSaW   viscoda.com · CVPRW 2022 · CC BY-NC-SA 4.0
-  AI Hub    승용 자율주행차 악천후 데이터 (71626) · AI Hub 이용약관
-  PVS       github.com/jefmenegazzo · CC BY-NC-ND 4.0
-  ROAD      arXiv 2601.20847 · 논문 명시 조건
-  CADC      cadcd.uwaterloo.ca · arXiv 2001.10117 · CC BY-NC-SA
-  WADS      digitalcommons.mtu.edu/wads · arXiv 2109.07078 · 논문 명시 조건
-
-CARLA 시뮬레이터(MIT), ThreadX/NetX Duo, STM32Cube 구성요소는 각자의 라이선스를 따르며
-이 저장소에 포함되어 있지 않다.

@@ -69,7 +69,7 @@ Pi 가 평균 146배 빠르다. 그런데도 최악/평균이 30배로 벌어진
 ## 재현
 
 ```
-python3 scripts/rtos_latency_bench.py --n 50000 --cyc-n 20000
+python3 scripts/deploy/rtos_latency_bench.py --n 50000 --cyc-n 20000
 ```
 
 보드 원본은 `logs/board_wcet.jsonl`, 리눅스 원본은 `/tmp/bench_slip_*.txt` 와 `/tmp/bench_cyclic_*.txt` 다.

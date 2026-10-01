@@ -384,7 +384,12 @@ fw/npu_lib/            STM32N6 펌웨어 글루
   slip_core.h          2차 방어 C 코어 (HAL·OS 비의존, 호스트에서도 컴파일)
   npu_infer.c          Neural-ART NPU 추론
   patch_fw_slip.py     ThreadX 융합 스레드에 2차 방어 주입
-scripts/               수집 · 학습 · 양자화 · 배포 · 데모 · 분석
+scripts/               → scripts/README.md 에 입구 목록
+  sim/                 CARLA 수집 · 데모 · 영상 정리
+  model/               RoadNet 학습 · int8 양자화 · 반사도 헤드
+  deploy/              STM32N6 적재 · 브리지 · 보드 평가
+  analysis/            집계 · 그림 · 근거 문서 생성
+  archive/             일회성 배치 체인 (재현 이력 보존)
 docs/evidence/         자동 생성 근거 문서 19개
 docs/figures/          결과 그림 28장
 docs/images/           하드웨어·데이터셋 사진
@@ -400,7 +405,7 @@ media/                 README 애니메이션 + 영상
 
 ```bash
 pip install -e .
-python3 scripts/summarize_runs.py        # docs/evidence/00_집계.md 재생성
+python3 scripts/analysis/summarize_runs.py        # docs/evidence/00_집계.md 재생성
 python3 -m pytest -q                     # 단위 테스트
 ```
 
@@ -427,7 +432,7 @@ python3 fw/npu_lib/test_slip_core.py     # gcc 로 C 코어를 빌드해 동치 
 ## 라이선스
 
 코드와 팀이 생성한 자료(분석 문서·그림·이벤트 데이터·영상·하드웨어 사진)는 [MIT 라이선스](LICENSE)를 따른다.
-`docs/images/ds_*.jpg` 는 공개 데이터셋 논문·사이트에서 가져온 설명용 인용이며 각 원 저작자의 조건을 따른다 (LICENSE 파일의 제3자 고지 참고).
+`docs/images/ds_*.jpg` 는 공개 데이터셋 논문·사이트에서 가져온 설명용 인용이며 각 원 저작자의 조건을 따른다 ([NOTICE](NOTICE) 참고).
 
 ---
 

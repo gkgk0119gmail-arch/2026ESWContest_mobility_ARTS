@@ -2,8 +2,8 @@
 
 이 문서는 기존 결과를 다시 재는 것으로 시작해서, 발표(11/6)까지 무엇을 해야 하는지 우선순위로 적는다.
 근거 파일: `logs/carla_demo/정리/01_탐지성능.md`(주행별 경보 거리·오경보 분류),
-`logs/carla_demo/정리/02_융합가중치.md`(RSCD 실사진 β·문턱 스윕), `scripts/analyze_detection.py`,
-`scripts/tune_fusion.py`, `scripts/test_follow_lane.py`.
+`logs/carla_demo/정리/02_융합가중치.md`(RSCD 실사진 β·문턱 스윕), `scripts/analysis/analyze_detection.py`,
+`scripts/model/tune_fusion.py`, `scripts/sim/test_follow_lane.py`.
 
 ---
 
@@ -46,7 +46,7 @@
 | 문제 | 증상 | 원인 | 조치 |
 |---|---|---|---|
 | 5090 배치 전멸 | 모든 주행이 `timeout: failed to execute process` | `PY=${PY:-~/...}` 의 `~` 가 **파이에서** 펼쳐져 `/home/pi/...` 가 원격으로 감 | `\$HOME` 문자열로 넘겨 원격에서 펼침 |
-| 회피 시나리오 4회 연속 실패 | `gap_front_m` 이 항상 999 | `patch_wp.next(70)[0]` 이 Town04 나들목에서 램프를 골라 정차 차량이 road 47/-1 에 428 m 떨어져 놓임 | `follow_lane` 로 2 m 씩 본선 유지 이동. `scripts/test_follow_lane.py` 로 검증 |
+| 회피 시나리오 4회 연속 실패 | `gap_front_m` 이 항상 999 | `patch_wp.next(70)[0]` 이 Town04 나들목에서 램프를 골라 정차 차량이 road 47/-1 에 428 m 떨어져 놓임 | `follow_lane` 로 2 m 씩 본선 유지 이동. `scripts/sim/test_follow_lane.py` 로 검증 |
 | 렌더 품질 불일치 | 기존 영상 Low, 신규 Epic | `ensure_carla` 재시작 경로가 Low 고정 | Epic 으로 통일. **기존 영상과 1차 결과를 같은 표에 넣지 말 것** |
 | 집계 모집단 오염 | 인식률이 부풀려짐 | `gt`(거리 치트)·레거시·보정 주행이 섞임 | `analyze_detection.py` 가 제외하고 셈 |
 
@@ -289,7 +289,7 @@ CARLA 날씨는 물리에 영향을 주지 않으므로 당연한 결과다. 날
 
 한 가지 함정이 있었다 — 이 로그는 **데모가 도는 기계**(데스크탑)에 쌓이는데 배치 회수는
 `logs/carla_demo/` 만 rsync 한다. 그대로 두면 기록이 두 기계에 갈라진다.
-배치 뒤 `python3 scripts/merge_wcet.py` 로 합칠 것.
+배치 뒤 `python3 scripts/analysis/merge_wcet.py` 로 합칠 것.
 
 ### F. 변하지 않은 외부 의존
 
@@ -318,7 +318,7 @@ CARLA 날씨는 물리에 영향을 주지 않으므로 당연한 결과다. 날
 - 도메인 갭의 원인 후보 중 질감·밝기·렌더 품질 세 가지를 실험으로 기각.
 
 남은 것:
-1. `--control-no-ice` 대조군 8종 → 시뮬 오경보율 첫 측정 (`scripts/after_5090_control.sh` 가 자동 실행).
+1. `--control-no-ice` 대조군 8종 → 시뮬 오경보율 첫 측정 (`scripts/archive/after_5090_control.sh` 가 자동 실행).
 2. 망원 시야(25°) 검토 — §B 표대로면 원거리 해상도가 2.5 배. 데모에서는 두 번째 카메라를
    붙여 두 번 추론하면 되고, 보드 부하는 25.5 ms × 2 로 계산하면 된다.
 3. ~~WCET append-only 로그~~ — 끝났다. `logs/board_wcet.jsonl` 에 주행마다 덧붙이고 기존 12건은 백필했다. 현재 관측 WCET 16.2 µs(NPU 동시), 유휴 14.2 µs, 샘플 5,450개.
@@ -611,7 +611,7 @@ RSCD 라벨 체계가 `fresh_snow` 를 `wet` 으로 매핑해 정답이 "젖음"
 ### 남은 것
 
 보드 펌웨어 재기록은 **BOOT1 스위치 + SWD 물리 접근**이 필요해 원격으로 못 한다.
-코드는 이미 들어갔으니 다음 현장 작업 때 `scripts/fw_redeploy.sh` 한 번이면 된다.
+코드는 이미 들어갔으니 다음 현장 작업 때 `scripts/deploy/fw_redeploy.sh` 한 번이면 된다.
 그때까지 `정리/14` 의 "타원" 열은 반사실이고, 보드 실제 동작은 직사각형이다. 문서에 그렇게 적어 뒀다.
 
 ---
@@ -620,25 +620,25 @@ RSCD 라벨 체계가 `fresh_snow` 를 `wet` 으로 매핑해 정답이 "젖음"
 
 | 파일 | 하는 일 |
 |---|---|
-| `scripts/analyze_detection.py` | 주행별 경보 거리·시간여유·오경보 분류·거리별 확률 → `정리/01_탐지성능.md` |
-| `scripts/tune_fusion.py` | RSCD 실사진으로 β·문턱 스윕 → `정리/02_융합가중치.md` |
-| `scripts/domain_gap_stats.py` | CARLA vs RSCD ROI 영상 통계 → `정리/03_도메인갭.md` |
-| `scripts/texture_sensitivity.py` | 질감 의존도 시험 → `정리/04_질감의존.md` |
-| `scripts/test_follow_lane.py` | 차로 추종·선분 거리 단위 시험 (CARLA 불필요) |
+| `scripts/analysis/analyze_detection.py` | 주행별 경보 거리·시간여유·오경보 분류·거리별 확률 → `정리/01_탐지성능.md` |
+| `scripts/model/tune_fusion.py` | RSCD 실사진으로 β·문턱 스윕 → `정리/02_융합가중치.md` |
+| `scripts/analysis/domain_gap_stats.py` | CARLA vs RSCD ROI 영상 통계 → `정리/03_도메인갭.md` |
+| `scripts/analysis/texture_sensitivity.py` | 질감 의존도 시험 → `정리/04_질감의존.md` |
+| `scripts/sim/test_follow_lane.py` | 차로 추종·선분 거리 단위 시험 (CARLA 불필요) |
 | `logs/board_wcet.jsonl` | 주행마다 덧붙이는 보드 지연 기록. 재실행해도 안 덮인다 |
-| `scripts/merge_wcet.py` | 그 기록은 **데모가 도는 기계에 쌓인다**(데스크탑). 배치 회수는 `logs/carla_demo/` 만 rsync 하므로 그냥 두면 두 기계에 갈라진 채 안 만난다. 배치 뒤 이걸 돌려 합친다 |
-| `scripts/stop_chains.sh` | 돌고 있는 체인을 안전하게 멈춘다. `--list` 로 먼저 확인 |
-| `scripts/after_5090_control.sh` / `verify_evade.sh` / `verify_evade_close.sh` | 배치 뒤 자동으로 이어지는 검증 체인 |
-| `scripts/variation_sweep.sh` / `variation_report.py` | 시드·속도·마찰을 흔들어 2차 방어를 **분포로** 만든다 → `정리/11` |
-| `scripts/speed_dyn_sweep.sh` / `slip_onset_analysis.py` | 원시 동역학을 남겨 "미끄러짐 시작"과 "감지 확정"을 갈라 잰다 → `정리/12` |
-| `scripts/slip_rule_compare.py` | 판정 규칙 직사각형 대 타원, 합성 신호로 속도·오탐 비교 → `정리/13` |
-| `scripts/rule_ab_sweep.sh` / `rule_ab_report.py` | CARLA 실주행 한 번에 두 규칙을 동시에 돌려 비교 → `정리/14` |
-| `scripts/ctx_temp_demo.sh` / `ctx_temp_report.py` | 같은 화면을 기온만 바꿔 두 번 — 맥락 계층 시연 → `정리/15` |
-| `scripts/yawlag_verify.sh` / `yawlag_report.py` | 조향 지연 보정 τ 를 실측으로 고르고 확인 → `정리/16` |
-| `scripts/test_context_gates.py` | 강수·기온 게이트 단위 시험 (CARLA 불필요) |
-| `scripts/latency_figure.py` | 리눅스 대 보드 지연 분포를 로그 축 한 장으로 |
-| `scripts/rule_boundary_figure.py` | 잔차 평면에 판정 경계와 실제 궤적을 얹은 그림 |
-| `scripts/story_figure.py` | 이중 방어가 도는 모습 한 장 (발표 첫 장) |
-| `scripts/range_resolution.py` | 경보 거리의 한계를 해상도로 정량화 → `정리/17` |
-| `scripts/finalize_docs.py` | 실측이 늘면 자동 문서·그림을 다시 만들고 근거 지도 숫자를 맞춘다 |
-| `scripts/rscd_board_eval.py --all --resume` | 실사진 **전량**을 보드로 평가 (이미 한 것은 건너뜀) |
+| `scripts/analysis/merge_wcet.py` | 그 기록은 **데모가 도는 기계에 쌓인다**(데스크탑). 배치 회수는 `logs/carla_demo/` 만 rsync 하므로 그냥 두면 두 기계에 갈라진 채 안 만난다. 배치 뒤 이걸 돌려 합친다 |
+| `scripts/archive/stop_chains.sh` | 돌고 있는 체인을 안전하게 멈춘다. `--list` 로 먼저 확인 |
+| `scripts/archive/after_5090_control.sh` / `verify_evade.sh` / `verify_evade_close.sh` | 배치 뒤 자동으로 이어지는 검증 체인 |
+| `scripts/archive/variation_sweep.sh` / `variation_report.py` | 시드·속도·마찰을 흔들어 2차 방어를 **분포로** 만든다 → `정리/11` |
+| `scripts/archive/speed_dyn_sweep.sh` / `slip_onset_analysis.py` | 원시 동역학을 남겨 "미끄러짐 시작"과 "감지 확정"을 갈라 잰다 → `정리/12` |
+| `scripts/analysis/slip_rule_compare.py` | 판정 규칙 직사각형 대 타원, 합성 신호로 속도·오탐 비교 → `정리/13` |
+| `scripts/archive/rule_ab_sweep.sh` / `rule_ab_report.py` | CARLA 실주행 한 번에 두 규칙을 동시에 돌려 비교 → `정리/14` |
+| `scripts/archive/ctx_temp_demo.sh` / `ctx_temp_report.py` | 같은 화면을 기온만 바꿔 두 번 — 맥락 계층 시연 → `정리/15` |
+| `scripts/archive/yawlag_verify.sh` / `yawlag_report.py` | 조향 지연 보정 τ 를 실측으로 고르고 확인 → `정리/16` |
+| `scripts/analysis/test_context_gates.py` | 강수·기온 게이트 단위 시험 (CARLA 불필요) |
+| `scripts/analysis/latency_figure.py` | 리눅스 대 보드 지연 분포를 로그 축 한 장으로 |
+| `scripts/analysis/rule_boundary_figure.py` | 잔차 평면에 판정 경계와 실제 궤적을 얹은 그림 |
+| `scripts/analysis/story_figure.py` | 이중 방어가 도는 모습 한 장 (발표 첫 장) |
+| `scripts/analysis/range_resolution.py` | 경보 거리의 한계를 해상도로 정량화 → `정리/17` |
+| `scripts/analysis/finalize_docs.py` | 실측이 늘면 자동 문서·그림을 다시 만들고 근거 지도 숫자를 맞춘다 |
+| `scripts/deploy/rscd_board_eval.py --all --resume` | 실사진 **전량**을 보드로 평가 (이미 한 것은 건너뜀) |
