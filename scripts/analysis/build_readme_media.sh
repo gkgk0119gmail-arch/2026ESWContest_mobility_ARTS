@@ -20,7 +20,7 @@ CLIPS="
 hero_compare|$SRC/G_비교_방어없음_vs_RTOS/compare_ClearNoon_nodefense_traffic_vs_ClearNoon_miss_rtos_traffic_bev.mp4|6|8|760|왼쪽 방어 없음 vs 오른쪽 RTOS 2차 방어
 primary_stop|$SRC/A_1차방어_카메라인식_정지/맑은낮_40kmh_카메라인식_빙판24m앞정지/영상_1인칭+조감.mp4|4.2|5.0|720|1차 방어: 카메라가 보고 빙판 24 m 앞 정지
 secondary_rtos|$SRC/B_2차방어_카메라미인식_IMU개입/맑은낮_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량/영상_1인칭+조감.mp4|5.0|8.0|720|2차 방어: 미끄러짐 확정 후 보드가 차선 유지하며 정지
-nodefense_spin|$SRC/F_방어없음_기준선/맑은낮_40kmh_방어없음_빙판진입_스핀_제어상실_주변차량/영상_조감.mp4|9.5|8.0|680|방어 없음: 차선 이탈 뒤 스핀
+nodefense_crash|$SRC/F_방어없음_기준선/맑은낮_40kmh_방어없음_빙판진입_wall충돌_12kmh/영상_1인칭+조감.mp4|6.56|5.85|760|방어 없음: 차선 이탈 → 방호벽 충돌 12 km/h
 lidar_semantic|$SRC/B_2차방어_카메라미인식_IMU개입/맑은낮_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량/영상_라이다_클래스색.mp4|5.5|7.0|680|시맨틱 라이다: 빙판(청록)·차량 3D 박스
 snow_night|$SRC/B_2차방어_카메라미인식_IMU개입/눈_40kmh_카메라미인식_빙판진입_RTOS2차방어/영상_1인칭+조감.mp4|5.0|7.0|720|눈 내리는 날 같은 시나리오
 limit_60kph|$SRC/C_2차방어_카메라경고늦음_IMU개입/맑은낮_60kmh_카메라경고늦음_빙판진입_RTOS2차방어_주변차량/영상_1인칭+조감.mp4|4.5|8.0|720|60 km/h 한계: 2차가 개입해도 앞차와 충돌
@@ -32,7 +32,7 @@ echo "$CLIPS" | while IFS='|' read -r name src ss dur w desc; do
   [ -z "${name:-}" ] && continue
   if [ ! -f "$src" ]; then echo "  건너뜀 (원본 없음): $name"; continue; fi
   ffmpeg -nostdin -v error -ss "$ss" -t "$dur" -i "$src" \
-         -vf "fps=10,scale=$w:-2:flags=lanczos" -c:v libwebp -lossless 0 -q:v 55 -loop 0 -an \
+         -vf "fps=10,scale=$w:-2:flags=lanczos,tpad=stop_mode=clone:stop_duration=1.0" -c:v libwebp -lossless 0 -q:v 55 -loop 0 -an \
          -y "$OUT/$name.webp"
   if [ "$GIF" = 1 ]; then
     ffmpeg -nostdin -v error -ss "$ss" -t "$dur" -i "$src" -vf "fps=8,scale=$((w-80)):-2:flags=lanczos,palettegen=stats_mode=diff" -y "$TMP/p.png"
