@@ -112,6 +112,15 @@ for ej in sorted(D.glob("events_*.json")):
     (folder / "정보.txt").write_text("\n".join(info) + "\n")
     rows.append((GROUP[short], name, tag, "; ".join(f"{e['t']}s {e['event']}" for e in evs), got))
 
+# 비교 영상(compare_*.mp4)도 정리본으로 옮긴다.
+# 이 단계가 없어서, 기준선을 다시 찍은 뒤에도 G 폴더에는 옛 주행으로 만든 비교 영상이 남아 있었다.
+# README 히어로와 보고서 표지가 그걸 쓰고 있었다 — 조용히 틀린 근거가 되는 종류의 누락이라 여기에 넣는다.
+g = OUT / "G_비교_방어없음_vs_RTOS"; g.mkdir(parents=True, exist_ok=True)
+n_c = 0
+for src in sorted(D.glob("compare_*.mp4")):
+    if place(src, g / src.name): n_c += 1
+print(f"비교 영상 {n_c}개 갱신 → {g.name}")
+
 (OUT / "00_읽어보기.txt").write_text("""IcePredict 데모 영상 정리본 — 폴더 안내
 A_1차방어_카메라인식_정지      카메라(보드 NPU)가 빙판을 미리 보고 정지한 주행
 B_2차방어_카메라미인식_IMU개입  카메라가 못 봤다고 **가정**(1차 끔) → 빙판 진입 → IMU 미끄러짐 감지(STM32N6 RTOS)가 개입
