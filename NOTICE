@@ -1,10 +1,10 @@
 NOTICE — 제3자 자료에 대한 고지 (Third-party notice)
 
 `LICENSE` 의 MIT 라이선스는 이 저장소의 **코드와 팀이 생성한 자료**에만 적용된다.
-팀이 생성한 자료에는 소스 코드, 분석 문서(docs/evidence), 결과 그림(docs/figures),
-주행 이벤트 데이터(docs/data), 시뮬레이션 영상(media), 하드웨어 사진이 포함된다.
+팀이 생성한 자료에는 소스 코드, 분석 문서(sw/docs/evidence), 결과 그림(sw/docs/figures),
+주행 이벤트 데이터(sw/docs/data), 시뮬레이션 영상(media), 하드웨어 사진이 포함된다.
 
-`docs/images/ds_*.jpg` 는 공개 데이터셋의 논문·공식 사이트에서 가져온 설명용 인용이며
+`sw/docs/images/ds_*.jpg` 는 공개 데이터셋의 논문·공식 사이트에서 가져온 설명용 인용이며
 MIT 라이선스의 적용을 받지 않는다. 각 자료는 원 저작자의 조건을 따른다.
 
   RSCD      thu-rsxd.com/rscd · Zhao et al., Data in Brief (2022) · CC BY

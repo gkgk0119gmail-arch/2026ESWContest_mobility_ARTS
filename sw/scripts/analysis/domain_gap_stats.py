@@ -173,7 +173,7 @@ def main():
         L.append("실제 제약은 카메라 기하다 — ROI(행 144~235)가 보는 노면은 7.9~42.2 m 이고 "
                  "30~60 m 구간은 15.2 px 에 눌려 있다. 확률 곡선도 그와 맞는다(43 m 에서 0.006, "
                  "31.6 m 에서 0.219, 27.4 m 에서 0.943). 자세한 것은 "
-                 "`docs/research_directions_2026-09-20.md` §A·§B 를 볼 것.\n\n")
+                 "`sw/docs/research_directions_2026-09-20.md` §A·§B 를 볼 것.\n\n")
         L.append("그러므로 이 표는 **재수집·재학습의 근거로 쓰면 안 된다.** 기록으로만 남긴다.\n")
 
     out = pathlib.Path(a.out)

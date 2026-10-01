@@ -2,7 +2,7 @@
 """문서의 숫자를 실측과 **다시 맞춘다** — 밤새 데이터가 늘어난 뒤 한 번 돌린다.
 
 문제: 실사진 표본이 25,140 → 69,360 장으로 늘면 자동 생성 문서는 따라오지만
-손으로 쓴 `docs/presentation_evidence_map.md` 는 옛 숫자를 그대로 들고 있다.
+손으로 쓴 `sw/docs/presentation_evidence_map.md` 는 옛 숫자를 그대로 들고 있다.
 발표 자료를 그 문서 보고 만들면 어긋난 숫자를 말하게 된다.
 
 하는 일
@@ -10,7 +10,7 @@
   2. 근거 지도의 실사진 장수를 살아 있는 값으로 고친다
   3. 남아 있는 옛 숫자를 찾아 보고한다 (고치지는 않는다 — 기록 문서일 수 있다)
 
-`docs/research_directions_*.md` 는 **날짜가 박힌 기록**이라 건드리지 않는다.
+`sw/docs/research_directions_*.md` 는 **날짜가 박힌 기록**이라 건드리지 않는다.
 그때 25,140 장이었던 것은 사실이기 때문이다.
 
 사용: python3 sw/scripts/analysis/finalize_docs.py [--no-regen]
@@ -26,7 +26,7 @@ import subprocess
 import numpy as np
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-MAP = ROOT / "docs/presentation_evidence_map.md"
+MAP = ROOT / "sw/docs/presentation_evidence_map.md"
 # rtos_latency_bench 는 파이에서 실제로 벤치를 돌린다. 유휴 측정이 오염되지 않게
 # 다른 작업이 모두 끝난 뒤(= 이 스크립트가 도는 시점)에만 돌려야 한다.
 REGEN = ["rtos_latency_bench", "summarize_runs", "analyze_detection", "rscd_breakdown", "spec_head_transfer",

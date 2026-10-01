@@ -165,7 +165,7 @@ logs/carla_demo/
 │   └── rule_boundary.jpg       ★ 판정 경계 사각형 → 타원, 실제 궤적 포함
 └── demo_실사진주행_split.mp4   시뮬 없는 데모 영상 ★
 
-docs/research_directions_2026-09-20.md   전체 분석·결정 기록
+sw/docs/research_directions_2026-09-20.md   전체 분석·결정 기록
 logs/board_wcet.jsonl                    덮이지 않는 WCET 누적 로그
 logs/rscd_board_samples.jsonl            실사진 69,358장 표본별 판정
 ```

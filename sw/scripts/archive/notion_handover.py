@@ -525,7 +525,7 @@ def build2(f: dict) -> list[dict]:
         "├── sw/src/icepredict/                파이썬 본체 (융합·컨텍스트·IMU 감지)\n"
         "├── sw/fw/npu_lib/                    보드 펌웨어 패치와 C 코어\n"
         "├── dataset/rscd/                  실제 도로 사진 69,360장\n"
-        "├── docs/                          분석·결정 기록\n"
+        "├── sw/docs/                          분석·결정 기록\n"
         "└── logs/\n"
         "    ├── board_wcet.jsonl           보드 지연 누적 (덮이지 않는다)\n"
         "    ├── rscd_board_samples.jsonl   실사진 표본별 보드 판정\n"
@@ -611,18 +611,18 @@ def build2(f: dict) -> list[dict]:
     B.append(todo("Hailo 컴파일러(DFC) 계정 받아 설치 → 보드 NPU 수치 독립 교차검증"))
     B.append(todo("캡처 해상도를 1920×1080 으로 올려 보기 — 렌즈 교체 없이 30~60 m 픽셀이 3배가 된다. "
                   "NPU 비용은 안 변한다 (6-2 절 참고). 이게 제일 싼 개선이다"))
-    B.append(todo("서류(10/30) · 발표(11/6) 자료 조립 — docs/presentation_evidence_map.md 참고"))
+    B.append(todo("서류(10/30) · 발표(11/6) 자료 조립 — sw/docs/presentation_evidence_map.md 참고"))
 
     # ── 11. 읽을 순서
     B.append(head(1, "11. 문서 읽는 순서"))
     B.append(num_("이 페이지 (지금 읽는 것)"))
-    B.append(num_("docs/presentation_evidence_map.md — 어떤 주장에 어떤 자료를 쓰는지"))
+    B.append(num_("sw/docs/presentation_evidence_map.md — 어떤 주장에 어떤 자료를 쓰는지"))
     B.append(num_("logs/carla_demo/정리/05_실사진_대규모평가.md — 1차 방어 성능의 근거"))
     B.append(num_("logs/carla_demo/정리/06_RTOS가_왜_필요한가.md — 대회 주제의 핵심"))
     B.append(num_("logs/carla_demo/정리/10_스케줄가능성_분석.md — 임베디드 SW 로서의 논증"))
     B.append(num_("logs/carla_demo/정리/11_변동스윕_2차방어분포.md — 2차 방어를 분포로 말하기"))
     B.append(num_("logs/carla_demo/정리/13_판정규칙_타원.md — 약점을 찾아 고친 기록 (심사에서 강하다)"))
-    B.append(num_("docs/research_directions_2026-09-20.md — 전체 분석·결정 기록 (길다, 필요할 때만)"))
+    B.append(num_("sw/docs/research_directions_2026-09-20.md — 전체 분석·결정 기록 (길다, 필요할 때만)"))
     B.append(callout(
         "03_도메인갭.md 은 **반증 기록**이다. 거기 나온 차이(국소 대비 8배)는 "
         "도메인 갭의 원인이 아니라는 것이 04_질감의존.md 에서 밝혀졌다. "

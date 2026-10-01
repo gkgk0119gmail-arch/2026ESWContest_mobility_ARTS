@@ -8,9 +8,13 @@ sw/
     sim/            CARLA 빙판 합성, 카메라 설정, 차로 추종
     train/          RoadNet 모델, 데이터 인덱스
   fw/npu_lib/       STM32N6 펌웨어 글루
-  scripts/          수집 · 학습 · 양자화 · 배포 · 데모 · 분석  → scripts/README.md
+  scripts/          수집 · 학습 · 양자화 · 배포 · 데모 · 분석 125개  → scripts/README.md
   tests/            단위 테스트 19개
   pi/               ZMQ 연결 점검용 최소 예제
+  docs/             근거 문서 19건 · 결과 그림 29장 · 주행 이벤트 108건
+  media/            README 애니메이션 WebP 8개 + 내려받기용 MP4
+  report/           개발완료보고서 (.pptx / .pdf)             → report/README.md
+  pyproject.toml
 ```
 
 ## 두 방어의 코드가 어디에 있나
@@ -33,10 +37,13 @@ python3 sw/fw/npu_lib/test_slip_core.py     # gcc 로 C 코어를 빌드해 동�
 ## 재현
 
 ```bash
-pip install -e .
-python3 -m pytest -q                              # 단위 테스트 19개
+pip install -e sw                                 # 저장소 루트에서
+python3 -m pytest -q sw/tests                     # 단위 테스트 19개
 python3 sw/scripts/analysis/summarize_runs.py     # 주행 집계표 재생성
 ```
+
+`sw/` 안에서라면 `pip install -e .` · `python3 -m pytest -q` 로 짧게 쓸 수 있다
+(`pyproject.toml` 이 여기 있다).
 
 CARLA 도 보드도 없이 저장소의 이벤트 데이터만으로 돈다.
 

@@ -4,7 +4,7 @@
 PDF 판(build_report.py)과 같은 내용·같은 눈금(1280×720 px)을 쓰되, 여기서는 글·표·사진이
 전부 PowerPoint 개체다. 발표 전에 문구를 고치거나 쪽을 덜어내려면 이 파일을 쓴다.
 
-사용: python3 report/build_pptx.py
+사용: python3 sw/report/build_pptx.py
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from pptx_kit import (veil, BLUE, BLUE_BG, DARK, FAINT, FONT, GREEN, INK, LINE, 
                       MUTED, NAVY, PANEL, RED, RED_BG, SLATE, WHITE, ZEBRA,
                       box, pic, px, rect, table, text)
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 HERE = pathlib.Path(__file__).resolve().parent
 OUT = HERE / "2026ESWContest_모빌리티_ARTS_개발완료보고서.pptx"
 
@@ -121,7 +121,7 @@ pic(sh, HERE, "assets/cmp_15.0.jpg", PAD, ky + 108, CW, B - (ky + 108),
 s, sh, T, B = page("문제", "왜 블랙아이스는 비전만으로 풀리지 않는가",
                    foot="약점을 숨기지 않고, 이중 안전망 구조의 '존재 이유'를 데이터로 뒷받침한다 — "
                         "개발계획서에 적었던 방침을 그대로 지켰다.")
-pic(sh, ROOT, "docs/figures/real_failure_miss.jpg", PAD, T, CW, B - T - 124,
+pic(sh, ROOT, "sw/docs/figures/real_failure_miss.jpg", PAD, T, CW, B - T - 124,
     cap="<b>우리 보드가 실제로 놓친 실사진</b> — 전부 정답이 블랙아이스인데 '정상'으로 판정했다. "
         "위험도 0.01~0.04 라 운영 문턱(0.603)은 물론 어떤 문턱으로도 잡히지 않는다", cap_h=18)
 by = B - 112
@@ -138,7 +138,7 @@ for i, (t, b, ac, bg) in enumerate([
 s, sh, T, B = page("구조", "이중 안전망 — 예측(AI)과 반응(RTOS)",
                    foot="ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4다. 25 ms짜리 추론이 "
                         "돌고 있어도 IMU 판정이 선점한다 — 혼합 임계도(mixed-criticality) AI ECU 구조.")
-pic(sh, ROOT, "docs/figures/architecture.png", PAD, T, CW, B - T - 196, border=False)
+pic(sh, ROOT, "sw/docs/figures/architecture.png", PAD, T, CW, B - T - 196, border=False)
 table(sh, PAD, B - 186, CW,
       ["", "1차 방어 · 예측", "2차 방어 · 반응"],
       [["센서", "전방 카메라", "IMU (횡가속 · yaw rate · 종가속)"],
@@ -181,9 +181,9 @@ table(sh, PAD, T, CW, ["항목", "개발계획서(6월)", "실제 구현", "바�
        ["노면 클래스", "정상 / 젖음 / 결빙 위험 / 포트홀", "동일 (유지)", "RSCD 27클래스 → 4클래스 매핑을 계획대로 적용"]],
       colw=[1.15, 1.5, 1.7, 4.2], size=9.8, row_h=50, head_h=22)
 fy = T + 234
-pic(sh, ROOT, "docs/figures/rtos_latency.jpg", PAD, fy, (CW - 16) / 2, 206,
+pic(sh, ROOT, "sw/docs/figures/rtos_latency.jpg", PAD, fy, (CW - 16) / 2, 206,
     cap="<b>1번 변경의 근거</b> — 같은 연산의 지연 분포. 리눅스는 꼬리가 길다", cap_h=16)
-pic(sh, ROOT, "docs/figures/schedule_inverted.jpg", PAD + (CW + 16) / 2, fy, (CW - 16) / 2, 206,
+pic(sh, ROOT, "sw/docs/figures/schedule_inverted.jpg", PAD + (CW + 16) / 2, fy, (CW - 16) / 2, 206,
     cap="<b>2번 변경의 근거</b> — 우선순위를 뒤집으면 NPU 추론(25 ms)이 IMU 주기(20 ms)를 막는다", cap_h=16)
 box(sh, PAD, fy + 216, CW, B - (fy + 216), "바뀌지 않은 것",
     "이중 안전망이라는 <b>구조</b>와, '블랙아이스를 직접 맞히지 않고 위험도를 올린다'는 <b>1차 전략</b>, "
@@ -215,9 +215,9 @@ box(sh, PAD + hw_ + 16, T, hw_, 215, "RSCD 27클래스 → 우리 4클래스",
     accent=BLUE, fill=BLUE_BG, size=10.5)
 dy = T + 228
 dw = (CW - 2 * 12) / 3
-for i, (f, c) in enumerate([("docs/images/ds_rscd_classes.jpg", "RSCD 클래스별 샘플"),
-                            ("docs/images/ds_rscd_patch.jpg", "주행 영상에서 노면 영역만 잘라 패치로 쓴다"),
-                            ("docs/images/ds_rscd_camera.jpg", "차량 전방 카메라 — 20~80 km/h 주행 촬영")]):
+for i, (f, c) in enumerate([("sw/docs/images/ds_rscd_classes.jpg", "RSCD 클래스별 샘플"),
+                            ("sw/docs/images/ds_rscd_patch.jpg", "주행 영상에서 노면 영역만 잘라 패치로 쓴다"),
+                            ("sw/docs/images/ds_rscd_camera.jpg", "차량 전방 카메라 — 20~80 km/h 주행 촬영")]):
     pic(sh, ROOT, f, PAD + i * (dw + 12), dy, dw, B - dy, cap=c, fit="cover", cap_h=16)
 
 # ══ 8. 보조 데이터셋 ═════════════════════════════════════════════════════════
@@ -233,7 +233,7 @@ six = [("ds_roadsaw.jpg", "<b>RoadSaW</b> 12클래스 = 노면 3종 × 젖음 4�
 gw = (CW - 2 * 12) / 3
 gh = (B - T - 12) / 2
 for i, (f, c) in enumerate(six):
-    pic(sh, ROOT, f"docs/images/{f}", PAD + (i % 3) * (gw + 12), T + (i // 3) * (gh + 12),
+    pic(sh, ROOT, f"sw/docs/images/{f}", PAD + (i % 3) * (gw + 12), T + (i // 3) * (gh + 12),
         gw, gh, cap=c, fit="cover", cap_h=30, cap_size=8.8)
 
 # ══ 9. 모델 ══════════════════════════════════════════════════════════════════
@@ -280,9 +280,9 @@ box(sh, PAD, T + 224, tw, B - (T + 224), "이 숫자가 왜 믿을 만한가",
      "보드를 다시 돌릴 필요가 없다."], accent=BLUE, fill=BLUE_BG, size=10.3)
 fw = CW - tw - 16
 fh2 = (B - T - 12) / 2
-pic(sh, ROOT, "docs/figures/real_threshold.jpg", PAD + tw + 16, T, fw, fh2,
+pic(sh, ROOT, "sw/docs/figures/real_threshold.jpg", PAD + tw + 16, T, fw, fh2,
     cap="운영 문턱 결정 — 69,358장 전량 스윕", cap_h=16)
-pic(sh, ROOT, "docs/figures/real_confusion.jpg", PAD + tw + 16, T + fh2 + 12, fw, fh2,
+pic(sh, ROOT, "sw/docs/figures/real_confusion.jpg", PAD + tw + 16, T + fh2 + 12, fw, fh2,
     cap="혼동 행렬 (행 = 실제, 열 = 보드 판정)", cap_h=16)
 
 # ══ 11·14. 시나리오 3단 ══════════════════════════════════════════════════════
@@ -350,7 +350,7 @@ table(sh, PAD, T + 208, lw_, ["항목", "값", "왜 이 값인가"],
        ["판정 규칙", "<b>타원</b>", "직사각형은 모서리에서 저속 지연이 생겼다"],
        ["저마찰 트리거", "제동 ≥ 0.3 이 0.3 s 지속 + 감속 < 1.2 m/s²", "필터 지연 구간의 오탐 방지"]],
       colw=[1.1, 2.2, 2.8], size=9.8, row_h=31, head_h=22)
-pic(sh, ROOT, "docs/figures/rule_boundary.jpg", PAD + lw_ + 16, T, CW - lw_ - 16, B - T,
+pic(sh, ROOT, "sw/docs/figures/rule_boundary.jpg", PAD + lw_ + 16, T, CW - lw_ - 16, B - T,
     cap="판정 경계 — 직사각형(점선) 대 타원(실선). 모서리에 걸리던 저속 구간이 타원에서 사라진다", cap_h=32)
 
 # ══ 14. 2차 동작 ═════════════════════════════════════════════════════════════
@@ -373,7 +373,7 @@ s, sh, T, B = page("2차 방어", "왜 리눅스가 아니라 RTOS 인가 — �
                    lead="같은 연산을 Pi 5 리눅스가 평균 146배 빠르게 한다. 그런데도 RTOS 보드를 쓴다. "
                         "안전 기능의 기준은 평균이 아니라 최악이기 때문이다.",
                    foot="우선순위를 뒤집으면(NPU가 IMU보다 높으면) 25 ms 추론이 20 ms 주기를 막아 스케줄 "
-                        "자체가 불가능해진다 — 근거: docs/evidence/10_스케줄가능성_분석.md")
+                        "자체가 불가능해진다 — 근거: sw/docs/evidence/10_스케줄가능성_분석.md")
 table(sh, PAD, T, hw_, ["플랫폼", "표본", "중앙값", "최악"],
       [["Pi 5 + Linux · 유휴", "20,000", "69 µs", "<rb>5,790 µs</rb>"],
        ["Pi 5 + Linux · 부하", "20,000", "68 µs", "<rb>5,429 µs</rb>"],
@@ -384,9 +384,9 @@ box(sh, PAD, T + 134, hw_, B - (T + 134), "이것이 왜 치명적인가",
     "40 km/h 에서 5.8 ms 는 6.4 cm 지만, 미끄러짐이 시작된 뒤의 제어 루프에서는 그 한 번이 "
     "<b>차선 유지와 제어 상실을 가른다.</b>", accent=RED, fill=RED_BG)
 rh = (B - T - 12) / 2
-pic(sh, ROOT, "docs/figures/latency_cdf.jpg", PAD + hw_ + 16, T, hw_, rh,
+pic(sh, ROOT, "sw/docs/figures/latency_cdf.jpg", PAD + hw_ + 16, T, hw_, rh,
     cap="지연 분포 CDF — 리눅스는 꼬리가 길다", cap_h=16)
-pic(sh, ROOT, "docs/figures/schedule_rtos.jpg", PAD + hw_ + 16, T + rh + 12, hw_, rh,
+pic(sh, ROOT, "sw/docs/figures/schedule_rtos.jpg", PAD + hw_ + 16, T + rh + 12, hw_, rh,
     cap="RM 스케줄 — IMU(우선순위 3)가 NPU(4)를 선점한다", cap_h=16)
 
 # ══ 16. 기준선 ═══════════════════════════════════════════════════════════════
@@ -394,7 +394,7 @@ s, sh, T, B = page("검증", "방어가 없으면 — 기준선 9건 전부 제�
                    lead="1차·2차를 모두 끈 채 같은 빙판·같은 속도·같은 주행선으로 들어갔다.",
                    foot="'스핀'은 차선 대비 방향 오차가 86°를 넘은 순간으로 정의했다. 실측값은 −88.4°에서 "
                         "−99.2° 사이로, 차체가 역방향을 본 것이 아니라 차로를 가로질러 돌아간 상태다. "
-                        "주행별 이벤트는 docs/data/events/events_*_nodefense*.json 에 그대로 있다.")
+                        "주행별 이벤트는 sw/docs/data/events/events_*_nodefense*.json 에 그대로 있다.")
 lw2 = CW * 0.58
 pic(sh, HERE, "assets/base_spin_c.jpg", PAD, T, lw2, B - T - 158,
     cap="<b>차선 이탈 → 가로 미끄러짐</b>　12.02 s 이탈(횡오프셋 −1.45 m, 방향 오차 −41°) → 14.82 s 에 −99°. "
@@ -419,7 +419,7 @@ box(sh, PAD + lw2 + 16, T + 174, rw, B - (T + 174), "기준선의 가정",
 s, sh, T, B = page("검증", "같은 조건 직접 비교 — 방어 없음 vs STM32N6 RTOS 2차 방어",
                    lead="같은 날씨 · 같은 주행선 · 같은 빙판 · 같은 주변 차량 8대. 차이는 2차 방어 하나뿐이다.",
                    foot="날씨 4종(맑은 낮 · 밤 · 젖은 노면 · 눈)에서 같은 비교를 만들었다. 전체 영상은 저장소 "
-                        "media/ 와 logs/carla_demo/정리/G_비교_방어없음_vs_RTOS/ 에 있다.")
+                        "sw/media/ 와 logs/carla_demo/정리/G_비교_방어없음_vs_RTOS/ 에 있다.")
 pic(sh, HERE, "assets/cmp_15.0.jpg", PAD, T, CW, B - T - 124, border=False)
 box(sh, PAD, B - 114, hw_, 114, "왼쪽 · 방어 없음",
     "15.0 s · <b>25.4 km/h</b> · 12.0 s 에 차선을 이탈해 제어를 잃었고, 차체가 진행 방향과 어긋난 채 "
@@ -433,13 +433,13 @@ s, sh, T, B = page("검증", "센서 시각화와 자동 라벨 — 무엇을 �
                    foot="주행 108회 전체의 이벤트 JSON 을 저장소에 함께 올렸다. CARLA 도 보드도 없이 "
                         "sw/scripts/analysis/summarize_runs.py 만으로 집계표를 재생성할 수 있다 — 손으로 적은 "
                         "숫자가 아니라는 증명이다.")
-pic(sh, ROOT, "docs/figures/weather_1차_카메라경고.jpg", PAD, T, hw_, B - T,
+pic(sh, ROOT, "sw/docs/figures/weather_1차_카메라경고.jpg", PAD, T, hw_, B - T,
     cap="<b>날씨 11종에서 1차 경보가 난 같은 순간</b> — 맑음 · 흐림 · 젖은 노면 · 보슬비 · 폭우 · 해질녘 · "
         "밤 · 비 오는 밤 · 눈. 같은 주행선, 같은 빙판에서 날씨만 바꿔 돌렸다", cap_h=30)
 rh2 = (B - T - 12) / 2
 pic(sh, HERE, "assets/lidar_sem.jpg", PAD + hw_ + 16, T, hw_, rh2,
     cap="<b>시맨틱 라이다 64채널</b> — 청록이 빙판 구간, 초록 상자가 차량 3D 박스", cap_h=16)
-pic(sh, ROOT, "docs/figures/triplet_rscdtex_visual_00320.jpg", PAD + hw_ + 16, T + rh2 + 12, hw_, rh2,
+pic(sh, ROOT, "sw/docs/figures/triplet_rscdtex_visual_00320.jpg", PAD + hw_ + 16, T + rh2 + 12, hw_, rh2,
     cap="<b>카메라 · 2D 분할 라벨 · 라이다</b> — 도로/차선/빙판/차량 라벨을 자동 생성한다 (AI Hub 형식 참고)", cap_h=16)
 
 # ══ 19. 한계 ═════════════════════════════════════════════════════════════════

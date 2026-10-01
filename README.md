@@ -5,9 +5,16 @@
 제24회 임베디드SW경진대회 · 자동차/모빌리티(현대자동차) · 팀 ARTS
 
 <p align="center">
-  <img src="media/hero_compare.webp" width="100%" alt="같은 조건에서 방어 없음과 RTOS 2차 방어 비교">
+  <img src="sw/media/hero_compare.webp" width="100%" alt="같은 조건에서 방어 없음과 RTOS 2차 방어 비교">
   <br>
   <sub><b>왼쪽</b> 방어가 없을 때 — 빙판에서 제어를 잃고 차체가 가로로 돌아간다. &nbsp;·&nbsp; <b>오른쪽</b> STM32N6 RTOS 2차 방어 — 미끄러짐을 잡아 차선 안에서 세운다. 같은 날씨, 같은 주행선, 같은 빙판.</sub>
+</p>
+
+<p align="center">
+  <a href="hw"><b>🔧 하드웨어</b></a> &nbsp;·&nbsp;
+  <a href="sw"><b>💻 소프트웨어</b></a> &nbsp;·&nbsp;
+  <a href="sw/report"><b>📑 개발완료보고서</b></a> &nbsp;·&nbsp;
+  <a href="sw/docs/evidence"><b>📊 근거 문서 19건</b></a>
 </p>
 
 ---
@@ -29,7 +36,7 @@
 두 방어가 **같은 보드 한 장**에서 돈다. 혼합 임계도 AI ECU 구조다.
 
 <p align="center">
-  <img src="docs/figures/architecture.png" width="100%" alt="이중 방어 구조도">
+  <img src="sw/docs/figures/architecture.png" width="100%" alt="이중 방어 구조도">
 </p>
 
 ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4다. 25 ms짜리 추론이 돌고 있어도 IMU 판정이 선점한다.
@@ -96,7 +103,7 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 ## 1차 방어 — 카메라가 보고 미리 선다
 
 <p align="center">
-  <img src="media/primary_stop.webp" width="85%" alt="카메라가 빙판을 인식해 24 m 앞에서 정지">
+  <img src="sw/media/primary_stop.webp" width="85%" alt="카메라가 빙판을 인식해 24 m 앞에서 정지">
   <br>
   <sub>왼쪽은 모델이 실제로 보는 화면, 오른쪽은 조감. 빙판 24 m 앞에서 정지했다.</sub>
 </p>
@@ -111,18 +118,18 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 | 포트홀 | 9,560 | 90.2 % | 0.3 % |
 
 <p align="center">
-  <img src="docs/figures/real_threshold.jpg" width="48%" alt="운영 문턱 결정">
-  <img src="docs/figures/real_confusion.jpg" width="48%" alt="혼동 행렬">
+  <img src="sw/docs/figures/real_threshold.jpg" width="48%" alt="운영 문턱 결정">
+  <img src="sw/docs/figures/real_confusion.jpg" width="48%" alt="혼동 행렬">
 </p>
 
-→ 근거: [`05_실사진_대규모평가`](docs/evidence/05_실사진_대규모평가.md) · [`02_융합가중치`](docs/evidence/02_융합가중치.md) · [`07_노면조건별_분해`](docs/evidence/07_노면조건별_분해.md)
+→ 근거: [`05_실사진_대규모평가`](sw/docs/evidence/05_실사진_대규모평가.md) · [`02_융합가중치`](sw/docs/evidence/02_융합가중치.md) · [`07_노면조건별_분해`](sw/docs/evidence/07_노면조건별_분해.md)
 
 ---
 
 ## 2차 방어 — 못 봤을 때 보드가 받는다
 
 <p align="center">
-  <img src="media/secondary_rtos.webp" width="85%" alt="RTOS 2차 방어가 미끄러짐을 잡아 정지">
+  <img src="sw/media/secondary_rtos.webp" width="85%" alt="RTOS 2차 방어가 미끄러짐을 잡아 정지">
   <br>
   <sub>1차를 끈 채 빙판에 진입했다. 보드가 미끄러짐을 확정하고 차선을 유지하며 세운다. 주변 차량 8대와 정차 차량이 있는 상황.</sub>
 </p>
@@ -136,17 +143,17 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 | STM32N6 + ThreadX (응답 전체) | 49,405 | 12.4 µs | **22.6 µs** |
 
 <p align="center">
-  <img src="docs/figures/latency_cdf.jpg" width="80%" alt="지연 분포 CDF">
+  <img src="sw/docs/figures/latency_cdf.jpg" width="80%" alt="지연 분포 CDF">
 </p>
 
-→ 근거: [`06_RTOS가_왜_필요한가`](docs/evidence/06_RTOS가_왜_필요한가.md) · [`10_스케줄가능성_분석`](docs/evidence/10_스케줄가능성_분석.md)
+→ 근거: [`06_RTOS가_왜_필요한가`](sw/docs/evidence/06_RTOS가_왜_필요한가.md) · [`10_스케줄가능성_분석`](sw/docs/evidence/10_스케줄가능성_분석.md)
 
 ---
 
 ## 방어가 없으면
 
 <p align="center">
-  <img src="media/nodefense_crash.webp" width="88%" alt="방어 없음 기준선에서 방호벽 충돌">
+  <img src="sw/media/nodefense_crash.webp" width="88%" alt="방어 없음 기준선에서 방호벽 충돌">
   <br>
   <sub>같은 빙판, 같은 속도. 1차·2차를 모두 끄면 빙판을 그대로 지나 차선을 벗어나고, 12.3초에 12 km/h로 방호벽에 부딪힌다. 왼쪽은 모델이 보는 화면, 오른쪽은 조감.</sub>
 </p>
@@ -160,7 +167,7 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 ### 2차 방어도 만능은 아니다
 
 <p align="center">
-  <img src="media/limit_60kph.webp" width="80%" alt="60 km/h에서 2차 방어가 개입했는데도 충돌">
+  <img src="sw/media/limit_60kph.webp" width="80%" alt="60 km/h에서 2차 방어가 개입했는데도 충돌">
   <br>
   <sub>60 km/h. 카메라가 경고했지만 제동이 늦어 빙판에 진입했고, 보드가 제때 개입했는데도 앞차와 39 km/h로 충돌했다.</sub>
 </p>
@@ -172,23 +179,23 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 ## 센서 시각화
 
 <p align="center">
-  <img src="media/lidar_semantic.webp" width="80%" alt="시맨틱 라이다">
+  <img src="sw/media/lidar_semantic.webp" width="80%" alt="시맨틱 라이다">
   <br>
   <sub>시맨틱 라이다 64채널. 청록이 빙판 구간, 초록 상자가 차량 3D 박스.</sub>
 </p>
 
 <p align="center">
-  <img src="docs/figures/triplet_rscdtex_visual_00320.jpg" width="100%" alt="카메라 · 2D 분할 라벨 · 라이다">
+  <img src="sw/docs/figures/triplet_rscdtex_visual_00320.jpg" width="100%" alt="카메라 · 2D 분할 라벨 · 라이다">
   <br>
   <sub>카메라 원본 · 2D 분할 라벨(도로/차선/빙판/차량) · 시맨틱 라이다. 라벨은 자동 생성한다.</sub>
 </p>
 
 ### 날씨 11종에서 같은 순간
 
-<p align="center"><img src="media/snow_night.webp" width="80%" alt="눈 내리는 날"></p>
+<p align="center"><img src="sw/media/snow_night.webp" width="80%" alt="눈 내리는 날"></p>
 
 <p align="center">
-  <img src="docs/figures/weather_1차_카메라경고.jpg" width="100%" alt="날씨별 1차 경고 순간">
+  <img src="sw/docs/figures/weather_1차_카메라경고.jpg" width="100%" alt="날씨별 1차 경고 순간">
 </p>
 
 맑음 · 흐림 · 젖은 노면 · 보슬비 · 폭우 · 해질녘 · 밤 · 비 오는 밤 · 눈까지 같은 주행선에서 돌렸다.
@@ -196,7 +203,7 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 ### 1차 방어의 한계도 그대로 남긴다
 
 <p align="center">
-  <img src="media/false_alarm.webp" width="80%" alt="빙판이 보이지 않는 거리에서 난 오경보">
+  <img src="sw/media/false_alarm.webp" width="80%" alt="빙판이 보이지 않는 거리에서 난 오경보">
   <br>
   <sub>밤. 빙판이 41 m 밖에 있어 카메라 ROI(7.9~42.2 m)에 들어오지도 않았는데 경보가 났다. 어두운 노면을 얼음으로 본 것이다.</sub>
 </p>
@@ -220,15 +227,15 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 ### RSCD — 노면 분류 주 학습 데이터
 
 <p align="center">
-  <img src="docs/images/ds_rscd_classes.jpg" width="100%" alt="RSCD 클래스별 샘플">
+  <img src="sw/docs/images/ds_rscd_classes.jpg" width="100%" alt="RSCD 클래스별 샘플">
   <br>
   <sub>RSCD 27클래스를 우리 4클래스로 매핑한다. 건조→정상, 젖음·물고임→젖음, 결빙·녹은눈→결빙 위험, 요철 '심함'→포트홀</sub>
 </p>
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/ds_rscd_patch.jpg" alt="노면 패치 추출"></td>
-<td width="50%"><img src="docs/images/ds_rscd_camera.jpg" alt="전방 카메라 설치"></td>
+<td width="50%"><img src="sw/docs/images/ds_rscd_patch.jpg" alt="노면 패치 추출"></td>
+<td width="50%"><img src="sw/docs/images/ds_rscd_camera.jpg" alt="전방 카메라 설치"></td>
 </tr>
 <tr>
 <td align="center"><sub>주행 영상에서 노면 영역만 잘라 패치로 쓴다</sub></td>
@@ -242,8 +249,8 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/ds_roadsaw.jpg" alt="RoadSaW ROI와 노면 3종"></td>
-<td width="50%"><img src="docs/images/ds_aihub.jpg" alt="AI Hub 악천후 2D 분할·라이다 3D 박스"></td>
+<td width="50%"><img src="sw/docs/images/ds_roadsaw.jpg" alt="RoadSaW ROI와 노면 3종"></td>
+<td width="50%"><img src="sw/docs/images/ds_aihub.jpg" alt="AI Hub 악천후 2D 분할·라이다 3D 박스"></td>
 </tr>
 <tr>
 <td align="center"><sub><b>RoadSaW</b> 12클래스 = 노면 3종 × 젖음 4단계. MARWIS 센서로 수막 두께를 실측해 반사도를 회귀로 배울 근거가 된다. 패치 약 72만 장</sub></td>
@@ -255,8 +262,8 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/ds_pvs.jpg" alt="PVS 센서 장착 도식"></td>
-<td width="50%"><img src="docs/images/ds_road.jpg" alt="ROAD 노면·조건"></td>
+<td width="50%"><img src="sw/docs/images/ds_pvs.jpg" alt="PVS 센서 장착 도식"></td>
+<td width="50%"><img src="sw/docs/images/ds_road.jpg" alt="ROAD 노면·조건"></td>
 </tr>
 <tr>
 <td align="center"><sub><b>PVS</b> MPU-9250 IMU 100 Hz를 대시보드·서스펜션 상/하 3곳에. 9세트 = 차량 3 × 운전자 3 × 경로 3. 실측 노이즈로 칼만 공분산을 잡는다</sub></td>
@@ -268,8 +275,8 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/ds_cadc.jpg" alt="CADC 눈길 주행"></td>
-<td width="50%"><img src="docs/images/ds_wads.jpg" alt="WADS 라벨된 포인트클라우드"></td>
+<td width="50%"><img src="sw/docs/images/ds_cadc.jpg" alt="CADC 눈길 주행"></td>
+<td width="50%"><img src="sw/docs/images/ds_wads.jpg" alt="WADS 라벨된 포인트클라우드"></td>
 </tr>
 <tr>
 <td align="center"><sub><b>CADC</b> 눈길 실주행 5.6만 장, 라이다 7천 스윕, 75개 장면 (캐나다 워털루)</sub></td>
@@ -373,50 +380,56 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 
 | 문서 | 답하는 질문 | 생성기 |
 |---|---|---|
-| [00_집계](docs/evidence/00_집계.md) | 주행 전체 표 (충돌·스핀·이탈 포함) | `summarize_runs.py` |
-| [01_탐지성능](docs/evidence/01_탐지성능.md) | 경보 거리, 오경보, 보드 WCET | `analyze_detection.py` |
-| [05_실사진_대규모평가](docs/evidence/05_실사진_대규모평가.md) | ★ 1차 방어 성능의 근거 | `rscd_board_eval.py` |
-| [06_RTOS가_왜_필요한가](docs/evidence/06_RTOS가_왜_필요한가.md) | ★ 왜 RTOS 보드인가 | `rtos_latency_bench.py` |
-| [10_스케줄가능성_분석](docs/evidence/10_스케줄가능성_분석.md) | ★ RM 스케줄, 우선순위 역전 시 왜 불가능한가 | `schedulability.py` |
-| [13_판정규칙_타원](docs/evidence/13_판정규칙_타원.md) | ★ 약점을 찾아 고친 기록 | `slip_rule_compare.py` |
-| [16_조향지연보정](docs/evidence/16_조향지연보정.md) | ★ 2차가 정상 노면에서 발화한 것을 고친 기록 | `yawlag_report.py` |
-| [17_경보거리와_해상도](docs/evidence/17_경보거리와_해상도.md) | ★ 경보 거리를 늘리려면 무엇을 바꿔야 하나 | `range_resolution.py` |
+| [00_집계](sw/docs/evidence/00_집계.md) | 주행 전체 표 (충돌·스핀·이탈 포함) | `summarize_runs.py` |
+| [01_탐지성능](sw/docs/evidence/01_탐지성능.md) | 경보 거리, 오경보, 보드 WCET | `analyze_detection.py` |
+| [05_실사진_대규모평가](sw/docs/evidence/05_실사진_대규모평가.md) | ★ 1차 방어 성능의 근거 | `rscd_board_eval.py` |
+| [06_RTOS가_왜_필요한가](sw/docs/evidence/06_RTOS가_왜_필요한가.md) | ★ 왜 RTOS 보드인가 | `rtos_latency_bench.py` |
+| [10_스케줄가능성_분석](sw/docs/evidence/10_스케줄가능성_분석.md) | ★ RM 스케줄, 우선순위 역전 시 왜 불가능한가 | `schedulability.py` |
+| [13_판정규칙_타원](sw/docs/evidence/13_판정규칙_타원.md) | ★ 약점을 찾아 고친 기록 | `slip_rule_compare.py` |
+| [16_조향지연보정](sw/docs/evidence/16_조향지연보정.md) | ★ 2차가 정상 노면에서 발화한 것을 고친 기록 | `yawlag_report.py` |
+| [17_경보거리와_해상도](sw/docs/evidence/17_경보거리와_해상도.md) | ★ 경보 거리를 늘리려면 무엇을 바꿔야 하나 | `range_resolution.py` |
 
-전체 목록은 [`00_분석문서_목록`](docs/evidence/00_분석문서_목록.md), 발표용 자료 지도는 [`presentation_evidence_map`](docs/presentation_evidence_map.md)에 있다.
+전체 목록은 [`00_분석문서_목록`](sw/docs/evidence/00_분석문서_목록.md), 발표용 자료 지도는 [`presentation_evidence_map`](sw/docs/presentation_evidence_map.md)에 있다.
 
 ---
 
 ## 저장소 구조
 
-하드웨어와 소프트웨어를 위에서 갈라 두었다. 각 폴더에 그 안을 설명하는 README 가 따로 있다.
+최상위는 **README · hw · sw** 셋이다. 나머지는 전부 그 안에 들어가 있고, 폴더마다 README 가 따로 있다.
 
 ```
-hw/                    하드웨어 — 구성표 · 신호 흐름 · 실물 사진      → hw/README.md
-  images/              보드·센서·주행 장비 사진
+README.md
 
-sw/                    소프트웨어                                   → sw/README.md
-  src/icepredict/      파이썬 패키지 (알고리즘 원본)
-    common/            Pi ↔ N6 ↔ CARLA 메시지 규약
-    pi/                기상 맥락, 위험도 융합, IMU 미끄러짐 감지
-    sim/               CARLA 빙판 합성, 카메라 설정, 차로 추종
-    train/             RoadNet 모델, 데이터 인덱스
-  fw/npu_lib/          STM32N6 펌웨어 글루
-    slip_core.h        2차 방어 C 코어 (HAL·OS 비의존, 호스트에서도 컴파일)
-    npu_infer.c        Neural-ART NPU 추론
-    patch_fw_slip.py   ThreadX 융합 스레드에 2차 방어 주입
-  scripts/             수집 · 학습 · 양자화 · 배포 · 데모 · 분석     → sw/scripts/README.md
+hw/                      하드웨어                                → hw/README.md
+  images/                보드 · 센서 · 주행 장비 실물 사진 5장
+
+sw/                      소프트웨어와 결과 전부                   → sw/README.md
+  src/icepredict/        파이썬 패키지 (알고리즘 원본)
+    common/              Pi ↔ N6 ↔ CARLA 메시지 규약
+    pi/                  기상 맥락, 위험도 융합, IMU 미끄러짐 감지
+    sim/                 CARLA 빙판 합성, 카메라 설정, 차로 추종
+    train/               RoadNet 모델, 데이터 인덱스
+  fw/npu_lib/            STM32N6 펌웨어 글루
+    slip_core.h          2차 방어 C 코어 (HAL·OS 비의존, 호스트에서도 컴파일)
+    npu_infer.c          Neural-ART NPU 추론
+    patch_fw_slip.py     ThreadX 융합 스레드에 2차 방어 주입
+  scripts/               수집·학습·양자화·배포·데모·분석 125개   → sw/scripts/README.md
     sim/ model/ deploy/ analysis/ archive/
-  tests/               단위 테스트 19개
+  tests/                 단위 테스트 19개
+  docs/                  근거
+    evidence/            자동 생성 근거 문서 19건
+    figures/             결과 그림 29장
+    images/              데이터셋 인용 그림 9장
+    data/events/         주행 이벤트 108건 (분석 재현용)
+  media/                 README 애니메이션 WebP 8개 + 영상
+  report/                개발완료보고서 (.pptx / .pdf)           → sw/report/README.md
+  pyproject.toml
 
-docs/                  근거
-  evidence/            자동 생성 근거 문서 19건
-  figures/             결과 그림 29장
-  images/              데이터셋 인용 그림
-  data/events/         주행 이벤트 108건 (분석 재현용)
-
-media/                 README 애니메이션 + 영상
-report/                개발완료보고서 (.pptx / .pdf)              → report/README.md
+LICENSE · NOTICE         MIT + 데이터셋 제3자 고지
 ```
+
+<sub><b>LICENSE 가 루트에 있는 이유.</b> GitHub 은 저장소 루트의 LICENSE 만 읽어 라이선스를 판별한다.
+하위 폴더로 옮기면 사이드바에 "MIT License" 대신 아무것도 뜨지 않는다.</sub>
 
 ---
 
@@ -425,9 +438,9 @@ report/                개발완료보고서 (.pptx / .pdf)              → rep
 **CARLA도 보드도 없이 분석만 재현**하려면 저장소의 이벤트 데이터만 있으면 된다.
 
 ```bash
-pip install -e .
-python3 sw/scripts/analysis/summarize_runs.py   # docs/evidence/00_집계.md 재생성
-python3 -m pytest -q                            # 단위 테스트
+pip install -e sw
+python3 sw/scripts/analysis/summarize_runs.py   # sw/docs/evidence/00_집계.md 재생성
+python3 -m pytest -q sw/tests                   # 단위 테스트 19개
 ```
 
 2차 방어 C 코어가 파이썬 참조 구현과 **같은 판정을 내리는지** 호스트에서 검증한다.
@@ -436,14 +449,14 @@ python3 -m pytest -q                            # 단위 테스트
 python3 sw/fw/npu_lib/test_slip_core.py     # gcc 로 C 코어를 빌드해 동치 비교
 ```
 
-전체 파이프라인(수집 → 학습 → int8 양자화 → 보드 배포 → HIL 데모)은 [`demo_pipeline`](docs/demo_pipeline_2026-09-19.md)에 있다.
+전체 파이프라인(수집 → 학습 → int8 양자화 → 보드 배포 → HIL 데모)은 [`demo_pipeline`](sw/docs/demo_pipeline_2026-09-19.md)에 있다.
 
 ---
 
 ## 한계
 
 - **블랙아이스 전용 라벨이 공개 데이터에 없다.** 그래서 1차는 '결빙 위험 노면 확률 + 반사도 이상 + 기상 맥락' 전략을 쓴다.
-- **경보 거리는 기하 문제다.** 모델이 요구하는 최소 픽셀 수와 ROI 해상도가 경보 거리를 결정한다. 해상도를 올리는 것이 먼저다 ([17번 문서](docs/evidence/17_경보거리와_해상도.md)).
+- **경보 거리는 기하 문제다.** 모델이 요구하는 최소 픽셀 수와 ROI 해상도가 경보 거리를 결정한다. 해상도를 올리는 것이 먼저다 ([17번 문서](sw/docs/evidence/17_경보거리와_해상도.md)).
 - **CARLA 질감으로 학습한 모델은 실사진 질감의 얼음에 반응하지 않는다.** 재수집·재학습이 다음 과제다.
 - 1차 방어 영상 중 일부는 렌더 품질이 다른 환경에서 찍혔다. 비교할 때 주의가 필요하다.
 - 기준선은 제어 상실 후 운전자 입력을 모형화하지 않는다. 실제 운전자는 제동을 시도하므로, 기준선의 결과는 "아무 보조도 없을 때의 물리적 귀결"로 읽어야 한다.
@@ -453,7 +466,7 @@ python3 sw/fw/npu_lib/test_slip_core.py     # gcc 로 C 코어를 빌드해 동�
 ## 라이선스
 
 코드와 팀이 생성한 자료(분석 문서·그림·이벤트 데이터·영상·하드웨어 사진)는 [MIT 라이선스](LICENSE)를 따른다.
-`docs/images/ds_*.jpg` 는 공개 데이터셋 논문·사이트에서 가져온 설명용 인용이며 각 원 저작자의 조건을 따른다 ([NOTICE](NOTICE) 참고).
+`sw/docs/images/ds_*.jpg` 는 공개 데이터셋 논문·사이트에서 가져온 설명용 인용이며 각 원 저작자의 조건을 따른다 ([NOTICE](NOTICE) 참고).
 
 ---
 

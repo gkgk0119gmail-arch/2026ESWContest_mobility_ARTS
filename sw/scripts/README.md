@@ -15,9 +15,9 @@
 
 ```bash
 # 분석만 재현한다 (CARLA·보드 없이, 저장소의 이벤트 데이터만으로)
-python3 sw/scripts/analysis/summarize_runs.py     # docs/evidence/00_집계.md 재생성
+python3 sw/scripts/analysis/summarize_runs.py     # sw/docs/evidence/00_집계.md 재생성
 python3 sw/scripts/analysis/make_figures.py       # 결과 그림
-bash    sw/scripts/analysis/sync_evidence.sh      # logs/ → docs/ 복사
+bash    sw/scripts/analysis/sync_evidence.sh      # logs/ → sw/docs/ 복사
 bash    sw/scripts/analysis/build_readme_media.sh # README 애니메이션 WebP 생성
 
 # CARLA 데모 (렌더 머신 필요)
@@ -50,6 +50,6 @@ export DESK_IP=데스크탑
 ## archive/ 에 대한 주의
 
 `batch_*`·`after_*`·`verify_*` 는 특정 날짜의 실험을 돌렸던 체인이다. 결과와 결론은
-`docs/evidence/` 에 문서로 남아 있고, 이 스크립트들은 "그 숫자가 어떤 명령에서 나왔는지"를
+`sw/docs/evidence/` 에 문서로 남아 있고, 이 스크립트들은 "그 숫자가 어떤 명령에서 나왔는지"를
 보이기 위해 남겼다. 지금 그대로 실행되는 것을 보장하지 않으며, 일부는 python heredoc 안에
 당시의 절대 경로가 그대로 들어 있다.

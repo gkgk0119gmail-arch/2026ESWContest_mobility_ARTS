@@ -5,12 +5,12 @@
 출력: logs/carla_demo/정리/00_집계.md"""
 import json, pathlib, collections, statistics as st
 # 경로를 박아 두면 저장소만 받은 사람이 돌릴 수 없다. logs/ 는 .gitignore 대상이라
-# 클론에는 없고, 공개용 사본은 docs/data/events/ 에 있다. 둘 중 있는 쪽을 쓴다.
+# 클론에는 없고, 공개용 사본은 sw/docs/data/events/ 에 있다. 둘 중 있는 쪽을 쓴다.
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 import sys
 D = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else (
-    ROOT / "logs/carla_demo" if (ROOT / "logs/carla_demo").is_dir() else ROOT / "docs/data/events")
-OUT_DIR = (D / "정리") if (D / "정리").is_dir() or D.name != "events" else ROOT / "docs/evidence"
+    ROOT / "logs/carla_demo" if (ROOT / "logs/carla_demo").is_dir() else ROOT / "sw/docs/data/events")
+OUT_DIR = (D / "정리") if (D / "정리").is_dir() or D.name != "events" else ROOT / "sw/docs/evidence"
 rows = []
 for ej in sorted(D.glob("events_*.json")):
     try: doc = json.load(open(ej))

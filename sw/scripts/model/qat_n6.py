@@ -4,9 +4,9 @@
 왜 QAT인가
   ONNX Runtime PTQ로는 acc 0.910 -> 0.48로 붕괴했다. per-channel·보정법·conv-only 모두
   무효였고, 원인은 features.1의 첫 depthwise Conv에서 최대오차 15가 발생하는 것으로
-  특정됐다 (docs/HANDOFF_2026-09-16.md).
+  특정됐다 (sw/docs/HANDOFF_2026-09-16.md).
 
-  ST Edge AI Core 3.0.0을 실측한 결과 두 가지가 확인됐다 (docs/n6_npu_analysis_2026-09-18.md):
+  ST Edge AI Core 3.0.0을 실측한 결과 두 가지가 확인됐다 (sw/docs/n6_npu_analysis_2026-09-18.md):
     - MobileNetV3의 HardSwish/HardSigmoid/QLinearConv가 모두 NPU 지원 목록에 있다
       -> 백본이 문제가 아니다
     - `--quantize`는 텐서 포맷 설정 파일이고 PTQ를 하지 않는다. ST Core는 이미 양자화된

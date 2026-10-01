@@ -6,13 +6,13 @@
 | `2026ESWContest_모빌리티_ARTS_개발완료보고서.pdf` | 제출용. 위 pptx 에서 변환한 것 |
 | `build_pptx.py` | 20쪽의 내용과 좌표가 전부 들어 있는 생성기 |
 | `pptx_kit.py` | 상자·표·사진·반투명 덮개 같은 레이아웃 도구 |
-| `assets/` | 주행 장면을 잘라 둔 사진 (나머지는 `docs/figures`·`docs/images` 를 그대로 쓴다) |
+| `assets/` | 주행 장면을 잘라 둔 사진 (나머지는 `sw/docs/figures`·`sw/docs/images` 를 그대로 쓴다) |
 
 ## 다시 만들기
 
 ```bash
-python3 report/build_pptx.py     # .pptx 생성
-bash    report/to_pdf.sh         # .pptx → .pdf (libreoffice 필요)
+python3 sw/report/build_pptx.py     # .pptx 생성
+bash    sw/report/to_pdf.sh         # .pptx → .pdf (libreoffice 필요)
 ```
 
 PDF 는 **반드시 pptx 에서 뽑는다.** 예전에는 HTML 을 따로 두고 chromium 으로 인쇄했는데,

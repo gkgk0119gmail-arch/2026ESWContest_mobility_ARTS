@@ -25,7 +25,7 @@ n6-noextmem, n6-nointmem, n6-allmems-O1/O2/O3/Oauto). 각각 메모리 풀(.mpoo
 **대조 실험**: ST 자체 샘플 `sw/scripts/N6_sw/scripts/models/mnist_int8_io_i8.tflite`는 5 epoch 중
 HW 4 / SW 1로 매핑된다 → 툴체인은 정상이다.
 
-이 오류 때문에 앞서 "FP32는 원래 NPU 가속이 안 된다"고 적은 진단(docs/n6_npu_analysis)도
+이 오류 때문에 앞서 "FP32는 원래 NPU 가속이 안 된다"고 적은 진단(sw/docs/n6_npu_analysis)도
 근거가 무효다. FP32도 프로파일을 주고 다시 재봐야 한다.
 
 ## 미해결: int8 정확도 붕괴

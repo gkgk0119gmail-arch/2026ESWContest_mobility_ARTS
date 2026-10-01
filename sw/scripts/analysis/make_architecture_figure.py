@@ -85,6 +85,6 @@ ax.text(51.5, 31, "2차가 1차를 선점한다\n추론이 돌아도 판정은 �
 ax.text(76, 0.6, "1차는 예방이다 — 똑똑하지만 틀릴 수 있다.      2차는 안전망이다 — 단순하지만 제때 반드시 실행된다.",
         ha="center", fontsize=10.2, color="#475569", fontproperties=fp)
 
-out = pathlib.Path(__file__).resolve().parents[3] / "docs/figures/architecture.png"
+out = pathlib.Path(__file__).resolve().parents[3] / "sw/docs/figures/architecture.png"
 fig.savefig(out, bbox_inches="tight", facecolor="white", pad_inches=0.25)
 print(f"{out}  ({out.stat().st_size // 1024} KB)")
