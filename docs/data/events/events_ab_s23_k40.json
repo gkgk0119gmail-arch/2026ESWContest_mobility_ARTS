@@ -1,0 +1,145 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/dlab27/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 100.0,
+  "friction": 0.08,
+  "target_kph": 40.0,
+  "max_steps": 1200,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": true,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": false,
+  "ctx_temp": -3.0,
+  "fixed_weather_ctx": false,
+  "alarm_confirm": 8,
+  "control_no_ice": false,
+  "ice_seed": 23,
+  "fusion": "n6npu",
+  "n6_bind": "tcp://*:5558",
+  "n6_timeout": 3.0,
+  "slip_local": false,
+  "no_video": false,
+  "show_patch": false,
+  "no_overlay": true,
+  "no_bird": false,
+  "weather": "ClearNoon",
+  "tag": "ab_s23_k40",
+  "views": "split",
+  "no_native_ice": false,
+  "ice_subtle": 1.0,
+  "debug_box": false,
+  "road_texture": null,
+  "ice_texture_class": "ice",
+  "export_labels": null,
+  "tire_friction": 1.0,
+  "log_dyn": null,
+  "no_secondary": false,
+  "traffic": 8,
+  "lead_stop": 45.0
+ },
+ "events": [
+  {
+   "t": 5.84,
+   "event": "patch_enter",
+   "speed_kph": 38.7
+  },
+  {
+   "t": 7.62,
+   "event": "secondary_slip",
+   "trigger": "lat_acc",
+   "decided_by": "stm32n6",
+   "ay_g": -0.364,
+   "yaw_err": -0.282,
+   "speed_kph": 38.5,
+   "local_agrees": true
+  },
+  {
+   "t": 7.62,
+   "event": "emergency_mode",
+   "mode": "hard_stop",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 49.6,
+   "gap_left_m": 5.0,
+   "gap_right_m": -1.0,
+   "speed_kph": 38.5
+  },
+  {
+   "t": 8.78,
+   "event": "collision",
+   "with": "mkz_2020",
+   "speed_kph": 34.9,
+   "impulse": 356.4,
+   "dist_to_patch_m": 3.7
+  },
+  {
+   "t": 9.12,
+   "event": "secondary_slip",
+   "trigger": "lat_acc",
+   "decided_by": "stm32n6",
+   "ay_g": 0.44,
+   "yaw_err": -0.445,
+   "speed_kph": 32.2,
+   "local_agrees": true
+  },
+  {
+   "t": 9.12,
+   "event": "emergency_mode",
+   "mode": "evade_right",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 12.8,
+   "gap_left_m": 1.7,
+   "gap_right_m": 999.0,
+   "speed_kph": 32.2
+  },
+  {
+   "t": 9.14,
+   "event": "collision",
+   "with": "mkz_2020",
+   "speed_kph": 32.1,
+   "impulse": 10.0,
+   "dist_to_patch_m": 2.0
+  },
+  {
+   "t": 10.62,
+   "event": "lane_departure",
+   "lat_off_m": -0.05,
+   "heading_err_deg": 35.6,
+   "speed_kph": 28.7,
+   "inside_ice": true
+  },
+  {
+   "t": 11.16,
+   "event": "board_slip_latency",
+   "samples": 409,
+   "npu_busy": false,
+   "avg_us": 11.1,
+   "max_us": 14.3
+  }
+ ],
+ "rule_ab": {
+  "ellipse": {
+   "t": 7.58,
+   "trigger": "lat_acc",
+   "ay_g": -0.308,
+   "yaw_err": -0.235,
+   "after_enter": 1.74
+  },
+  "box": {
+   "t": 7.62,
+   "trigger": "lat_acc",
+   "ay_g": -0.364,
+   "yaw_err": -0.282,
+   "after_enter": 1.78
+  },
+  "gain_s": 0.04
+ }
+}

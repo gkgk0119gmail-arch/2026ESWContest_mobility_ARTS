@@ -1,0 +1,66 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/dlab27/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 40.0,
+  "friction": 1.0,
+  "target_kph": 40.0,
+  "max_steps": 1200,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": false,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": true,
+  "real_weather_ctx": false,
+  "control_no_ice": true,
+  "ice_seed": 7,
+  "fusion": "n6npu",
+  "n6_bind": "tcp://*:5558",
+  "n6_timeout": 3.0,
+  "slip_local": false,
+  "no_video": false,
+  "show_patch": false,
+  "no_overlay": true,
+  "no_bird": false,
+  "weather": "ClearNoon",
+  "tag": "ClearNoon_control_traffic",
+  "views": "split",
+  "no_native_ice": true,
+  "ice_subtle": 1.0,
+  "debug_box": false,
+  "road_texture": null,
+  "ice_texture_class": "ice",
+  "export_labels": null,
+  "tire_friction": 1.0,
+  "log_dyn": null,
+  "no_secondary": false,
+  "traffic": 8,
+  "lead_stop": 0.0
+ },
+ "events": [
+  {
+   "t": 7.08,
+   "event": "patch_enter",
+   "speed_kph": 38.7
+  },
+  {
+   "t": 24.0,
+   "event": "timeout"
+  },
+  {
+   "t": 24.0,
+   "event": "board_slip_latency",
+   "samples": 1051,
+   "npu_busy": true,
+   "avg_us": 13.0,
+   "max_us": 15.2
+  }
+ ]
+}

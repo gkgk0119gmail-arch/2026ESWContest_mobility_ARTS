@@ -1,0 +1,100 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/yax/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/yax/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 40.0,
+  "friction": 0.02,
+  "target_kph": 40.0,
+  "max_steps": 650,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": true,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": true,
+  "ice_seed": 7,
+  "fusion": "local",
+  "n6_bind": "tcp://*:5558",
+  "n6_timeout": 3.0,
+  "slip_local": true,
+  "no_video": false,
+  "show_patch": false,
+  "no_overlay": true,
+  "no_bird": false,
+  "weather": "ClearNoon",
+  "tag": "rscdtex_visual",
+  "views": "split,bev,lidar,lidar_sem",
+  "no_native_ice": false,
+  "ice_subtle": 1.0,
+  "debug_box": false,
+  "road_texture": "/home/yax/icepredict/dataset/rscd",
+  "ice_texture_class": "ice",
+  "export_labels": "/home/yax/icepredict/logs/labels_rscdtex",
+  "tire_friction": 1.0,
+  "log_dyn": null,
+  "no_secondary": false,
+  "traffic": 6,
+  "lead_stop": 0.0
+ },
+ "events": [
+  {
+   "t": 7.08,
+   "event": "patch_enter",
+   "speed_kph": 38.5
+  },
+  {
+   "t": 8.28,
+   "event": "secondary_slip",
+   "trigger": "lat_acc",
+   "decided_by": "local",
+   "ay_g": -0.35,
+   "yaw_err": -0.21,
+   "speed_kph": 38.6,
+   "local_agrees": true
+  },
+  {
+   "t": 8.28,
+   "event": "emergency_mode",
+   "mode": "lane_keep",
+   "by": "local",
+   "gap_front_m": 999.0,
+   "gap_left_m": 11.8,
+   "gap_right_m": -1.0,
+   "speed_kph": 38.6
+  },
+  {
+   "t": 8.76,
+   "event": "emergency_mode",
+   "mode": "hard_stop",
+   "by": "local",
+   "gap_front_m": 22.4,
+   "gap_left_m": 10.3,
+   "gap_right_m": -1.0,
+   "speed_kph": 38.3
+  },
+  {
+   "t": 9.14,
+   "event": "emergency_mode",
+   "mode": "evade_right",
+   "by": "local",
+   "gap_front_m": 21.3,
+   "gap_left_m": 9.1,
+   "gap_right_m": 999.0,
+   "speed_kph": 38.1
+  },
+  {
+   "t": 10.98,
+   "event": "collision",
+   "with": "microlino",
+   "speed_kph": 30.1,
+   "impulse": 1930.7,
+   "dist_to_patch_m": 20.4
+  }
+ ]
+}

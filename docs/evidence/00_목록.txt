@@ -1,0 +1,61 @@
+그룹 | 주행 폴더 | 원본 태그 | 영상 수 | 이벤트
+A_1차방어_카메라인식_정지 | 눈_40kmh_카메라인식_빙판27m앞정지 | Snow_detect | 4 | 5.78s primary_warning; 6.82s stopped
+A_1차방어_카메라인식_정지 | 맑은낮_40kmh_카메라인식_빙판24m앞정지 | ClearNoon_detect | 4 | 6.1s primary_warning; 7.14s stopped
+A_1차방어_카메라인식_정지 | 맑은해질녘_40kmh_카메라인식_빙판22m앞정지 | ClearSunset_detect | 4 | 6.2s primary_warning; 7.24s stopped
+A_1차방어_카메라인식_정지 | 맑은해질녘_40kmh_카메라인식_빙판23m앞정지_주변차량 | ClearSunset_detect_traffic | 4 | 6.18s primary_warning; 7.22s stopped; 8.74s board_slip_latency
+A_1차방어_카메라인식_정지 | 보슬비_낮_40kmh_카메라인식_빙판28m앞정지 | SoftRainNoon_detect | 4 | 5.74s primary_warning; 6.78s stopped
+A_1차방어_카메라인식_정지 | 젖은노면_낮_40kmh_카메라인식_빙판25m앞정지_주변차량 | WetNoon_detect_traffic | 4 | 5.96s primary_warning; 7.0s stopped; 8.52s board_slip_latency
+A_1차방어_카메라인식_정지 | 젖은노면_낮_40kmh_카메라인식_빙판27m앞정지 | WetNoon_detect | 4 | 5.78s primary_warning; 6.82s stopped
+A_1차방어_카메라인식_정지 | 젖은흐린해질녘_40kmh_카메라인식_빙판28m앞정지 | WetCloudySunset_detect | 4 | 5.7s primary_warning; 6.74s stopped
+A_1차방어_카메라인식_정지 | 흐린낮_40kmh_카메라인식_빙판25m앞정지 | CloudyNoon_detect | 4 | 6.0s primary_warning; 7.04s stopped
+B_2차방어_카메라미인식_IMU개입 | 눈_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | Snow_miss_rtos_traffic | 4 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 11.66s emergency_mode; 11.66s stabilized; 13.18s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 맑은낮_40kmh_1차끔_빙판진입_RTOS2차방어 | ClearNoon_miss_rtos | 4 | 7.08s patch_enter; 8.28s secondary_slip; 8.28s emergency_mode; 11.34s emergency_mode; 11.34s stabilized
+B_2차방어_카메라미인식_IMU개입 | 맑은낮_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | ClearNoon_evade_lead30 | 2 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 8.26s emergency_mode; 11.68s emergency_mode; 11.68s stabilized; 13.2s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 맑은낮_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | ClearNoon_evade_lead45 | 2 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 8.26s emergency_mode; 11.68s emergency_mode; 11.68s stabilized; 13.2s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 맑은낮_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | ClearNoon_miss_rtos_traffic | 4 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 11.66s emergency_mode; 11.66s stabilized; 13.18s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 맑은낮_40kmh_1차끔_빙판진입_호스트2차방어 | ClearNoon_miss | 3 | 7.24s patch_enter; 8.1s secondary_slip; 11.46s stabilized
+B_2차방어_카메라미인식_IMU개입 | 맑은낮_40kmh_1차끔_빙판진입_호스트2차방어_주변차량 | rscdtex_visual | 4 | 7.08s patch_enter; 8.28s secondary_slip; 8.28s emergency_mode; 8.76s emergency_mode; 9.14s emergency_mode; 10.98s collision
+B_2차방어_카메라미인식_IMU개입 | 맑은밤_40kmh_1차끔_빙판진입_RTOS2차방어 | ClearNight_miss_rtos | 4 | 7.08s patch_enter; 8.02s secondary_slip; 8.02s emergency_mode; 11.32s emergency_mode; 11.32s stabilized
+B_2차방어_카메라미인식_IMU개입 | 맑은밤_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | ClearNight_miss_rtos_traffic | 4 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 11.66s emergency_mode; 11.66s stabilized; 13.18s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 맑은밤_40kmh_1차끔_빙판진입_호스트2차방어 | ClearNight_miss | 3 | 7.24s patch_enter; 8.1s secondary_slip; 11.46s stabilized
+B_2차방어_카메라미인식_IMU개입 | 맑은해질녘_40kmh_1차끔_빙판진입_RTOS2차방어 | ClearSunset_miss_rtos | 3 | 7.24s patch_enter; 8.1s secondary_slip; 11.46s stabilized
+B_2차방어_카메라미인식_IMU개입 | 맑은해질녘_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | ClearSunset_miss_rtos_traffic | 4 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 11.66s emergency_mode; 11.66s stabilized; 13.18s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 맑은해질녘_40kmh_1차끔_빙판진입_호스트2차방어 | ClearSunset_miss | 3 | 7.24s patch_enter; 8.1s secondary_slip; 11.46s stabilized
+B_2차방어_카메라미인식_IMU개입 | 비오는밤_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | MidRainyNight_miss_rtos_traffic | 4 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 11.66s emergency_mode; 11.66s stabilized; 13.18s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 젖은노면_낮_40kmh_1차끔_빙판진입_RTOS2차방어 | WetNoon_miss_rtos | 4 | 7.08s patch_enter; 8.02s secondary_slip; 8.02s emergency_mode; 11.32s emergency_mode; 11.32s stabilized
+B_2차방어_카메라미인식_IMU개입 | 젖은노면_낮_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | WetNoon_miss_rtos_traffic | 4 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 11.66s emergency_mode; 11.66s stabilized; 13.18s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 젖은노면_낮_40kmh_1차끔_빙판진입_호스트2차방어 | WetNoon_miss | 3 | 7.24s patch_enter; 8.1s secondary_slip; 11.46s stabilized
+B_2차방어_카메라미인식_IMU개입 | 폭우_낮_40kmh_1차끔_빙판진입_RTOS2차방어 | HardRainNoon_miss_rtos | 3 | 7.24s patch_enter; 8.1s secondary_slip; 11.46s stabilized
+B_2차방어_카메라미인식_IMU개입 | 폭우_낮_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | HardRainNoon_miss_rtos_traffic | 4 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 11.66s emergency_mode; 11.66s stabilized; 13.18s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 폭우_낮_40kmh_1차끔_빙판진입_호스트2차방어 | HardRainNoon_miss | 3 | 7.24s patch_enter; 8.1s secondary_slip; 11.46s stabilized
+B_2차방어_카메라미인식_IMU개입 | 흐린낮_40kmh_1차끔_빙판진입_RTOS2차방어 | CloudyNoon_miss_rtos | 3 | 7.24s patch_enter; 8.1s secondary_slip; 11.46s stabilized
+B_2차방어_카메라미인식_IMU개입 | 흐린낮_40kmh_1차끔_빙판진입_RTOS2차방어_주변차량 | CloudyNoon_miss_rtos_traffic | 4 | 5.84s patch_enter; 7.62s secondary_slip; 7.62s emergency_mode; 11.66s emergency_mode; 11.66s stabilized; 13.18s board_slip_latency
+B_2차방어_카메라미인식_IMU개입 | 흐린낮_40kmh_1차끔_빙판진입_호스트2차방어 | CloudyNoon_miss | 3 | 7.24s patch_enter; 8.1s secondary_slip; 11.46s stabilized
+C_2차방어_카메라경고늦음_IMU개입 | 맑은낮_60kmh_카메라경고늦음_빙판진입_RTOS2차방어 | ClearNoon_detect_60kph | 4 | 5.0s primary_warning; 5.8s patch_enter; 6.06s secondary_slip; 6.06s emergency_mode; 8.42s lane_departure; 8.9s emergency_mode; 8.9s stabilized
+C_2차방어_카메라경고늦음_IMU개입 | 맑은낮_60kmh_카메라경고늦음_빙판진입_RTOS2차방어_주변차량 | ClearNoon_detect_traffic_60kph | 4 | 5.0s primary_warning; 5.8s patch_enter; 6.06s secondary_slip; 6.06s emergency_mode; 7.02s emergency_mode; 7.08s emergency_mode; 7.42s collision; 7.86s secondary_slip; 7.88s collision; 8.32s secondary_slip; 8.34s collision; 8.42s lane_departure; 8.72s secondary_slip; 8.74s collision; 10.76s board_slip_latency
+C_2차방어_카메라경고늦음_IMU개입 | 비오는밤_40kmh_카메라경고늦음_빙판진입_RTOS2차방어 | MidRainyNight_detect | 4 | 7.02s primary_warning; 7.08s patch_enter; 7.46s secondary_slip; 7.46s emergency_mode; 11.36s emergency_mode; 11.38s stabilized
+C_2차방어_카메라경고늦음_IMU개입 | 젖은노면_낮_40kmh_카메라경고늦음_빙판진입_제동만으로정지_주변차량 | WetNoon_control_traffic | 1 | 7.08s patch_enter; 8.52s primary_warning; 10.52s stopped; 12.04s board_slip_latency
+D_카메라오경보 | 맑은밤_40kmh_카메라오경보_빙판41m밖에서정지 | ClearNight_control | 1 | 3.26s primary_warning; 4.3s stopped; 5.82s board_slip_latency
+D_카메라오경보 | 맑은밤_40kmh_카메라오경보_빙판42m밖에서정지 | ClearNight_detect | 4 | 3.24s primary_warning; 4.28s stopped
+D_카메라오경보 | 젖은노면_낮_40kmh_카메라오경보_빙판40m밖에서정지 | WetNoon_control | 1 | 3.4s primary_warning; 4.44s stopped; 5.96s board_slip_latency
+D_카메라오경보 | 젖은노면_낮_60kmh_카메라오경보_빙판40m밖에서정지 | WetNoon_detect_60kph | 4 | 3.2s primary_warning; 4.86s stopped
+D_카메라오경보 | 폭우_낮_40kmh_카메라오경보_빙판44m밖에서정지 | HardRainNoon_control | 1 | 3.0s primary_warning; 4.06s stopped; 5.58s board_slip_latency
+D_카메라오경보 | 폭우_낮_40kmh_카메라오경보_빙판44m밖에서정지 | HardRainNoon_detect | 4 | 3.0s primary_warning; 4.06s stopped
+D_카메라오경보 | 폭우_해질녘_40kmh_카메라오경보_빙판44m밖에서정지 | HardRainSunset_detect | 4 | 3.0s primary_warning; 4.06s stopped
+E_기타 | 눈_40kmh_빙판진입_방어실패 | Snow_control | 1 | 7.08s patch_enter; 24.0s timeout; 24.0s board_slip_latency
+E_기타 | 맑은낮_40kmh_빙판진입_방어실패 | ClearNoon_control | 1 | 7.08s patch_enter; 24.0s timeout; 24.0s board_slip_latency
+E_기타 | 맑은낮_40kmh_빙판진입_방어실패_주변차량 | ClearNoon_control_traffic | 1 | 7.08s patch_enter; 24.0s timeout; 24.0s board_slip_latency
+E_기타 | 맑은낮_40kmh_빙판진입_방어실패_주변차량 | ClearNoon_detect_traffic | 4 | 6.26s primary_warning; 7.34s patch_enter; 9.22s lane_departure; 10.48s collision; 12.5s board_slip_latency
+E_기타 | 맑은해질녘_40kmh_빙판진입_방어실패 | ClearSunset_control | 1 | 7.08s patch_enter; 24.0s timeout; 24.0s board_slip_latency
+E_기타 | 비오는밤_40kmh_빙판진입_방어실패 | MidRainyNight_control | 1 | 7.08s patch_enter; 24.0s timeout; 24.0s board_slip_latency
+E_기타 | 흐린낮_40kmh_빙판진입_방어실패 | CloudyNoon_control | 1 | 7.08s patch_enter; 24.0s timeout; 24.0s board_slip_latency
+F_방어없음_기준선 | 눈_40kmh_방어없음_빙판진입_micra충돌_14kmh_주변차량 | Snow_nodefense_traffic | 4 | 5.84s patch_enter; 12.02s lane_departure; 14.72s spin; 19.26s collision
+F_방어없음_기준선 | 맑은낮_40kmh_방어없음_빙판진입_micra충돌_14kmh_주변차량 | ClearNoon_nodefense_traffic | 4 | 5.84s patch_enter; 12.02s lane_departure; 14.72s spin; 19.26s collision
+F_방어없음_기준선 | 맑은낮_40kmh_방어없음_빙판진입_차선이탈 | ClearNoon_nodefense | 4 | 7.08s patch_enter; 11.42s lane_departure; 15.12s passed_patch
+F_방어없음_기준선 | 맑은낮_60kmh_방어없음_빙판진입_wall충돌_17kmh | ClearNoon_nodefense_60kph | 4 | 5.68s patch_enter; 9.02s lane_departure; 9.52s spin; 9.52s collision
+F_방어없음_기준선 | 맑은밤_40kmh_방어없음_빙판진입_micra충돌_14kmh_주변차량 | ClearNight_nodefense_traffic | 4 | 5.84s patch_enter; 12.02s lane_departure; 14.72s spin; 19.26s collision
+F_방어없음_기준선 | 맑은밤_40kmh_방어없음_빙판진입_차선이탈 | ClearNight_nodefense | 4 | 7.08s patch_enter; 11.42s lane_departure; 15.12s passed_patch
+F_방어없음_기준선 | 젖은노면_낮_40kmh_방어없음_빙판진입_micra충돌_14kmh_주변차량 | WetNoon_nodefense_traffic | 4 | 5.84s patch_enter; 12.02s lane_departure; 14.72s spin; 19.26s collision
+F_방어없음_기준선 | 젖은노면_낮_40kmh_방어없음_빙판진입_차선이탈 | WetNoon_nodefense | 4 | 7.08s patch_enter; 11.42s lane_departure; 15.12s passed_patch
+H_1차켜짐_그래도못봄_도메인갭 | 맑은낮_40kmh_1차켜짐_카메라가못봄_빙판진입_RTOS2차방어 | ClearNoon_rscdtex_detect | 4 | 7.08s patch_enter; 8.28s secondary_slip; 8.28s emergency_mode; 11.34s emergency_mode; 11.34s stabilized
+H_1차켜짐_그래도못봄_도메인갭 | 젖은노면_낮_40kmh_1차켜짐_카메라가못봄_빙판진입_RTOS2차방어 | WetNoon_rscdtex_detect | 4 | 7.08s patch_enter; 8.28s secondary_slip; 8.28s emergency_mode; 11.34s emergency_mode; 11.34s stabilized

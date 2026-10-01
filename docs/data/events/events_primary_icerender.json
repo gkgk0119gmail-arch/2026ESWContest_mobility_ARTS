@@ -1,0 +1,42 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/yax/icepredict/models/roadnet_v2/roadnet.onnx",
+  "out": "/home/yax/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 40.0,
+  "friction": 0.02,
+  "target_kph": 40.0,
+  "max_steps": 1200,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": false,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": false,
+  "ice_seed": 7,
+  "no_video": false,
+  "no_overlay": false,
+  "debug_box": false
+ },
+ "events": [
+  {
+   "t": 6.14,
+   "event": "primary_warning",
+   "risk": 0.662,
+   "dist_to_patch_m": 30.9,
+   "dist_to_edge_m": 10.9,
+   "speed_kph": 38.5
+  },
+  {
+   "t": 7.18,
+   "event": "stopped",
+   "dist_to_patch_m": 23.2,
+   "stopped_before_patch": true
+  }
+ ]
+}

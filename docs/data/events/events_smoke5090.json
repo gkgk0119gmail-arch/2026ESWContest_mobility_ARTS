@@ -1,0 +1,51 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/dlab27/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 40.0,
+  "friction": 0.02,
+  "target_kph": 60.0,
+  "max_steps": 60,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": true,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": false,
+  "ice_seed": 7,
+  "fusion": "local",
+  "n6_bind": "tcp://*:5558",
+  "n6_timeout": 3.0,
+  "slip_local": true,
+  "no_video": true,
+  "show_patch": false,
+  "no_overlay": true,
+  "no_bird": false,
+  "weather": "ClearNoon",
+  "tag": "smoke5090",
+  "views": "split",
+  "no_native_ice": false,
+  "ice_subtle": 1.0,
+  "debug_box": false,
+  "road_texture": null,
+  "ice_texture_class": "ice",
+  "export_labels": null,
+  "tire_friction": 1.0,
+  "log_dyn": null,
+  "no_secondary": true,
+  "traffic": 0,
+  "lead_stop": 0.0
+ },
+ "events": [
+  {
+   "t": 1.2,
+   "event": "timeout"
+  }
+ ]
+}

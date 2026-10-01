@@ -1,0 +1,89 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/dlab27/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 40.0,
+  "friction": 1.0,
+  "target_kph": 50.0,
+  "max_steps": 1200,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": true,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": true,
+  "ctx_temp": -3.0,
+  "fixed_weather_ctx": false,
+  "alarm_confirm": 8,
+  "control_no_ice": true,
+  "ice_seed": 7,
+  "fusion": "n6npu",
+  "n6_bind": "tcp://*:5558",
+  "n6_timeout": 3.0,
+  "slip_local": false,
+  "no_video": false,
+  "show_patch": false,
+  "no_overlay": true,
+  "no_bird": false,
+  "weather": "ClearNoon",
+  "tag": "lag_ctrl_k50",
+  "views": "split",
+  "no_native_ice": true,
+  "ice_subtle": 1.0,
+  "debug_box": false,
+  "road_texture": null,
+  "ice_texture_class": "ice",
+  "export_labels": null,
+  "tire_friction": 1.0,
+  "log_dyn": "/home/dlab27/icepredict/logs/dync2_k50.csv",
+  "no_secondary": false,
+  "traffic": 0,
+  "lead_stop": 0.0
+ },
+ "events": [
+  {
+   "t": 6.18,
+   "event": "patch_enter",
+   "speed_kph": 48.0
+  },
+  {
+   "t": 23.74,
+   "event": "secondary_slip",
+   "trigger": "yaw_rate",
+   "decided_by": "stm32n6",
+   "ay_g": -0.182,
+   "yaw_err": -0.354,
+   "speed_kph": 28.1,
+   "local_agrees": false
+  },
+  {
+   "t": 23.74,
+   "event": "emergency_mode",
+   "mode": "lane_keep",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 999.0,
+   "gap_left_m": -1.0,
+   "gap_right_m": -1.0,
+   "speed_kph": 28.1
+  },
+  {
+   "t": 24.0,
+   "event": "timeout"
+  },
+  {
+   "t": 24.0,
+   "event": "board_slip_latency",
+   "samples": 1051,
+   "npu_busy": false,
+   "avg_us": 10.7,
+   "max_us": 13.1
+  }
+ ],
+ "rule_ab": null
+}

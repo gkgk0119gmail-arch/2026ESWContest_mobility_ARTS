@@ -1,0 +1,116 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/dlab27/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 140.0,
+  "friction": 0.08,
+  "target_kph": 50.0,
+  "max_steps": 1200,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": true,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": false,
+  "ctx_temp": -3.0,
+  "fixed_weather_ctx": false,
+  "alarm_confirm": 8,
+  "control_no_ice": false,
+  "ice_seed": 7,
+  "fusion": "n6npu",
+  "n6_bind": "tcp://*:5558",
+  "n6_timeout": 3.0,
+  "slip_local": false,
+  "no_video": false,
+  "show_patch": false,
+  "no_overlay": true,
+  "no_bird": false,
+  "weather": "ClearNoon",
+  "tag": "dyn_k50",
+  "views": "split",
+  "no_native_ice": false,
+  "ice_subtle": 1.0,
+  "debug_box": false,
+  "road_texture": null,
+  "ice_texture_class": "ice",
+  "export_labels": null,
+  "tire_friction": 1.0,
+  "log_dyn": "/home/dlab27/icepredict/logs/dyn_k50.csv",
+  "no_secondary": false,
+  "traffic": 0,
+  "lead_stop": 0.0
+ },
+ "events": [
+  {
+   "t": 5.18,
+   "event": "patch_enter",
+   "speed_kph": 48.0
+  },
+  {
+   "t": 5.94,
+   "event": "secondary_slip",
+   "trigger": "lat_acc",
+   "decided_by": "stm32n6",
+   "ay_g": -0.354,
+   "yaw_err": -0.188,
+   "speed_kph": 47.9,
+   "local_agrees": true
+  },
+  {
+   "t": 5.94,
+   "event": "emergency_mode",
+   "mode": "lane_keep",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 999.0,
+   "gap_left_m": 999.0,
+   "gap_right_m": -1.0,
+   "speed_kph": 47.9
+  },
+  {
+   "t": 8.84,
+   "event": "emergency_mode",
+   "mode": "stopped",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 999.0,
+   "gap_left_m": 999.0,
+   "gap_right_m": 999.0,
+   "speed_kph": 1.3
+  },
+  {
+   "t": 8.86,
+   "event": "stabilized",
+   "slip_to_stop_ms": 2920.0
+  },
+  {
+   "t": 10.38,
+   "event": "board_slip_latency",
+   "samples": 370,
+   "npu_busy": false,
+   "avg_us": 10.8,
+   "max_us": 13.1
+  }
+ ],
+ "rule_ab": {
+  "ellipse": {
+   "t": 5.92,
+   "trigger": "lat_acc",
+   "ay_g": -0.327,
+   "yaw_err": -0.169,
+   "after_enter": 0.74
+  },
+  "box": {
+   "t": 5.94,
+   "trigger": "lat_acc",
+   "ay_g": -0.354,
+   "yaw_err": -0.188,
+   "after_enter": 0.76
+  },
+  "gain_s": 0.02
+ }
+}

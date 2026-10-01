@@ -1,0 +1,232 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/dlab27/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 100.0,
+  "friction": 0.08,
+  "target_kph": 35.0,
+  "max_steps": 1200,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": true,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": false,
+  "fixed_weather_ctx": false,
+  "control_no_ice": false,
+  "ice_seed": 11,
+  "fusion": "n6npu",
+  "n6_bind": "tcp://*:5558",
+  "n6_timeout": 3.0,
+  "slip_local": false,
+  "no_video": false,
+  "show_patch": false,
+  "no_overlay": true,
+  "no_bird": false,
+  "weather": "ClearNoon",
+  "tag": "var_s11_k35_mu008",
+  "views": "split",
+  "no_native_ice": false,
+  "ice_subtle": 1.0,
+  "debug_box": false,
+  "road_texture": null,
+  "ice_texture_class": "ice",
+  "export_labels": null,
+  "tire_friction": 1.0,
+  "log_dyn": null,
+  "no_secondary": false,
+  "traffic": 8,
+  "lead_stop": 45.0
+ },
+ "events": [
+  {
+   "t": 6.36,
+   "event": "patch_enter",
+   "speed_kph": 34.0
+  },
+  {
+   "t": 9.9,
+   "event": "collision",
+   "with": "cooper_s_2021",
+   "speed_kph": 33.6,
+   "impulse": 82.6,
+   "dist_to_patch_m": 1.2
+  },
+  {
+   "t": 9.92,
+   "event": "secondary_slip",
+   "trigger": "lat_acc",
+   "decided_by": "stm32n6",
+   "ay_g": 0.302,
+   "yaw_err": -0.062,
+   "speed_kph": 33.5,
+   "local_agrees": true
+  },
+  {
+   "t": 9.92,
+   "event": "emergency_mode",
+   "mode": "evade_left",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 36.3,
+   "gap_left_m": 22.0,
+   "gap_right_m": -1.0,
+   "speed_kph": 33.5
+  },
+  {
+   "t": 9.94,
+   "event": "collision",
+   "with": "cooper_s_2021",
+   "speed_kph": 33.5,
+   "impulse": 37.6,
+   "dist_to_patch_m": 0.9
+  },
+  {
+   "t": 10.38,
+   "event": "secondary_slip",
+   "trigger": "low_mu",
+   "decided_by": "stm32n6",
+   "ay_g": -0.004,
+   "yaw_err": -0.076,
+   "speed_kph": 32.5,
+   "local_agrees": false
+  },
+  {
+   "t": 10.4,
+   "event": "collision",
+   "with": "cooper_s_2021",
+   "speed_kph": 32.4,
+   "impulse": 37.6,
+   "dist_to_patch_m": 3.7
+  },
+  {
+   "t": 10.84,
+   "event": "secondary_slip",
+   "trigger": "low_mu",
+   "decided_by": "stm32n6",
+   "ay_g": 0.006,
+   "yaw_err": -0.073,
+   "speed_kph": 31.4,
+   "local_agrees": false
+  },
+  {
+   "t": 10.86,
+   "event": "collision",
+   "with": "cooper_s_2021",
+   "speed_kph": 31.4,
+   "impulse": 37.6,
+   "dist_to_patch_m": 7.7
+  },
+  {
+   "t": 11.3,
+   "event": "secondary_slip",
+   "trigger": "low_mu",
+   "decided_by": "stm32n6",
+   "ay_g": 0.005,
+   "yaw_err": -0.07,
+   "speed_kph": 30.3,
+   "local_agrees": false
+  },
+  {
+   "t": 11.32,
+   "event": "collision",
+   "with": "cooper_s_2021",
+   "speed_kph": 30.3,
+   "impulse": 37.6,
+   "dist_to_patch_m": 11.6
+  },
+  {
+   "t": 11.76,
+   "event": "secondary_slip",
+   "trigger": "low_mu",
+   "decided_by": "stm32n6",
+   "ay_g": 0.002,
+   "yaw_err": -0.067,
+   "speed_kph": 29.3,
+   "local_agrees": false
+  },
+  {
+   "t": 11.78,
+   "event": "collision",
+   "with": "cooper_s_2021",
+   "speed_kph": 29.2,
+   "impulse": 37.6,
+   "dist_to_patch_m": 15.4
+  },
+  {
+   "t": 12.22,
+   "event": "secondary_slip",
+   "trigger": "low_mu",
+   "decided_by": "stm32n6",
+   "ay_g": 0.0,
+   "yaw_err": -0.064,
+   "speed_kph": 28.2,
+   "local_agrees": false
+  },
+  {
+   "t": 12.24,
+   "event": "collision",
+   "with": "cooper_s_2021",
+   "speed_kph": 28.2,
+   "impulse": 37.6,
+   "dist_to_patch_m": 19.1
+  },
+  {
+   "t": 12.68,
+   "event": "secondary_slip",
+   "trigger": "low_mu",
+   "decided_by": "stm32n6",
+   "ay_g": -0.004,
+   "yaw_err": -0.061,
+   "speed_kph": 27.1,
+   "local_agrees": false
+  },
+  {
+   "t": 12.7,
+   "event": "collision",
+   "with": "cooper_s_2021",
+   "speed_kph": 27.1,
+   "impulse": 37.6,
+   "dist_to_patch_m": 22.6
+  },
+  {
+   "t": 13.14,
+   "event": "secondary_slip",
+   "trigger": "low_mu",
+   "decided_by": "stm32n6",
+   "ay_g": -0.007,
+   "yaw_err": -0.058,
+   "speed_kph": 26.1,
+   "local_agrees": false
+  },
+  {
+   "t": 13.16,
+   "event": "collision",
+   "with": "cooper_s_2021",
+   "speed_kph": 26.0,
+   "impulse": 37.6,
+   "dist_to_patch_m": 26.0
+  },
+  {
+   "t": 14.02,
+   "event": "lane_departure",
+   "lat_off_m": 1.12,
+   "heading_err_deg": 36.6,
+   "speed_kph": 24.0,
+   "inside_ice": true
+  },
+  {
+   "t": 15.18,
+   "event": "board_slip_latency",
+   "samples": 610,
+   "npu_busy": false,
+   "avg_us": 10.8,
+   "max_us": 12.8
+  }
+ ]
+}

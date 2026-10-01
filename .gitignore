@@ -6,3 +6,7 @@ __pycache__/
 .pytest_cache/
 secrets.yaml
 icepredict_영상
+
+hailort.log
+*.zip
+*.bak

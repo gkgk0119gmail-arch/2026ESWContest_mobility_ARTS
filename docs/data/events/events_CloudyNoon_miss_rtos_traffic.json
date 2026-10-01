@@ -1,0 +1,96 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/dlab27/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 100.0,
+  "friction": 0.08,
+  "target_kph": 40.0,
+  "max_steps": 1200,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": true,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": false,
+  "control_no_ice": false,
+  "ice_seed": 7,
+  "fusion": "n6npu",
+  "n6_bind": "tcp://*:5558",
+  "n6_timeout": 3.0,
+  "slip_local": false,
+  "no_video": false,
+  "show_patch": false,
+  "no_overlay": true,
+  "no_bird": false,
+  "weather": "CloudyNoon",
+  "tag": "CloudyNoon_miss_rtos_traffic",
+  "views": "split,bev,lidar,lidar_sem",
+  "no_native_ice": false,
+  "ice_subtle": 1.0,
+  "debug_box": false,
+  "road_texture": null,
+  "ice_texture_class": "ice",
+  "export_labels": null,
+  "tire_friction": 1.0,
+  "log_dyn": null,
+  "no_secondary": false,
+  "traffic": 8,
+  "lead_stop": 70.0
+ },
+ "events": [
+  {
+   "t": 5.84,
+   "event": "patch_enter",
+   "speed_kph": 38.7
+  },
+  {
+   "t": 7.62,
+   "event": "secondary_slip",
+   "trigger": "lat_acc",
+   "decided_by": "stm32n6",
+   "ay_g": -0.362,
+   "yaw_err": -0.282,
+   "speed_kph": 38.5,
+   "local_agrees": true
+  },
+  {
+   "t": 7.62,
+   "event": "emergency_mode",
+   "mode": "lane_keep",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 999.0,
+   "gap_left_m": 5.0,
+   "gap_right_m": -1.0,
+   "speed_kph": 38.5
+  },
+  {
+   "t": 11.66,
+   "event": "emergency_mode",
+   "mode": "stopped",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 999.0,
+   "gap_left_m": 999.0,
+   "gap_right_m": 999.0,
+   "speed_kph": 1.0
+  },
+  {
+   "t": 11.66,
+   "event": "stabilized",
+   "slip_to_stop_ms": 4040.0
+  },
+  {
+   "t": 13.18,
+   "event": "board_slip_latency",
+   "samples": 510,
+   "npu_busy": false,
+   "avg_us": 10.9,
+   "max_us": 13.2
+  }
+ ]
+}

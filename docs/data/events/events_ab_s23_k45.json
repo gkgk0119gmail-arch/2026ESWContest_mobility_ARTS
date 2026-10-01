@@ -1,0 +1,127 @@
+{
+ "args": {
+  "host": "127.0.0.1",
+  "port": 2000,
+  "town": "Town04",
+  "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/dlab27/icepredict/logs/carla_demo",
+  "patch_ahead": 90.0,
+  "patch_len": 100.0,
+  "friction": 0.08,
+  "target_kph": 45.0,
+  "max_steps": 1200,
+  "fps": 50,
+  "warmup": 3.0,
+  "min_detect_kph": 25.0,
+  "disable_primary": true,
+  "gt_detect": false,
+  "detect_range": 30.0,
+  "night": false,
+  "no_ice_render": false,
+  "ctx_temp": -3.0,
+  "fixed_weather_ctx": false,
+  "alarm_confirm": 8,
+  "control_no_ice": false,
+  "ice_seed": 23,
+  "fusion": "n6npu",
+  "n6_bind": "tcp://*:5558",
+  "n6_timeout": 3.0,
+  "slip_local": false,
+  "no_video": false,
+  "show_patch": false,
+  "no_overlay": true,
+  "no_bird": false,
+  "weather": "ClearNoon",
+  "tag": "ab_s23_k45",
+  "views": "split",
+  "no_native_ice": false,
+  "ice_subtle": 1.0,
+  "debug_box": false,
+  "road_texture": null,
+  "ice_texture_class": "ice",
+  "export_labels": null,
+  "tire_friction": 1.0,
+  "log_dyn": null,
+  "no_secondary": false,
+  "traffic": 8,
+  "lead_stop": 45.0
+ },
+ "events": [
+  {
+   "t": 5.46,
+   "event": "patch_enter",
+   "speed_kph": 43.3
+  },
+  {
+   "t": 6.56,
+   "event": "secondary_slip",
+   "trigger": "lat_acc",
+   "decided_by": "stm32n6",
+   "ay_g": -0.341,
+   "yaw_err": -0.226,
+   "speed_kph": 43.2,
+   "local_agrees": true
+  },
+  {
+   "t": 6.56,
+   "event": "emergency_mode",
+   "mode": "hard_stop",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 54.6,
+   "gap_left_m": 5.1,
+   "gap_right_m": -1.0,
+   "speed_kph": 43.2
+  },
+  {
+   "t": 7.74,
+   "event": "emergency_mode",
+   "mode": "evade_right",
+   "by": "STM32N6 RTOS",
+   "gap_front_m": 13.0,
+   "gap_left_m": 2.3,
+   "gap_right_m": 999.0,
+   "speed_kph": 40.6
+  },
+  {
+   "t": 7.78,
+   "event": "collision",
+   "with": "mkz_2020",
+   "speed_kph": 38.4,
+   "impulse": 728.6,
+   "dist_to_patch_m": 7.3
+  },
+  {
+   "t": 8.92,
+   "event": "lane_departure",
+   "lat_off_m": -0.15,
+   "heading_err_deg": 35.1,
+   "speed_kph": 35.7,
+   "inside_ice": true
+  },
+  {
+   "t": 9.8,
+   "event": "board_slip_latency",
+   "samples": 341,
+   "npu_busy": false,
+   "avg_us": 11.1,
+   "max_us": 13.8
+  }
+ ],
+ "rule_ab": {
+  "ellipse": {
+   "t": 6.5,
+   "trigger": "combo",
+   "ay_g": -0.296,
+   "yaw_err": -0.189,
+   "after_enter": 1.04
+  },
+  "box": {
+   "t": 6.56,
+   "trigger": "lat_acc",
+   "ay_g": -0.341,
+   "yaw_err": -0.226,
+   "after_enter": 1.1
+  },
+  "gain_s": 0.06
+ }
+}
