@@ -13,8 +13,8 @@ CARLA (데스크탑)  ─ 카메라 ROI(int8) ─▶ Pi 브리지 ─UDP─▶ S
                                                                    (차선 유지 + ABS 펄스 / 빈 차로 회피 / 최대 제동)  ─▶ 매 샘플 명령
 ```
 - 학교망이 유선→무선을 막아 데스크탑이 bind, Pi가 connect (ZMQ 방향 역전). 보드는 Pi 사설망에만 있다.
-- 2차 방어 C 코어: `fw/npu_lib/slip_core.h` (파이썬 참조 `src/icepredict/pi/imu_slip.py`와 동치 검증 `fw/npu_lib/test_slip_core.py`).
-- 패킷: 60 B 요청(`<I13fI`) / 28 B 응답(`<IBBBBffIff`, emerg·mode 포함). 펌웨어 패치 `fw/npu_lib/patch_fw_slip.py`, 재배포 `scripts/deploy/fw_redeploy.sh`.
+- 2차 방어 C 코어: `sw/fw/npu_lib/slip_core.h` (파이썬 참조 `sw/src/icepredict/pi/imu_slip.py`와 동치 검증 `sw/fw/npu_lib/test_slip_core.py`).
+- 패킷: 60 B 요청(`<I13fI`) / 28 B 응답(`<IBBBBffIff`, emerg·mode 포함). 펌웨어 패치 `sw/fw/npu_lib/patch_fw_slip.py`, 재배포 `sw/scripts/deploy/fw_redeploy.sh`.
 
 ## 시나리오 (demo_batch.sh 의 SCEN)
 
@@ -69,7 +69,7 @@ split(좌 1인칭+우 조감) · bev · lidar(높이색 3D 점군 + 차량 3D �
   조치(v4): 제동 명령이 0.3 s 이상 지속된 뒤에만 평가, 8샘플 확정. 마른 노면 제동 시나리오 호스트 테스트 추가.
 - 비 오는 밤 인식 주행에서 빙판 위 lane_keep 제어 중 차선을 벗어나 갓길에서 정지 못함 → 조향 게인 Kp 1.0→1.4, Kl 0.08→0.15,
   제동 펄스 0.55/0.20→0.70/0.35, 2 m/s 미만 연속 제동.
-- 이전 배치(v3, 마찰 3.5)의 결과는 통합 체인 `scripts/archive/batch_ALL.sh` 로 전부 다시 찍어 대체한다.
+- 이전 배치(v3, 마찰 3.5)의 결과는 통합 체인 `sw/scripts/archive/batch_ALL.sh` 로 전부 다시 찍어 대체한다.
 
 ## 검증 3회 결과 (23:35, v4 펌웨어 + 마찰 1.0)
 - 맑음 인식: 경고 후 1.04 s·7.8 m 만에 정지(≈1 g), 빙판 가장자리 3.6 m 앞. 보드 응답 평균 11.3 µs, 최대 13.8 µs (시리얼 출력 제거 후).
@@ -80,7 +80,7 @@ split(좌 1인칭+우 조감) · bev · lidar(높이색 3D 점군 + 차량 3D �
 ## 추가 발견 (00:50) — 60 km/h 곡선 구간 2차 오탐 → 언더스티어 보정
 60 km/h 인식 주행에서 빙판 도착 전 곡선(3.3 s)에 lat_acc 트리거(잔차 −0.31 g, yaw_err −0.17). 운동학 자전거 모델은 고속에서
 실제(언더스티어)보다 큰 yaw rate 를 기대해 잔차가 음으로 부푼다. 조치: yaw_exp 에 1/(1+(v/v_ch)²) 보정(C·파이썬 동일),
-v_ch 는 60·40 km/h 주행 로그(`--log-dyn`)로 `scripts/analysis/fit_vch.py` 가 맞춘 값을 쓴다 → v5 펌웨어 → 60 km/h 재실행 (`scripts/archive/batch_POST.sh`).
+v_ch 는 60·40 km/h 주행 로그(`--log-dyn`)로 `sw/scripts/analysis/fit_vch.py` 가 맞춘 값을 쓴다 → v5 펌웨어 → 60 km/h 재실행 (`sw/scripts/archive/batch_POST.sh`).
 
 ## RSCD 실제 사진 → 실제 보드 인-더-루프 (01:13, 클래스별 300장, vali_20k, NPU 25.5 ms)
 | 실제 클래스 | 정답률 | 경보율 | 평균 위험도 | 평균 반사도 |
@@ -91,7 +91,7 @@ v_ch 는 60·40 km/h 주행 로그(`--log-dyn`)로 `scripts/analysis/fit_vch.py`
 | pothole | 89% | 82.3% | 0.48 | 0.84 |
 해석: 결빙 재현율·마른 노면 오경보는 좋다. 젖은 노면은 분류는 맞지만 반사도 가중(β 0.45)으로 절반이 문턱(0.441)을 넘는다 —
 '결빙 위험 노면 + 반사도 이상' 전략의 보수성. 발표 전 팀이 β/문턱(또는 wet 확률에 따른 반사도 감쇠)을 정할 것.
-스크립트 `scripts/deploy/rscd_in_the_loop.py`, 결과 `logs/rscd_in_the_loop_20260920_0113.json`.
+스크립트 `sw/scripts/deploy/rscd_in_the_loop.py`, 결과 `logs/rscd_in_the_loop_20260920_0113.json`.
 
 ## POST/POST2 결과 (01:20~01:48, v5 펌웨어: 언더스티어 보정 v_ch 20 m/s)
 - 60 km/h 맑음 인식: 곡선 오탐 없음. 경고(가장자리 11.7 m, 57 km/h) → 40 km/h 로 진입 → 0.26 s 뒤 저마찰 감지 → lane_keep → 8.9 s 정지.
@@ -101,7 +101,7 @@ v_ch 는 60·40 km/h 주행 로그(`--log-dyn`)로 `scripts/analysis/fit_vch.py`
   맞춰져 있고 RSCD 질감으로는 반응하지 않는다 → **RSCD 질감 노면으로 CARLA 재수집·재학습**이 다음 과제.
 - 2D 분할 라벨 390장(`logs/labels_rscdtex`), 3종 그림 4장(`logs/carla_demo/figures/triplet_*`).
 
-## 특성속도 보정 (01:50) — `scripts/analysis/fit_vch.py`, 60·40 km/h 곡선 주행 977샘플(곡선 514)
+## 특성속도 보정 (01:50) — `sw/scripts/analysis/fit_vch.py`, 60·40 km/h 곡선 주행 977샘플(곡선 514)
 | 모델 | 잔차 \|ay_g\| 최대 / p99 | \|yaw_err\| 최대 | 비고 |
 |---|---|---|---|
 | 운동학(보정 없음) | 0.511 / 0.337 g | 0.391 rad/s | 문턱 0.30 g 초과 → 60 km/h 오탐의 원인 |

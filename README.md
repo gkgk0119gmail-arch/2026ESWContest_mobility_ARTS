@@ -38,27 +38,58 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 
 ## 하드웨어
 
+<p align="center">
+  <img src="hw/images/hw_n6_bench.jpg" width="62%" alt="STM32N6570-DK 실물 구성">
+  <br>
+  <sub><b>실제 구성.</b> 가운데가 <b>STM32N6570-DK</b> 디스커버리 키트(MB1939-N6570-C02 + MB1860B 5인치 디스플레이),
+  그 위에 꽂힌 것이 1차 방어의 눈인 <b>ST AI 카메라 모듈 MB1854B</b>다.
+  오른쪽 위가 <b>Raspberry Pi 5</b>, 그 왼쪽의 파란 불이 들어온 것이 데이터셋을 담은 <b>NVMe SSD 외장</b>,
+  왼쪽 아래 검은 벽돌이 <b>보조배터리</b>다. 책상이 아니라 차에서도 같은 구성으로 돌릴 수 있게 전원을 분리했다.</sub>
+</p>
+
+| 구성 | 정식 명칭 | 역할 |
+|---|---|---|
+| **메인 보드** | STM32N6570-DK (STM32N657X0H3Q) | 1차 NPU 추론(Neural-ART @ 1 GHz) + 2차 ThreadX 실시간 판정·제어. **두 임계도가 한 보드에 공존한다** |
+| **카메라** | ST AI Camera module MB1854B | 1차 방어 입력. 보드에 직결되어 NPU 로 바로 들어간다 |
+| **호스트** | Raspberry Pi 5 16 GB + AI HAT+ 2 (Hailo-10H) | 기상 맥락 생성, ZMQ 통신 브리지, 교차 검증용 NPU (대회 필수 보드) |
+| **저장장치** | NVMe 1 TB SSD + USB 외장 케이스 | RSCD·RoadSaW 등 데이터셋과 주행 로그 적재 |
+| **전원** | 보조배터리 (휴대형 파워뱅크) | 콘센트 없이 차량·야외에서 같은 구성을 돌리기 위한 것 |
+| **센서** | Intel RealSense D435i | RGB · 뎁스 · IMU. 실측 노이즈 특성 확보용 |
+| **렌더 머신** | RTX 5090 워크스테이션 | CARLA 0.9.16 — HIL 환경의 물리·센서 제공 |
+
 <table>
 <tr>
-<td width="33%"><img src="docs/images/hw_pi_stack.jpg" alt="Pi 5 + AI HAT+ 2 스택"></td>
-<td width="33%"><img src="docs/images/hw_d435i_nvme.jpg" alt="RealSense D435i와 NVMe 외장"></td>
-<td width="33%"><img src="docs/images/hw_boot.jpg" alt="Raspberry Pi OS 부팅"></td>
+<td width="33%"><img src="hw/images/hw_pi_stack.jpg" alt="Raspberry Pi 5 + AI HAT+ 2 스택"></td>
+<td width="33%"><img src="hw/images/hw_d435i_nvme.jpg" alt="RealSense D435i와 NVMe 외장"></td>
+<td width="33%"><img src="hw/images/hw_boot.jpg" alt="Raspberry Pi OS 부팅"></td>
 </tr>
 <tr>
-<td align="center"><sub>Pi 5 16 GB + AI HAT+ 2 (Hailo-10H), KKSB 케이스·액티브 쿨러</sub></td>
-<td align="center"><sub>RealSense D435i (RGB·뎁스·IMU) · NVMe 1 TB 외장</sub></td>
-<td align="center"><sub>부팅·브링업 확인</sub></td>
+<td align="center"><sub>Raspberry Pi 5 16 GB + AI HAT+ 2 (Hailo-10H), KKSB 케이스·액티브 쿨러</sub></td>
+<td align="center"><sub>Intel RealSense D435i (RGB·뎁스·IMU) · NVMe 1 TB SSD 외장</sub></td>
+<td align="center"><sub>Raspberry Pi OS 부팅·브링업 확인</sub></td>
 </tr>
 </table>
 
-| 구성 | 역할 |
-|---|---|
-| **STM32N6570-DK** | 1차 NPU 추론(Neural-ART) + 2차 ThreadX 실시간 판정·제어. 두 임계도가 한 보드에 공존한다 |
-| **Raspberry Pi 5 16 GB + AI HAT+ 2 (Hailo-10H)** | 호스트. 기상 맥락 생성, 통신 브리지, 교차 검증용 NPU |
-| **RealSense D435i** | RGB·뎁스·IMU. 실측 노이즈 특성 확보용 |
-| **RTX 5090 워크스테이션** | CARLA 시뮬레이션 (HIL 환경의 물리·센서 제공) |
+더 자세한 구성과 연결은 [`hw/`](hw) 에 있다.
 
-실물 빙판 노면을 만드는 1/5 차량 실측이 현실적으로 어려워, **실물 보드가 실제 펌웨어를 돌리고 CARLA가 센서와 물리를 제공하는 HIL 검증**으로 대체했다. 실물 데이터는 RSCD 실사진 69,358장을 보드에 직접 넣는 방식으로 보강했다.
+### 사람이 직접 운전해도 보드는 같은 판단을 한다
+
+<p align="center">
+  <img src="hw/images/hw_moza_rig.jpg" width="62%" alt="Moza 휠·페달로 CARLA 를 직접 운전하는 모습">
+  <br>
+  <sub><b>Moza 포스피드백 휠과 페달</b>을 CARLA 에 물려, 사람이 직접 빙판 구간으로 들어가 볼 수 있게 했다.
+  화면이 붉은 것은 보드가 위험을 올린 상태를 그대로 덮어 그린 것이다.</sub>
+</p>
+
+자율주행으로만 돌리면 "경로가 정해져 있으니 되는 것 아니냐"는 의심이 남는다. 그래서 **같은 CARLA 세계에 사람이 조향·가속·제동을 직접 넣는 경로**를 함께 만들었다. 보드는 누가 운전하든 들어오는 카메라 프레임과 IMU 신호만 보고 판단하므로, 운전 주체가 바뀌어도 1차·2차 방어는 그대로 돈다.
+
+<sub>저장소에 올린 <b>측정 주행 108회는 전부 자율주행</b>으로 돌렸다. 같은 주행선을 반복해야 날씨·속도만 바꾼 비교가 성립하기 때문이다. 휠·페달 구성은 시연과 체험용이며, 이 보고서의 수치에는 들어가 있지 않다.</sub>
+
+---
+
+## 왜 HIL 인가
+
+실물 빙판 노면을 만드는 1/5 차량 실측이 현실적으로 어려워, **실물 보드가 실제 펌웨어를 돌리고 CARLA 가 센서와 물리를 제공하는 HIL 검증**으로 대체했다. 비전 성능은 시뮬레이션 화면이 아니라 **RSCD 실사진 69,358장을 보드에 직접 넣어** 따로 쟀다.
 
 ---
 
@@ -357,27 +388,34 @@ ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4�
 
 ## 저장소 구조
 
+하드웨어와 소프트웨어를 위에서 갈라 두었다. 각 폴더에 그 안을 설명하는 README 가 따로 있다.
+
 ```
-src/icepredict/        파이썬 패키지
-  common/              Pi ↔ N6 ↔ CARLA 메시지 규약
-  pi/                  기상 맥락, 위험도 융합, IMU 미끄러짐 감지(C 이식 원본)
-  sim/                 CARLA 빙판 합성, 카메라 설정, 차로 추종
-  train/               RoadNet 모델, 데이터 인덱스
-fw/npu_lib/            STM32N6 펌웨어 글루
-  slip_core.h          2차 방어 C 코어 (HAL·OS 비의존, 호스트에서도 컴파일)
-  npu_infer.c          Neural-ART NPU 추론
-  patch_fw_slip.py     ThreadX 융합 스레드에 2차 방어 주입
-scripts/               → scripts/README.md 에 입구 목록
-  sim/                 CARLA 수집 · 데모 · 영상 정리
-  model/               RoadNet 학습 · int8 양자화 · 반사도 헤드
-  deploy/              STM32N6 적재 · 브리지 · 보드 평가
-  analysis/            집계 · 그림 · 근거 문서 생성
-  archive/             일회성 배치 체인 (재현 이력 보존)
-docs/evidence/         자동 생성 근거 문서 19개
-docs/figures/          결과 그림 28장
-docs/images/           하드웨어·데이터셋 사진
-docs/data/events/      주행 이벤트 107건 (분석 재현용)
+hw/                    하드웨어 — 구성표 · 신호 흐름 · 실물 사진      → hw/README.md
+  images/              보드·센서·주행 장비 사진
+
+sw/                    소프트웨어                                   → sw/README.md
+  src/icepredict/      파이썬 패키지 (알고리즘 원본)
+    common/            Pi ↔ N6 ↔ CARLA 메시지 규약
+    pi/                기상 맥락, 위험도 융합, IMU 미끄러짐 감지
+    sim/               CARLA 빙판 합성, 카메라 설정, 차로 추종
+    train/             RoadNet 모델, 데이터 인덱스
+  fw/npu_lib/          STM32N6 펌웨어 글루
+    slip_core.h        2차 방어 C 코어 (HAL·OS 비의존, 호스트에서도 컴파일)
+    npu_infer.c        Neural-ART NPU 추론
+    patch_fw_slip.py   ThreadX 융합 스레드에 2차 방어 주입
+  scripts/             수집 · 학습 · 양자화 · 배포 · 데모 · 분석     → sw/scripts/README.md
+    sim/ model/ deploy/ analysis/ archive/
+  tests/               단위 테스트 19개
+
+docs/                  근거
+  evidence/            자동 생성 근거 문서 19건
+  figures/             결과 그림 29장
+  images/              데이터셋 인용 그림
+  data/events/         주행 이벤트 108건 (분석 재현용)
+
 media/                 README 애니메이션 + 영상
+report/                개발완료보고서 (.pptx / .pdf)              → report/README.md
 ```
 
 ---
@@ -388,14 +426,14 @@ media/                 README 애니메이션 + 영상
 
 ```bash
 pip install -e .
-python3 scripts/analysis/summarize_runs.py        # docs/evidence/00_집계.md 재생성
-python3 -m pytest -q                     # 단위 테스트
+python3 sw/scripts/analysis/summarize_runs.py   # docs/evidence/00_집계.md 재생성
+python3 -m pytest -q                            # 단위 테스트
 ```
 
 2차 방어 C 코어가 파이썬 참조 구현과 **같은 판정을 내리는지** 호스트에서 검증한다.
 
 ```bash
-python3 fw/npu_lib/test_slip_core.py     # gcc 로 C 코어를 빌드해 동치 비교
+python3 sw/fw/npu_lib/test_slip_core.py     # gcc 로 C 코어를 빌드해 동치 비교
 ```
 
 전체 파이프라인(수집 → 학습 → int8 양자화 → 보드 배포 → HIL 데모)은 [`demo_pipeline`](docs/demo_pipeline_2026-09-19.md)에 있다.

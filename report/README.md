@@ -32,8 +32,8 @@ sudo apt-get install -y --no-install-recommends libreoffice-impress   # 변환�
 전부 **px(1280×720)** 로 쓴다. 1280×720 px = 13.333in × 7.5in (96 dpi) 이므로 `px/96` 이 인치다.
 `page()` 가 머리글·바닥글을 그리고 본문에 쓸 수 있는 `(위, 아래) y` 를 돌려준다.
 
-## 아직 비어 있는 것
+## 사진
 
-**5쪽 하드웨어 구성에 STM32N6570-DK 실물 사진이 없다.** 저장소에 보드 사진이 한 장도 없어
-HIL 주행 화면으로 대신해 두었다. 보드 사진을 찍어 `docs/images/hw_n6.jpg` 로 넣고
-`build_pptx.py` 의 `shots` 목록에서 해당 줄만 바꾸면 된다.
+5쪽 하드웨어 구성은 `hw/images/` 의 실물 사진을 쓴다. 보고서 4단 배치가 거의 정사각이라
+세로 사진을 그대로 넣으면 양옆이 잘린다. `assets/hw_n6.jpg`·`assets/hw_moza.jpg` 는
+그 비율에 맞춰 미리 잘라 둔 것이다. 원본은 `hw/images/` 에 있다.

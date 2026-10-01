@@ -151,19 +151,20 @@ table(sh, PAD, B - 186, CW,
 # ══ 5. 하드웨어 ══════════════════════════════════════════════════════════════
 s, sh, T, B = page("구현", "하드웨어 구성")
 iw = (CW - 3 * 11) / 4
-shots = [("docs/images/hw_pi_stack.jpg", "Pi 5 16 GB + AI HAT+ 2 (Hailo-10H)<br>KKSB 케이스 · 액티브 쿨러", ROOT),
-         ("docs/images/hw_d435i_nvme.jpg", "RealSense D435i (RGB·뎁스·IMU)<br>NVMe 1 TB 외장", ROOT),
-         ("docs/images/hw_boot.jpg", "Raspberry Pi OS 부팅 · 브링업 확인", ROOT),
-         ("assets/p2_slip_c.jpg", "HIL 주행 — 보드가 판정하고 CARLA 가 물리를 돌린다", HERE)]
+shots = [("assets/hw_n6.jpg", "<b>STM32N6570-DK</b> + AI 카메라 MB1854B<br>왼쪽은 보조배터리, 위는 NVMe SSD", HERE),
+         ("hw/images/hw_pi_stack.jpg", "<b>Raspberry Pi 5 16 GB + AI HAT+ 2</b><br>KKSB 케이스 · 액티브 쿨러", ROOT),
+         ("hw/images/hw_d435i_nvme.jpg", "<b>RealSense D435i</b> (RGB·뎁스·IMU)<br>NVMe 1 TB SSD 외장", ROOT),
+         ("assets/hw_moza.jpg", "<b>Moza 휠 · 페달</b> — 사람이 직접 CARLA 를 운전하는 경로", HERE)]
 for i, (f, c, base) in enumerate(shots):
-    pic(sh, base, f, PAD + i * (iw + 11), T, iw, 268, cap=c, fit="cover", cap_h=30)
-table(sh, PAD, T + 284, CW, ["구성", "역할"],
-      [["<b>STM32N6570-DK</b>", "1차 NPU 추론(Neural-ART @ 1 GHz) + 2차 ThreadX 실시간 판정·제어. "
-                                "<b>두 임계도가 한 보드에 공존한다</b>"],
-       ["<b>Raspberry Pi 5 16 GB + AI HAT+ 2</b>", "호스트. 기상 맥락 생성, ZMQ 통신 브리지, 교차 검증용 NPU (대회 필수 보드)"],
-       ["<b>RealSense D435i</b>", "RGB · 뎁스 · IMU. 실측 노이즈 특성 확보용"],
-       ["<b>RTX 5090 워크스테이션</b>", "CARLA 0.9.16 — HIL 환경의 물리·센서 제공"]],
-      colw=[1, 3.3], size=10.5, row_h=28, head_h=24)
+    pic(sh, base, f, PAD + i * (iw + 11), T, iw, 324, cap=c, fit="cover", cap_h=44)
+table(sh, PAD, T + 342, CW, ["구분", "정식 명칭", "역할"],
+      [["메인 보드", "<b>STM32N6570-DK</b> (MB1939-N6570-C02 + MB1860B)",
+        "1차 NPU 추론(Neural-ART @ 1 GHz) + 2차 ThreadX 실시간 판정·제어. <b>두 임계도가 한 보드에 공존한다</b>"],
+       ["카메라", "<b>ST AI Camera module MB1854B</b>", "1차 방어 입력. 보드에 직결되어 NPU 로 바로 들어간다"],
+       ["호스트", "<b>Raspberry Pi 5 16 GB + AI HAT+ 2 (Hailo-10H)</b>", "기상 맥락 생성, ZMQ 브리지, 교차 검증용 NPU (대회 필수 보드)"],
+       ["저장·전원", "<b>NVMe 1 TB SSD 외장 · 보조배터리</b>", "데이터셋·주행 로그 적재 / 콘센트 없이 같은 구성을 돌리기 위한 것"],
+       ["센서·렌더", "<b>Intel RealSense D435i · RTX 5090</b>", "실측 IMU 노이즈 확보 / CARLA 0.9.16 물리·센서 제공"]],
+      colw=[0.75, 2.5, 4.0], size=10.2, row_h=32, head_h=24)
 
 # ══ 6. 계획 대비 변경 ════════════════════════════════════════════════════════
 s, sh, T, B = page("구현", "개발계획서 대비 변경점과 그 이유")
@@ -331,7 +332,7 @@ box(sh, PAD + hw_ + 16, ty, hw_, B - ty, "설계에서 고친 두 가지",
 
 # ══ 13. 2차 원리 ═════════════════════════════════════════════════════════════
 s, sh, T, B = page("2차 방어", "원리 — 칼만 필터 + 자전거 모델 잔차",
-                   foot="C 코어(fw/npu_lib/slip_core.h)는 HAL·OS 비의존이라 호스트에서도 컴파일된다. "
+                   foot="C 코어(sw/fw/npu_lib/slip_core.h)는 HAL·OS 비의존이라 호스트에서도 컴파일된다. "
                         "파이썬 참조 구현과 같은 판정을 내리는지 매 커밋 검증한다.")
 lw_ = CW * 0.58
 box(sh, PAD, T, lw_, 196, "판단 절차",
@@ -430,7 +431,7 @@ box(sh, PAD + hw_ + 16, B - 114, hw_, 114, "오른쪽 · STM32N6 RTOS 2차 방�
 # ══ 18. 센서 시각화 ══════════════════════════════════════════════════════════
 s, sh, T, B = page("검증", "센서 시각화와 자동 라벨 — 무엇을 보고 판단했는지 남긴다",
                    foot="주행 108회 전체의 이벤트 JSON 을 저장소에 함께 올렸다. CARLA 도 보드도 없이 "
-                        "scripts/analysis/summarize_runs.py 만으로 집계표를 재생성할 수 있다 — 손으로 적은 "
+                        "sw/scripts/analysis/summarize_runs.py 만으로 집계표를 재생성할 수 있다 — 손으로 적은 "
                         "숫자가 아니라는 증명이다.")
 pic(sh, ROOT, "docs/figures/weather_1차_카메라경고.jpg", PAD, T, hw_, B - T,
     cap="<b>날씨 11종에서 1차 경보가 난 같은 순간</b> — 맑음 · 흐림 · 젖은 노면 · 보슬비 · 폭우 · 해질녘 · "
@@ -482,9 +483,9 @@ box(sh, PAD, T, hw_, 136, "무엇을 만들었나",
 box(sh, PAD, T + 150, hw_, 194, "재현", "모든 숫자는 실측에서 <b>자동 생성</b>된다.", size=10.3)
 rect(sh, PAD + 15, T + 214, hw_ - 30, 112, fill=INK, radius=6)
 text(sh, PAD + 26, T + 226, hw_ - 52, 92,
-     ["<mono>python3 scripts/analysis/summarize_runs.py</mono>　# 집계표 재생성",
+     ["<mono>python3 sw/scripts/analysis/summarize_runs.py</mono>　# 집계표 재생성",
       "<mono>python3 -m pytest -q</mono>　# 단위 테스트 19개",
-      "<mono>python3 fw/npu_lib/test_slip_core.py</mono>　# C 코어 ↔ 파이썬 동치"],
+      "<mono>python3 sw/fw/npu_lib/test_slip_core.py</mono>　# C 코어 ↔ 파이썬 동치"],
      size=8.6, color=WHITE, spacing=1.5)
 text(sh, PAD, T + 356, hw_, 20, "근거 문서 19건 · 결과 그림 29장 · 주행 이벤트 108건을 저장소에 함께 올렸다.",
      size=10, color=SLATE, spacing=1.3)

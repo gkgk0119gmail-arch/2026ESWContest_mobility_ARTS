@@ -1,7 +1,7 @@
 # OpenCV 반사도·차선 알고리즘 RSCD 실사진 검증 (2026-09-16)
 
 - 데이터: RSCD test_50k, 클래스별 400장 무작위 (seed 0), 360×240 노면 패치, ROI 미적용
-- 스크립트: `scripts/model/eval_reflectance.py --per-class 400`
+- 스크립트: `sw/scripts/model/eval_reflectance.py --per-class 400`
 
 ## 결과 (spec 점수로 ice 구분 AUC)
 | 비교 | AUC |

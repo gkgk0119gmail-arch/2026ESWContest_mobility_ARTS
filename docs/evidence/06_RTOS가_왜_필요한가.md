@@ -1,6 +1,6 @@
 # RTOS 가 왜 필요한가 — 같은 코드로 잰 비교
 
-심사에서 가장 먼저 나올 질문은 "그 계산 Pi 에서 하면 안 되나?" 다. 보드 펌웨어가 쓰는 바로 그 헤더(`fw/npu_lib/slip_core.h`)를 파이에서 컴파일해 **같은 코드**로 재서 답한다.
+심사에서 가장 먼저 나올 질문은 "그 계산 Pi 에서 하면 안 되나?" 다. 보드 펌웨어가 쓰는 바로 그 헤더(`sw/fw/npu_lib/slip_core.h`)를 파이에서 컴파일해 **같은 코드**로 재서 답한다.
 
 **속도가 쟁점이 아니다.** Pi 5(2.4 GHz Cortex-A76)가 STM32N6(800 MHz Cortex-M55)보다 평균은 당연히 빠르다. 실시간 제어는 평균이 아니라 **최악값**으로 설계한다.
 
@@ -69,7 +69,7 @@ Pi 가 평균 146배 빠르다. 그런데도 최악/평균이 30배로 벌어진
 ## 재현
 
 ```
-python3 scripts/rtos_latency_bench.py --n 50000 --cyc-n 20000
+python3 sw/scripts/deploy/rtos_latency_bench.py --n 50000 --cyc-n 20000
 ```
 
 보드 원본은 `logs/board_wcet.jsonl`, 리눅스 원본은 `/tmp/bench_slip_*.txt` 와 `/tmp/bench_cyclic_*.txt` 다.

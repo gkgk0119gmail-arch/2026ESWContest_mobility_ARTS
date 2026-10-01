@@ -14,15 +14,15 @@ stedgeai analyze --model m.onnx --target stm32n6 --st-neural-art
 
 # 올바른 호출
 stedgeai analyze --model m.onnx --target stm32n6 \
-  --st-neural-art "n6-allmems-O3@<STEDGEAI>/scripts/N6_scripts/user_neuralart.json"
+  --st-neural-art "n6-allmems-O3@<STEDGEAI>/sw/scripts/N6_sw/scripts/user_neuralart.json"
   → 99 epoch 중 HW 90 / SW 9
 ```
 
-프로파일은 `scripts/N6_scripts/user_neuralart.json`에 정의돼 있다 (n6-extram, n6-extflash,
+프로파일은 `sw/scripts/N6_sw/scripts/user_neuralart.json`에 정의돼 있다 (n6-extram, n6-extflash,
 n6-noextmem, n6-nointmem, n6-allmems-O1/O2/O3/Oauto). 각각 메모리 풀(.mpool)과 atonn
 옵션(`--optimization 3 --Oauto-sched --Ocache-opt` 등)을 지정한다.
 
-**대조 실험**: ST 자체 샘플 `scripts/N6_scripts/models/mnist_int8_io_i8.tflite`는 5 epoch 중
+**대조 실험**: ST 자체 샘플 `sw/scripts/N6_sw/scripts/models/mnist_int8_io_i8.tflite`는 5 epoch 중
 HW 4 / SW 1로 매핑된다 → 툴체인은 정상이다.
 
 이 오류 때문에 앞서 "FP32는 원래 NPU 가속이 안 된다"고 적은 진단(docs/n6_npu_analysis)도
@@ -84,10 +84,10 @@ PyTorch가 dtype 제약으로 **일부 레이어 양자화를 건너뛴** 경우
    int8 활성을 강제하려면 torchao의 pt2e 경로가 필요하다 (현재 venv에는 없음)
 
 ## 재현 스크립트
-- `scripts/model/ptq_int8_n6.py` — ORT PTQ. `--activation int8|uint8 --act-symmetric --op-types
+- `sw/scripts/model/ptq_int8_n6.py` — ORT PTQ. `--activation int8|uint8 --act-symmetric --op-types
   --calib-method`로 조합 스윕
-- `scripts/model/quant_sensitivity.py` — 중간 텐서 SQNR로 민감 레이어 순위 + 제외 개수 스윕
-- `scripts/model/qat_n6.py` — FX 그래프 모드 QAT + QDQ ONNX export
+- `sw/scripts/model/quant_sensitivity.py` — 중간 텐서 SQNR로 민감 레이어 순위 + 제외 개수 스윕
+- `sw/scripts/model/qat_n6.py` — FX 그래프 모드 QAT + QDQ ONNX export
 
 ---
 
@@ -118,10 +118,10 @@ FP32로 빼면 효과가 없고(0.29), 입력 활성까지 FP32로 남겨야 회
 
 ### 파이프라인 (재현)
 ```
-scripts/model/qat_n6.py            # 스템 FP32 + quint8 QAT  → best.pt
-scripts/model/qat_to_plain.py      # FX 키를 평범한 RoadNet으로 되돌려 v2 형태 FP32 ONNX
-scripts/model/ptq_int8_n6.py --activation uint8 --exclude-until-depthwise   # ORT PTQ, 깨끗한 그래프
-scripts/model/qdq_u8_to_i8.py      # uint8→int8 정확 변환 (영점 −128, 오차 0.00) — ST는 signed만 받음
+sw/scripts/model/qat_n6.py            # 스템 FP32 + quint8 QAT  → best.pt
+sw/scripts/model/qat_to_plain.py      # FX 키를 평범한 RoadNet으로 되돌려 v2 형태 FP32 ONNX
+sw/scripts/model/ptq_int8_n6.py --activation uint8 --exclude-until-depthwise   # ORT PTQ, 깨끗한 그래프
+sw/scripts/model/qdq_u8_to_i8.py      # uint8→int8 정확 변환 (영점 −128, 오차 0.00) — ST는 signed만 받음
 stedgeai generate --st-neural-art "n6-allmems-O3@user_neuralart.json"  # network.c + xSPI2.raw
 ```
 FX 키 매핑: qconfig=None인 스템은 융합 대신 한 단계 더 감싸여 `features.0.0.0.*`(conv)/`features.0.0.1.*`(bn),
@@ -181,9 +181,9 @@ relocatable 생성도 동작한다 (`network_rel.bin`, PATH에 arm-gcc 필요).
   쓰므로 원래 자리에 두면 모델이 펌웨어를 덮어써 죽는다 (실제로 `read timeout`, `Lost target connection`).
 - `misc_toolbox.c` `SCB->VTOR = 0x34000000` 하드코딩 → `(uint32_t)g_pfnVectors`. 재링크 후 이게 없으면 첫 인터럽트에서 죽는다.
 - 개발 모드 적재는 `ST-LINK_gdbserver -m 1 -k --halt` (AP1 = Cortex-M55; AP0은 halt 실패). `pkill -x`는 15자 comm에
-  안 맞으니 포트(`fuser -k 61234/tcp`)로 정리. 러너: `scripts/deploy/n6_npu_validate.sh D|hyb|hybfsbl|hybfsbl2` (`APID=1 RESET=1`).
+  안 맞으니 포트(`fuser -k 61234/tcp`)로 정리. 러너: `sw/scripts/deploy/n6_npu_validate.sh D|hyb|hybfsbl|hybfsbl2` (`APID=1 RESET=1`).
 
-다음: 스템 int8화. 절벽 텐서(스템 hardswish 출력)의 양자화 범위만 백분위 클리핑(`scripts/model/stem_clip_quant.py`,
+다음: 스템 int8화. 절벽 텐서(스템 hardswish 출력)의 양자화 범위만 백분위 클리핑(`sw/scripts/model/stem_clip_quant.py`,
 ORT `TensorQuantOverrides`) → 안 되면 스템을 클리핑된 고정 범위 fake-quant로 QAT.
 
 ---
@@ -202,7 +202,7 @@ features.0 **hardswish 출력의 채널 간 범위 편차 565×** — 채널 11�
   텐서)에 per-tensor Q를 먼저 박는다. 문제를 한 노드 뒤로 옮겼을 뿐
 - hardswish **앞** CLE는 hardswish가 양의 동차함수가 아니라 부정확(항등 구간 15%)
 
-### 성공: 균등화를 Conv0에 접어 넣고 게이트만 float (`scripts/model/stem_equalize.py`, 수학적 동치 1.9e-06)
+### 성공: 균등화를 Conv0에 접어 넣고 게이트만 float (`sw/scripts/model/stem_equalize.py`, 수학적 동치 1.9e-06)
 ```
 Conv0'(채널 c 가중치·편향 ÷ s_c) → x' = x/s_c          [int8, 균형]
 Mul_s(x', s_c) → x   (게이트 계산 전용)                   [FLOAT 제외 — 여기 Q하면 절벽 재현]

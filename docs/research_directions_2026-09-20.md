@@ -2,8 +2,8 @@
 
 이 문서는 기존 결과를 다시 재는 것으로 시작해서, 발표(11/6)까지 무엇을 해야 하는지 우선순위로 적는다.
 근거 파일: `logs/carla_demo/정리/01_탐지성능.md`(주행별 경보 거리·오경보 분류),
-`logs/carla_demo/정리/02_융합가중치.md`(RSCD 실사진 β·문턱 스윕), `scripts/analysis/analyze_detection.py`,
-`scripts/model/tune_fusion.py`, `scripts/sim/test_follow_lane.py`.
+`logs/carla_demo/정리/02_융합가중치.md`(RSCD 실사진 β·문턱 스윕), `sw/scripts/analysis/analyze_detection.py`,
+`sw/scripts/model/tune_fusion.py`, `sw/scripts/sim/test_follow_lane.py`.
 
 ---
 
@@ -22,7 +22,7 @@
 | 2차 방어의 IMU 노이즈 예산 | 가속도계 **200 mg RMS** 까지 탐지 100 % · 오탐 0 %. 일반 MEMS 대비 **133배 여유** | `정리/09_IMU노이즈_허용예산.md` |
 | 1차 방어의 **지각 성능** | 문턱 0.60 에서 얼음 **97.7 %**, 젖음 오경보 **1.0 %**, 마름 0.7 % | RSCD `vali_20k` 클래스별 300장, `정리/02_융합가중치.md` |
 | 1차 방어의 **경보 거리** | 중앙값 **11.7 m**, 시간여유 **1.00 s** | 주행 19건, `정리/01_탐지성능.md` |
-| 그 거리의 이유 | ROI 가 보는 노면이 **7.9 ~ 42.2 m**, 30~60 m 는 **15.2 px** | `src/icepredict/sim/camera.py` 기하 계산, 본문 §B |
+| 그 거리의 이유 | ROI 가 보는 노면이 **7.9 ~ 42.2 m**, 30~60 m 는 **15.2 px** | `sw/src/icepredict/sim/camera.py` 기하 계산, 본문 §B |
 | 2차 방어 동작 | 빙판 진입 → **1.78 s** 미끄러짐 확정 → 비상 제어 → 정지. 주변차량 8대 조건 **8/8 개입**, 충돌·스핀·차로이탈 **0** | `정리/00_집계.md` |
 | 2차 방어의 **상황 판단** | 앞차 간격 69.6 m 면 차선유지·정지, 49.6 m·36.9 m 면 **회피(evade_left)**. 전환점이 제동거리(≈71 m) 근처 | `demo_ClearNoon_evade_lead30/45` |
 | 방어가 없을 때 | 차로이탈 **12.02 s** → 스핀 **14.72 s** → (주변차량 있으면) 충돌 | `nodefense_traffic` 4건 |
@@ -46,7 +46,7 @@
 | 문제 | 증상 | 원인 | 조치 |
 |---|---|---|---|
 | 5090 배치 전멸 | 모든 주행이 `timeout: failed to execute process` | `PY=${PY:-~/...}` 의 `~` 가 **파이에서** 펼쳐져 `/home/pi/...` 가 원격으로 감 | `\$HOME` 문자열로 넘겨 원격에서 펼침 |
-| 회피 시나리오 4회 연속 실패 | `gap_front_m` 이 항상 999 | `patch_wp.next(70)[0]` 이 Town04 나들목에서 램프를 골라 정차 차량이 road 47/-1 에 428 m 떨어져 놓임 | `follow_lane` 로 2 m 씩 본선 유지 이동. `scripts/sim/test_follow_lane.py` 로 검증 |
+| 회피 시나리오 4회 연속 실패 | `gap_front_m` 이 항상 999 | `patch_wp.next(70)[0]` 이 Town04 나들목에서 램프를 골라 정차 차량이 road 47/-1 에 428 m 떨어져 놓임 | `follow_lane` 로 2 m 씩 본선 유지 이동. `sw/scripts/sim/test_follow_lane.py` 로 검증 |
 | 렌더 품질 불일치 | 기존 영상 Low, 신규 Epic | `ensure_carla` 재시작 경로가 Low 고정 | Epic 으로 통일. **기존 영상과 1차 결과를 같은 표에 넣지 말 것** |
 | 집계 모집단 오염 | 인식률이 부풀려짐 | `gt`(거리 치트)·레거시·보정 주행이 섞임 | `analyze_detection.py` 가 제외하고 셈 |
 
@@ -142,7 +142,7 @@ ROI(모델이 실제로 먹는 224×224) 영상 통계를 두 도메인에서 �
 
 ### B. 경보 거리의 한계는 외관이 아니라 **카메라 기하**다
 
-`src/icepredict/sim/camera.py` 는 화각 60°, 높이 1.6 m, 피치 −12° 로 ROI 를 잡고 있고,
+`sw/src/icepredict/sim/camera.py` 는 화각 60°, 높이 1.6 m, 피치 −12° 로 ROI 를 잡고 있고,
 그 ROI(행 144~235)가 실제로 보는 노면은 **7.9 m ~ 42.2 m** 다. 설계 주석도 "8~30 m 를 본다"고
 못박고 있다. 즉 30 m 밖 빙판은 **볼 수 없게 설계돼 있다.**
 
@@ -194,7 +194,7 @@ ROI(모델이 실제로 먹는 224×224) 영상 통계를 두 도메인에서 �
 그 주행은 얼음 확률 자체가 0.3~0.7 로 높다 — 결정 규칙의 문제가 아니라 모델이 실제로
 비에 젖은 아스팔트를 얼음으로 본다.
 
-`src/icepredict/pi/context.py` 에는 이미 대응이 설계돼 있다. `precip_mm > 0` 이면
+`sw/src/icepredict/pi/context.py` 에는 이미 대응이 설계돼 있다. `precip_mm > 0` 이면
 가중치를 `alpha 0.55 / beta 0.15` 로 바꿔 반사도를 덜 믿는다. **그런데 한 번도 실행된 적이 없다** —
 `carla_demo.py:873` 이 기상을 `temp_c=-3.0, humidity=88, feature="bridge"` 로 **고정**해 넘기고
 `precip_mm` 은 기본값 0 이라, 폭우 주행에서도 보드는 "비 안 옴"을 받는다.
@@ -289,7 +289,7 @@ CARLA 날씨는 물리에 영향을 주지 않으므로 당연한 결과다. 날
 
 한 가지 함정이 있었다 — 이 로그는 **데모가 도는 기계**(데스크탑)에 쌓이는데 배치 회수는
 `logs/carla_demo/` 만 rsync 한다. 그대로 두면 기록이 두 기계에 갈라진다.
-배치 뒤 `python3 scripts/analysis/merge_wcet.py` 로 합칠 것.
+배치 뒤 `python3 sw/scripts/analysis/merge_wcet.py` 로 합칠 것.
 
 ### F. 변하지 않은 외부 의존
 
@@ -318,7 +318,7 @@ CARLA 날씨는 물리에 영향을 주지 않으므로 당연한 결과다. 날
 - 도메인 갭의 원인 후보 중 질감·밝기·렌더 품질 세 가지를 실험으로 기각.
 
 남은 것:
-1. `--control-no-ice` 대조군 8종 → 시뮬 오경보율 첫 측정 (`scripts/archive/after_5090_control.sh` 가 자동 실행).
+1. `--control-no-ice` 대조군 8종 → 시뮬 오경보율 첫 측정 (`sw/scripts/archive/after_5090_control.sh` 가 자동 실행).
 2. 망원 시야(25°) 검토 — §B 표대로면 원거리 해상도가 2.5 배. 데모에서는 두 번째 카메라를
    붙여 두 번 추론하면 되고, 보드 부하는 25.5 ms × 2 로 계산하면 된다.
 3. ~~WCET append-only 로그~~ — 끝났다. `logs/board_wcet.jsonl` 에 주행마다 덧붙이고 기존 12건은 백필했다. 현재 관측 WCET 16.2 µs(NPU 동시), 유휴 14.2 µs, 샘플 5,450개.
@@ -579,7 +579,7 @@ RSCD 라벨 체계가 `fresh_snow` 를 `wet` 으로 매핑해 정답이 "젖음"
 
 ### 검증
 
-- C(`fw/npu_lib/slip_core.h`) ↔ 파이썬(`src/icepredict/pi/imu_slip.py`) 동치 4 종 통과
+- C(`sw/fw/npu_lib/slip_core.h`) ↔ 파이썬(`sw/src/icepredict/pi/imu_slip.py`) 동치 4 종 통과
 - 합성 스윕: 빨라진 조건 3, **기존이 못 잡던 것을 새로 잡은 조건 1**, 느려진 조건 0
 - 정상 주행 오탐 480 시행 중 **0** — 직사각형과 같다 (`정리/13`)
 - CARLA 실주행: 한 주행에서 두 규칙을 동시에 돌려 같은 궤적 위에서 비교 (`정리/14`)
@@ -611,7 +611,7 @@ RSCD 라벨 체계가 `fresh_snow` 를 `wet` 으로 매핑해 정답이 "젖음"
 ### 남은 것
 
 보드 펌웨어 재기록은 **BOOT1 스위치 + SWD 물리 접근**이 필요해 원격으로 못 한다.
-코드는 이미 들어갔으니 다음 현장 작업 때 `scripts/deploy/fw_redeploy.sh` 한 번이면 된다.
+코드는 이미 들어갔으니 다음 현장 작업 때 `sw/scripts/deploy/fw_redeploy.sh` 한 번이면 된다.
 그때까지 `정리/14` 의 "타원" 열은 반사실이고, 보드 실제 동작은 직사각형이다. 문서에 그렇게 적어 뒀다.
 
 ---
@@ -620,25 +620,25 @@ RSCD 라벨 체계가 `fresh_snow` 를 `wet` 으로 매핑해 정답이 "젖음"
 
 | 파일 | 하는 일 |
 |---|---|
-| `scripts/analysis/analyze_detection.py` | 주행별 경보 거리·시간여유·오경보 분류·거리별 확률 → `정리/01_탐지성능.md` |
-| `scripts/model/tune_fusion.py` | RSCD 실사진으로 β·문턱 스윕 → `정리/02_융합가중치.md` |
-| `scripts/analysis/domain_gap_stats.py` | CARLA vs RSCD ROI 영상 통계 → `정리/03_도메인갭.md` |
-| `scripts/analysis/texture_sensitivity.py` | 질감 의존도 시험 → `정리/04_질감의존.md` |
-| `scripts/sim/test_follow_lane.py` | 차로 추종·선분 거리 단위 시험 (CARLA 불필요) |
+| `sw/scripts/analysis/analyze_detection.py` | 주행별 경보 거리·시간여유·오경보 분류·거리별 확률 → `정리/01_탐지성능.md` |
+| `sw/scripts/model/tune_fusion.py` | RSCD 실사진으로 β·문턱 스윕 → `정리/02_융합가중치.md` |
+| `sw/scripts/analysis/domain_gap_stats.py` | CARLA vs RSCD ROI 영상 통계 → `정리/03_도메인갭.md` |
+| `sw/scripts/analysis/texture_sensitivity.py` | 질감 의존도 시험 → `정리/04_질감의존.md` |
+| `sw/scripts/sim/test_follow_lane.py` | 차로 추종·선분 거리 단위 시험 (CARLA 불필요) |
 | `logs/board_wcet.jsonl` | 주행마다 덧붙이는 보드 지연 기록. 재실행해도 안 덮인다 |
-| `scripts/analysis/merge_wcet.py` | 그 기록은 **데모가 도는 기계에 쌓인다**(데스크탑). 배치 회수는 `logs/carla_demo/` 만 rsync 하므로 그냥 두면 두 기계에 갈라진 채 안 만난다. 배치 뒤 이걸 돌려 합친다 |
-| `scripts/archive/stop_chains.sh` | 돌고 있는 체인을 안전하게 멈춘다. `--list` 로 먼저 확인 |
-| `scripts/archive/after_5090_control.sh` / `verify_evade.sh` / `verify_evade_close.sh` | 배치 뒤 자동으로 이어지는 검증 체인 |
-| `scripts/archive/variation_sweep.sh` / `variation_report.py` | 시드·속도·마찰을 흔들어 2차 방어를 **분포로** 만든다 → `정리/11` |
-| `scripts/archive/speed_dyn_sweep.sh` / `slip_onset_analysis.py` | 원시 동역학을 남겨 "미끄러짐 시작"과 "감지 확정"을 갈라 잰다 → `정리/12` |
-| `scripts/analysis/slip_rule_compare.py` | 판정 규칙 직사각형 대 타원, 합성 신호로 속도·오탐 비교 → `정리/13` |
-| `scripts/archive/rule_ab_sweep.sh` / `rule_ab_report.py` | CARLA 실주행 한 번에 두 규칙을 동시에 돌려 비교 → `정리/14` |
-| `scripts/archive/ctx_temp_demo.sh` / `ctx_temp_report.py` | 같은 화면을 기온만 바꿔 두 번 — 맥락 계층 시연 → `정리/15` |
-| `scripts/archive/yawlag_verify.sh` / `yawlag_report.py` | 조향 지연 보정 τ 를 실측으로 고르고 확인 → `정리/16` |
-| `scripts/analysis/test_context_gates.py` | 강수·기온 게이트 단위 시험 (CARLA 불필요) |
-| `scripts/analysis/latency_figure.py` | 리눅스 대 보드 지연 분포를 로그 축 한 장으로 |
-| `scripts/analysis/rule_boundary_figure.py` | 잔차 평면에 판정 경계와 실제 궤적을 얹은 그림 |
-| `scripts/analysis/story_figure.py` | 이중 방어가 도는 모습 한 장 (발표 첫 장) |
-| `scripts/analysis/range_resolution.py` | 경보 거리의 한계를 해상도로 정량화 → `정리/17` |
-| `scripts/analysis/finalize_docs.py` | 실측이 늘면 자동 문서·그림을 다시 만들고 근거 지도 숫자를 맞춘다 |
-| `scripts/deploy/rscd_board_eval.py --all --resume` | 실사진 **전량**을 보드로 평가 (이미 한 것은 건너뜀) |
+| `sw/scripts/analysis/merge_wcet.py` | 그 기록은 **데모가 도는 기계에 쌓인다**(데스크탑). 배치 회수는 `logs/carla_demo/` 만 rsync 하므로 그냥 두면 두 기계에 갈라진 채 안 만난다. 배치 뒤 이걸 돌려 합친다 |
+| `sw/scripts/archive/stop_chains.sh` | 돌고 있는 체인을 안전하게 멈춘다. `--list` 로 먼저 확인 |
+| `sw/scripts/archive/after_5090_control.sh` / `verify_evade.sh` / `verify_evade_close.sh` | 배치 뒤 자동으로 이어지는 검증 체인 |
+| `sw/scripts/archive/variation_sweep.sh` / `variation_report.py` | 시드·속도·마찰을 흔들어 2차 방어를 **분포로** 만든다 → `정리/11` |
+| `sw/scripts/archive/speed_dyn_sweep.sh` / `slip_onset_analysis.py` | 원시 동역학을 남겨 "미끄러짐 시작"과 "감지 확정"을 갈라 잰다 → `정리/12` |
+| `sw/scripts/analysis/slip_rule_compare.py` | 판정 규칙 직사각형 대 타원, 합성 신호로 속도·오탐 비교 → `정리/13` |
+| `sw/scripts/archive/rule_ab_sweep.sh` / `rule_ab_report.py` | CARLA 실주행 한 번에 두 규칙을 동시에 돌려 비교 → `정리/14` |
+| `sw/scripts/archive/ctx_temp_demo.sh` / `ctx_temp_report.py` | 같은 화면을 기온만 바꿔 두 번 — 맥락 계층 시연 → `정리/15` |
+| `sw/scripts/archive/yawlag_verify.sh` / `yawlag_report.py` | 조향 지연 보정 τ 를 실측으로 고르고 확인 → `정리/16` |
+| `sw/scripts/analysis/test_context_gates.py` | 강수·기온 게이트 단위 시험 (CARLA 불필요) |
+| `sw/scripts/analysis/latency_figure.py` | 리눅스 대 보드 지연 분포를 로그 축 한 장으로 |
+| `sw/scripts/analysis/rule_boundary_figure.py` | 잔차 평면에 판정 경계와 실제 궤적을 얹은 그림 |
+| `sw/scripts/analysis/story_figure.py` | 이중 방어가 도는 모습 한 장 (발표 첫 장) |
+| `sw/scripts/analysis/range_resolution.py` | 경보 거리의 한계를 해상도로 정량화 → `정리/17` |
+| `sw/scripts/analysis/finalize_docs.py` | 실측이 늘면 자동 문서·그림을 다시 만들고 근거 지도 숫자를 맞춘다 |
+| `sw/scripts/deploy/rscd_board_eval.py --all --resume` | 실사진 **전량**을 보드로 평가 (이미 한 것은 건너뜀) |
