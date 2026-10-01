@@ -1384,9 +1384,13 @@ try:
                                              (img.shape[1], img.shape[0]))
                 vws[k].write(img)
 
-        if control_lost and (spd < 0.3 or t_sim - t_lost > 8.0):
+        # 결판이 난 뒤의 장면은 근거가 아니라 잡음이다. 자율주행을 뗀 뒤에도 차는 경사를 따라
+        # 관성으로 굴러 속도가 다시 붙고 빙판 가장자리를 스친다 — 그걸 그대로 두면 "빙판을 나갔다
+        # 다시 들어간다"는 오해를 준다. 제어 상실 4초 또는 정지·충돌에서 끊는다.
+        if control_lost and (spd < 0.3 or state == "CRASH" or t_sim - t_lost > 4.0):
             events.append({"t": round(t_sim,2), "event": "baseline_end",
-                           "reason": "정지" if spd < 0.3 else "제어 상실 8초 경과", "speed_kph": round(spd*3.6,1)}); break
+                           "reason": "정지" if spd < 0.3 else ("충돌" if state == "CRASH" else "제어 상실 4초 경과"),
+                           "speed_kph": round(spd*3.6,1)}); break
         if a.no_secondary and a.disable_primary and entered and dist > patch.extent[0] + 40 and state == "DRIVE":
             events.append({"t": round(t_sim,2), "event": "passed_patch", "speed_kph": round(spd*3.6,1)}); break
         if state == "STOPPED" and t_sim > 1.0 and spd < 0.2:

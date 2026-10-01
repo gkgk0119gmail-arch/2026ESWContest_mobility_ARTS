@@ -6,8 +6,8 @@
   "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
   "out": "/home/dlab27/icepredict/logs/carla_demo",
   "patch_ahead": 90.0,
-  "patch_len": 100.0,
-  "friction": 0.08,
+  "patch_len": 40.0,
+  "friction": 0.02,
   "target_kph": 40.0,
   "max_steps": 1200,
   "fps": 50,
@@ -31,8 +31,8 @@
   "show_patch": false,
   "no_overlay": true,
   "no_bird": false,
-  "weather": "ClearNoon",
-  "tag": "ClearNoon_nodefense_traffic",
+  "weather": "Snow",
+  "tag": "Snow_nodefense",
   "views": "split,bev,lidar,lidar_sem",
   "no_native_ice": false,
   "ice_subtle": 1.0,
@@ -43,40 +43,48 @@
   "tire_friction": 1.0,
   "log_dyn": null,
   "no_secondary": true,
-  "traffic": 8,
-  "lead_stop": 70.0
+  "traffic": 0,
+  "lead_stop": 0.0
  },
  "events": [
   {
-   "t": 5.84,
+   "t": 7.08,
    "event": "patch_enter",
-   "speed_kph": 38.7
+   "speed_kph": 38.5
   },
   {
-   "t": 12.02,
+   "t": 11.42,
    "event": "lane_departure",
-   "lat_off_m": -1.45,
-   "heading_err_deg": -41.0,
-   "speed_kph": 37.6,
-   "inside_ice": true
+   "lat_off_m": -1.33,
+   "heading_err_deg": -35.6,
+   "speed_kph": 32.1,
+   "inside_ice": false
   },
   {
-   "t": 12.02,
+   "t": 11.42,
    "event": "control_lost",
    "reason": "lane_departure",
-   "speed_kph": 37.6
+   "speed_kph": 32.1
   },
   {
-   "t": 14.82,
+   "t": 12.22,
    "event": "spin",
-   "heading_err_deg": -99.2,
-   "speed_kph": 23.3
+   "heading_err_deg": -98.2,
+   "speed_kph": 41.9
   },
   {
-   "t": 16.04,
+   "t": 12.32,
+   "event": "collision",
+   "with": "wall",
+   "speed_kph": 12.0,
+   "impulse": 26315.7,
+   "dist_to_patch_m": 27.3
+  },
+  {
+   "t": 12.32,
    "event": "baseline_end",
-   "reason": "\uc81c\uc5b4 \uc0c1\uc2e4 4\ucd08 \uacbd\uacfc",
-   "speed_kph": 29.6
+   "reason": "\ucda9\ub3cc",
+   "speed_kph": 12.0
   }
  ],
  "rule_ab": null

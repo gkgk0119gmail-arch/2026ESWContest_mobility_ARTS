@@ -3,8 +3,8 @@
   "host": "127.0.0.1",
   "port": 2000,
   "town": "Town04",
-  "model": "/home/yax/icepredict/models/roadnet_v1/roadnet.onnx",
-  "out": "/home/yax/icepredict/logs/carla_demo",
+  "model": "/home/dlab27/icepredict/models/roadnet_v1/roadnet.onnx",
+  "out": "/home/dlab27/icepredict/logs/carla_demo",
   "patch_ahead": 90.0,
   "patch_len": 40.0,
   "friction": 0.02,
@@ -18,6 +18,10 @@
   "detect_range": 30.0,
   "night": false,
   "no_ice_render": false,
+  "ctx_temp": -3.0,
+  "fixed_weather_ctx": false,
+  "alarm_confirm": 8,
+  "control_no_ice": false,
   "ice_seed": 7,
   "fusion": "local",
   "n6_bind": "tcp://*:5558",
@@ -37,6 +41,7 @@
   "ice_texture_class": "ice",
   "export_labels": null,
   "tire_friction": 1.0,
+  "log_dyn": null,
   "no_secondary": true,
   "traffic": 0,
   "lead_stop": 0.0
@@ -56,9 +61,31 @@
    "inside_ice": false
   },
   {
-   "t": 15.12,
-   "event": "passed_patch",
-   "speed_kph": 38.5
+   "t": 11.42,
+   "event": "control_lost",
+   "reason": "lane_departure",
+   "speed_kph": 32.1
+  },
+  {
+   "t": 12.22,
+   "event": "spin",
+   "heading_err_deg": -98.2,
+   "speed_kph": 41.9
+  },
+  {
+   "t": 12.32,
+   "event": "collision",
+   "with": "wall",
+   "speed_kph": 12.0,
+   "impulse": 1994.0,
+   "dist_to_patch_m": 27.3
+  },
+  {
+   "t": 12.32,
+   "event": "baseline_end",
+   "reason": "\ucda9\ub3cc",
+   "speed_kph": 12.0
   }
- ]
+ ],
+ "rule_ab": null
 }

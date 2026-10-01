@@ -7,7 +7,7 @@
 # 사용:  bash scripts/stop_chains.sh          # 무엇이 돌고 있는지 보여주고 멈춘다
 #        bash scripts/stop_chains.sh --list   # 보기만 한다
 set -u
-PATTERNS='batch_5090\.sh|demo_batch_5090\.sh|after_5090_control\.sh|verify_evade|after_batch_chain|after_chain_night|after_night_more|after_all_organize|demo_batch\.sh|demo_auto\.sh'
+PATTERNS='rerun_baseline\.sh|batch_5090\.sh|demo_batch_5090\.sh|after_5090_control\.sh|verify_evade|after_batch_chain|after_chain_night|after_night_more|after_all_organize|demo_batch\.sh|demo_auto\.sh'
 
 echo "=== 돌고 있는 체인 ==="
 ps -eo pid,lstart,args --no-headers | grep -E "$PATTERNS" | grep -v 'stop_chains' | grep -vE '(^| )grep ' | cut -c1-110

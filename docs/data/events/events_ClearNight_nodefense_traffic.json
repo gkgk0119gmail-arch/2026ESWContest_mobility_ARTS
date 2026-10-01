@@ -18,6 +18,9 @@
   "detect_range": 30.0,
   "night": false,
   "no_ice_render": false,
+  "ctx_temp": -3.0,
+  "fixed_weather_ctx": false,
+  "alarm_confirm": 8,
   "control_no_ice": false,
   "ice_seed": 7,
   "fusion": "local",
@@ -58,18 +61,23 @@
    "inside_ice": true
   },
   {
-   "t": 14.72,
-   "event": "spin",
-   "heading_err_deg": -95.1,
-   "speed_kph": 29.5
+   "t": 12.02,
+   "event": "control_lost",
+   "reason": "lane_departure",
+   "speed_kph": 37.6
   },
   {
-   "t": 19.26,
-   "event": "collision",
-   "with": "micra",
-   "speed_kph": 14.5,
-   "impulse": 835.0,
-   "dist_to_patch_m": 29.2
+   "t": 14.82,
+   "event": "spin",
+   "heading_err_deg": -99.2,
+   "speed_kph": 23.3
+  },
+  {
+   "t": 16.04,
+   "event": "baseline_end",
+   "reason": "\uc81c\uc5b4 \uc0c1\uc2e4 4\ucd08 \uacbd\uacfc",
+   "speed_kph": 29.6
   }
- ]
+ ],
+ "rule_ab": null
 }

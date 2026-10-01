@@ -15,9 +15,14 @@ say() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$ST"; }
 say "=== 1) 데모 동기화 ==="
 scp -q "$SP/scripts/carla_demo.py" "$H5":~/icepredict/code/scripts/carla_demo.py || { say "scp 실패"; exit 1; }
 
-say "=== 2) CARLA 확인 ==="
+say "=== 2) CARLA 새로 띄우기 ==="
+# 재사용하지 않고 반드시 새로 띄운다. 오래 돈 서버는 응답이 멈추고(기록: 8시간이면 멈춤),
+# 중간에 죽인 주행의 유령 차량이 도로에 남아 자율주행이 그 뒤에 서 버린다 — 빙판에 닿지도 못하고
+# 24초 시간 초과로 끝나는데 로그만 보면 성공처럼 보인다.
+timeout 60 ssh -o BatchMode=yes "$H5" 'for p in $(pgrep -f "CarlaUE[45]"); do kill $p; done; sleep 5; for p in $(pgrep -f "CarlaUE[45]"); do kill -9 $p; done' 2>/dev/null || true
+sleep 3
 if ! timeout 15 ssh -o BatchMode=yes "$H5" 'ss -ltn | grep -q ":2000 "'; then
-  say "CARLA 없음 — 기동"
+  say "CARLA 기동"
   timeout 30 ssh -o BatchMode=yes "$H5" \
     'cd ~/CARLA && (DISPLAY= setsid nohup ./CarlaUE4.sh -RenderOffScreen -nosound > ~/icepredict/logs/carla_rerun.log 2>&1 < /dev/null &)' || true
   for i in $(seq 1 18); do
@@ -28,6 +33,13 @@ if ! timeout 15 ssh -o BatchMode=yes "$H5" 'ss -ltn | grep -q ":2000 "'; then
 else
   say "CARLA 이미 떠 있음"
 fi
+
+say "=== 2b) 월드 확인 (유령 차량 없어야 한다) ==="
+timeout 60 ssh -o BatchMode=yes "$H5" '$HOME/miniconda3/envs/icepredict/bin/python -c "
+import carla
+c=carla.Client(\"127.0.0.1\",2000); c.set_timeout(20); w=c.get_world()
+print(\"차량\", len(w.get_actors().filter(\"vehicle.*\")), \"센서\", len(w.get_actors().filter(\"sensor.*\")))
+"' 2>&1 | grep -v Warning | tee -a "$ST"
 
 say "=== 3) 기준선 재실행 ==="
 WEATHERS="${WEATHERS:-ClearNoon WetNoon ClearNight Snow}" SCEN="${SCEN:-nodefense_traffic nodefense}" \
