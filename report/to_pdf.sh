@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# slides.html → PDF. chromium 헤드리스로 인쇄한다.
-# 왜 chromium 인가: libreoffice 가 이 기계에 없어 pptx→pdf 경로를 쓸 수 없다.
-# @page 를 13.333in × 7.5in (16:9) 로 잡아 두어 한 쪽에 한 슬라이드가 정확히 떨어진다.
+# PPT → PDF. 제출은 PDF 지만 원본은 .pptx 한 벌이다.
+# 예전에는 HTML 을 chromium 으로 인쇄했는데, 그러면 PPT 와 PDF 가 서로 다른 원본에서 나와
+# 한쪽만 고치면 조용히 어긋난다. 지금은 항상 .pptx 를 변환한다.
 set -eu
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-OUT=${1:-"$ROOT/report/2026ESWContest_모빌리티_ARTS_개발완료보고서.pdf"}
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PPTX="$HERE/2026ESWContest_모빌리티_ARTS_개발완료보고서.pptx"
 PROF=$(mktemp -d); trap 'rm -rf "$PROF"' EXIT
-chromium --headless --disable-gpu --no-sandbox --user-data-dir="$PROF" \
-         --no-pdf-header-footer --print-to-pdf-no-header \
-         --print-to-pdf="$OUT" "file://$ROOT/report/slides.html" 2>&1 | grep -vE "^\[|GPU|Vulkan|dbus|Fontconfig" || true
-echo "저장: $OUT  ($(du -h "$OUT" | cut -f1))"
+command -v soffice >/dev/null || { echo "libreoffice 가 없다: sudo apt-get install -y --no-install-recommends libreoffice-impress"; exit 1; }
+soffice --headless -env:UserInstallation="file://$PROF" --convert-to pdf --outdir "$HERE" "$PPTX" >/dev/null 2>&1
+PDF="${PPTX%.pptx}.pdf"
+echo "저장: $PDF  ($(du -h "$PDF" | cut -f1), $(pdfinfo "$PDF" | awk '/^Pages/{print $2}')쪽)"
