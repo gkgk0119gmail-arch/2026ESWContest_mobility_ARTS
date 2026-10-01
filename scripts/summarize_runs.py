@@ -4,7 +4,13 @@
   2차: 발동 건수, 판정 주체(보드/호스트), 진입→감지 지연, 감지→정지 시간, 보드 응답 시간
 출력: logs/carla_demo/정리/00_집계.md"""
 import json, pathlib, collections, statistics as st
-D = pathlib.Path("/mnt/ssd/icepredict/logs/carla_demo")
+# 경로를 박아 두면 저장소만 받은 사람이 돌릴 수 없다. logs/ 는 .gitignore 대상이라
+# 클론에는 없고, 공개용 사본은 docs/data/events/ 에 있다. 둘 중 있는 쪽을 쓴다.
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+import sys
+D = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else (
+    ROOT / "logs/carla_demo" if (ROOT / "logs/carla_demo").is_dir() else ROOT / "docs/data/events")
+OUT_DIR = (D / "정리") if (D / "정리").is_dir() or D.name != "events" else ROOT / "docs/evidence"
 rows = []
 for ej in sorted(D.glob("events_*.json")):
     try: doc = json.load(open(ej))
@@ -56,5 +62,5 @@ if mc: L.append("비상 제어 모드 등장: " + ", ".join(f"{k} {v}" for k, v 
 L += ["", "## 주행별", "| 태그 | 날씨 | km/h | 주변차 | 1차 | 경고 시 가장자리 m | 위험도 | 2차 판정 | 트리거 | 진입→감지 s | 감지→정지 s | 모드 | 충돌 | 스핀 | 이탈 |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
 for r in rows:
     L.append(f"| {r['tag']} | {r['weather']} | {r['kph']} | {r['traffic']} | {r['p1']} | {r['warn_edge'] if r['warn_edge'] is not None else ''} | {r['risk'] if r['risk'] is not None else ''} | {r['p2'] or ''} | {r['trig'] or ''} | {r['enter_to_slip'] if r['enter_to_slip'] is not None else ''} | {r['slip_to_stop'] if r['slip_to_stop'] is not None else ''} | {' → '.join(r['modes'])} | {r['n_col'] or ''} | {'예' if r['spin'] else ''} | {'예' if r['dep'] else ''} |")
-out = D / "정리" / "00_집계.md"; out.parent.mkdir(exist_ok=True); out.write_text("\n".join(L) + "\n")
+out = OUT_DIR / "00_집계.md"; out.parent.mkdir(parents=True, exist_ok=True); out.write_text("\n".join(L) + "\n")
 print("\n".join(L[:14])); print("...\n저장:", out)

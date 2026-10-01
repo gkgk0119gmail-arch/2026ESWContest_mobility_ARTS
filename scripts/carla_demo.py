@@ -997,6 +997,7 @@ try:
     state = "DRIVE"           # DRIVE → WARN → BRAKE → STOPPED / SLIP → EMERG
     t_sim = 0.0; t_warn = None; t_slip = None; entered = False; warn_info = None; sec_info = None; sec_base = None
     local_emerg = LocalEmergency(); emerg_mode = None; lane_departed = False; spun = False
+    control_lost = False; t_lost = None
     dyn_log = open(a.log_dyn, "w") if a.log_dyn else None
     if dyn_log: dyn_log.write("t,speed,steer_eq,gz,ay,ax,brake,inside\n")
     lane_err = lat_off = 0.0; gap_f = gap_l = gap_r = 999.0; board_ctrl = None; slip_lane_id = None; perception_degraded = False
@@ -1143,6 +1144,18 @@ try:
                     spun = True
                     events.append({"t": round(t_sim,2), "event": "spin", "heading_err_deg": round(math.degrees(le_),1), "speed_kph": round(spd*3.6,1)})
                     print(f"[{t_sim:6.2f}s] !! 스핀 (차선 대비 {math.degrees(le_):+.0f}°)")
+                # 기준선에서 제어를 잃으면 자율주행을 뗀다.
+                # 그대로 두면 트래픽 매니저가 "경로로 복귀"를 계속 시도해, 스핀으로 역방향을 본 차가
+                # 다시 가속해 빙판으로 유턴해 들어갔다(실측: 14 s 에 빠져나갔다가 17 s 에 되돌아감).
+                # 그 뒤의 충돌은 빙판이 아니라 역주행 탓이라 기준선 통계를 오염시킨다.
+                # 제어를 잃은 차에 운전자 입력을 주지 않는 쪽이 정직하다 — 관성과 마찰만 남긴다.
+                if a.no_secondary and (spun or lane_departed) and not control_lost:
+                    control_lost = True; t_lost = t_sim
+                    events.append({"t": round(t_sim,2), "event": "control_lost",
+                                   "reason": "spin" if spun else "lane_departure", "speed_kph": round(spd*3.6,1)})
+                    print(f"[{t_sim:6.2f}s] 제어 상실 — 자율주행 해제, 관성 주행으로 둔다")
+                    try: ego.set_autopilot(False, 8000)
+                    except Exception: pass
             except Exception:
                 pass
         if collisions and state != "CRASH":
@@ -1234,6 +1247,9 @@ try:
                 ego.apply_control(carla.VehicleControl(throttle=0.0, brake=cmd["brake"], steer=cmd["steer"]))
 
         # ---------- 상태별 제어 ----------
+        if control_lost and state not in ("CRASH",):
+            # 조향·가속 없음. 브레이크도 없다 — 빙판 위에서 잠긴 바퀴는 조향을 잃을 뿐이다.
+            ego.apply_control(carla.VehicleControl(throttle=0.0, brake=0.0, steer=0.0))
         if state == "CRASH":
             ego.apply_control(carla.VehicleControl(throttle=0.0, brake=1.0, steer=0.0))
             if t_sim - t_crash > 2.0: break
@@ -1368,6 +1384,9 @@ try:
                                              (img.shape[1], img.shape[0]))
                 vws[k].write(img)
 
+        if control_lost and (spd < 0.3 or t_sim - t_lost > 8.0):
+            events.append({"t": round(t_sim,2), "event": "baseline_end",
+                           "reason": "정지" if spd < 0.3 else "제어 상실 8초 경과", "speed_kph": round(spd*3.6,1)}); break
         if a.no_secondary and a.disable_primary and entered and dist > patch.extent[0] + 40 and state == "DRIVE":
             events.append({"t": round(t_sim,2), "event": "passed_patch", "speed_kph": round(spd*3.6,1)}); break
         if state == "STOPPED" and t_sim > 1.0 and spd < 0.2:
