@@ -28,20 +28,9 @@
 
 두 방어가 **같은 보드 한 장**에서 돈다. 혼합 임계도 AI ECU 구조다.
 
-```mermaid
-flowchart LR
-    CAM["전방 카메라"] --> ROI["ROI 224x224 int8"]
-    ROI --> NPU["STM32N6 NPU · MobileNetV3 · 25 ms"]
-    NPU --> FUSE["위험도 융합 · 분류 + 반사도 + 기상"]
-    FUSE -->|"risk 0.60 이상"| BRAKE["1차 경보 · 감속"]
-
-    IMU["IMU 50 Hz"] --> TH["ThreadX 융합 스레드 · 우선순위 3"]
-    TH -->|"미끄러짐 확정"| CTRL["비상 제어 · 차선유지 / ABS 펄스 / 회피"]
-
-    style NPU fill:#dbeafe,stroke:#2563eb
-    style TH fill:#fee2e2,stroke:#dc2626
-    style CTRL fill:#fee2e2,stroke:#dc2626
-```
+<p align="center">
+  <img src="docs/figures/architecture.png" width="100%" alt="이중 방어 구조도">
+</p>
 
 ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4다. 25 ms짜리 추론이 돌고 있어도 IMU 판정이 선점한다.
 
