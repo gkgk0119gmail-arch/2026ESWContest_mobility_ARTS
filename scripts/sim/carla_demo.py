@@ -1145,8 +1145,9 @@ try:
                     events.append({"t": round(t_sim,2), "event": "spin", "heading_err_deg": round(math.degrees(le_),1), "speed_kph": round(spd*3.6,1)})
                     print(f"[{t_sim:6.2f}s] !! 스핀 (차선 대비 {math.degrees(le_):+.0f}°)")
                 # 기준선에서 제어를 잃으면 자율주행을 뗀다.
-                # 그대로 두면 트래픽 매니저가 "경로로 복귀"를 계속 시도해, 스핀으로 역방향을 본 차가
-                # 다시 가속해 빙판으로 유턴해 들어갔다(실측: 14 s 에 빠져나갔다가 17 s 에 되돌아감).
+                # 그대로 두면 트래픽 매니저가 "경로로 복귀"를 계속 시도한다. 차체가 차로를 가로질러
+                # 돌아간(방향 오차 −98°) 상태에서 복귀 조향이 들어가면 차가 돌아서 빙판으로 다시
+                # 들어갔다(실측: 14 s 에 빠져나갔다가 17 s 에 되돌아감).
                 # 그 뒤의 충돌은 빙판이 아니라 역주행 탓이라 기준선 통계를 오염시킨다.
                 # 제어를 잃은 차에 운전자 입력을 주지 않는 쪽이 정직하다 — 관성과 마찰만 남긴다.
                 if a.no_secondary and (spun or lane_departed) and not control_lost:
