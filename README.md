@@ -24,24 +24,52 @@
 | 판단 | 노면 4분류 + 반사도 + 기상 맥락 → 위험도 | 칼만 필터 + 자전거 모델 잔차 → 미끄러짐 확정 |
 | 시점 | 빙판에 닿기 **전** | 미끄러지기 **시작한 뒤** |
 | 성격 | 똑똑하지만 틀릴 수 있다 | 단순하지만 제때 반드시 실행된다 |
-| 실행 | STM32N6 NPU (25 ms) | STM32N6 + ThreadX (최악 22.6 µs) |
+| 실행 | STM32N6 NPU, 25 ms | STM32N6 + ThreadX, 최악 22.6 µs |
 
 두 방어가 **같은 보드 한 장**에서 돈다. 혼합 임계도 AI ECU 구조다.
 
 ```mermaid
 flowchart LR
-    CAM[전방 카메라] --> ROI[ROI 224x224 int8]
-    ROI --> NPU["STM32N6 NPU<br/>MobileNetV3 · 25 ms"]
-    NPU --> FUSE["위험도 융합<br/>분류 + 반사도 + 기상"]
-    FUSE -->|risk >= 0.60| BRAKE[1차 경보 · 감속]
+    CAM["전방 카메라"] --> ROI["ROI 224x224 int8"]
+    ROI --> NPU["STM32N6 NPU · MobileNetV3 · 25 ms"]
+    NPU --> FUSE["위험도 융합 · 분류 + 반사도 + 기상"]
+    FUSE -->|"risk 0.60 이상"| BRAKE["1차 경보 · 감속"]
 
-    IMU[IMU 50 Hz] --> TH["ThreadX 융합 스레드<br/>우선순위 3 (NPU보다 높음)"]
-    TH -->|미끄러짐 확정| CTRL["비상 제어<br/>차선 유지 · ABS 펄스 · 회피"]
+    IMU["IMU 50 Hz"] --> TH["ThreadX 융합 스레드 · 우선순위 3"]
+    TH -->|"미끄러짐 확정"| CTRL["비상 제어 · 차선유지 / ABS 펄스 / 회피"]
 
     style NPU fill:#dbeafe,stroke:#2563eb
     style TH fill:#fee2e2,stroke:#dc2626
     style CTRL fill:#fee2e2,stroke:#dc2626
 ```
+
+ThreadX 우선순위는 IMU 융합 스레드가 3, NPU 프레임 스레드가 4다. 25 ms짜리 추론이 돌고 있어도 IMU 판정이 선점한다.
+
+---
+
+## 하드웨어
+
+<table>
+<tr>
+<td width="33%"><img src="docs/images/hw_pi_stack.jpg" alt="Pi 5 + AI HAT+ 2 스택"></td>
+<td width="33%"><img src="docs/images/hw_d435i_nvme.jpg" alt="RealSense D435i와 NVMe 외장"></td>
+<td width="33%"><img src="docs/images/hw_boot.jpg" alt="Raspberry Pi OS 부팅"></td>
+</tr>
+<tr>
+<td align="center"><sub>Pi 5 16 GB + AI HAT+ 2 (Hailo-10H), KKSB 케이스·액티브 쿨러</sub></td>
+<td align="center"><sub>RealSense D435i (RGB·뎁스·IMU) · NVMe 1 TB 외장</sub></td>
+<td align="center"><sub>부팅·브링업 확인</sub></td>
+</tr>
+</table>
+
+| 구성 | 역할 |
+|---|---|
+| **STM32N6570-DK** | 1차 NPU 추론(Neural-ART) + 2차 ThreadX 실시간 판정·제어. 두 임계도가 한 보드에 공존한다 |
+| **Raspberry Pi 5 16 GB + AI HAT+ 2 (Hailo-10H)** | 호스트. 기상 맥락 생성, 통신 브리지, 교차 검증용 NPU |
+| **RealSense D435i** | RGB·뎁스·IMU. 실측 노이즈 특성 확보용 |
+| **RTX 5090 워크스테이션** | CARLA 시뮬레이션 (HIL 환경의 물리·센서 제공) |
+
+실물 빙판 노면을 만드는 1/5 차량 실측이 현실적으로 어려워, **실물 보드가 실제 펌웨어를 돌리고 CARLA가 센서와 물리를 제공하는 HIL 검증**으로 대체했다. 실물 데이터는 RSCD 실사진 69,358장을 보드에 직접 넣는 방식으로 보강했다.
 
 ---
 
@@ -67,7 +95,7 @@ flowchart LR
   <img src="docs/figures/real_confusion.jpg" width="48%" alt="혼동 행렬">
 </p>
 
-→ 근거: [`docs/evidence/05_실사진_대규모평가.md`](docs/evidence/05_실사진_대규모평가.md) · [`02_융합가중치.md`](docs/evidence/02_융합가중치.md) · [`07_노면조건별_분해.md`](docs/evidence/07_노면조건별_분해.md)
+→ 근거: [`05_실사진_대규모평가`](docs/evidence/05_실사진_대규모평가.md) · [`02_융합가중치`](docs/evidence/02_융합가중치.md) · [`07_노면조건별_분해`](docs/evidence/07_노면조건별_분해.md)
 
 ---
 
@@ -91,7 +119,7 @@ flowchart LR
   <img src="docs/figures/latency_cdf.jpg" width="80%" alt="지연 분포 CDF">
 </p>
 
-→ 근거: [`docs/evidence/06_RTOS가_왜_필요한가.md`](docs/evidence/06_RTOS가_왜_필요한가.md) · [`10_스케줄가능성_분석.md`](docs/evidence/10_스케줄가능성_분석.md)
+→ 근거: [`06_RTOS가_왜_필요한가`](docs/evidence/06_RTOS가_왜_필요한가.md) · [`10_스케줄가능성_분석`](docs/evidence/10_스케줄가능성_분석.md)
 
 ---
 
@@ -137,6 +165,187 @@ flowchart LR
 
 ---
 
+## 데이터 전략
+
+1차와 2차는 필요한 데이터의 결이 다르다. **모델 헤드별 정답을 먼저 정의하고** 그에 맞는 공개 데이터셋을 매핑했다.
+
+| 방어 | 필요 역할 | 필요한 정답 | 데이터셋 | 활용 |
+|---|---|---|---|---|
+| 🔵 1차 | 노면 상태 분류 | 건조/젖음/눈/결빙 클래스 | **RSCD** | 주 학습 |
+| 🔵 1차 | 반사도·젖음 정도 | 실측 수막 두께 | **RoadSaW** | 반사도 헤드 근거 |
+| 🔵 1차 | 국내 도로·악천후 | 눈·비·안개 + 조도 | **AI Hub** | 도메인 검증 |
+| 🟠 2차 | IMU 미끄러짐 감지 | 실측 6축 IMU + 노면 라벨 | **PVS** | 칼만 필터 검증 |
+| 🟠 2차 | 카메라–IMU 융합 | RGB-IMU 동기, 악조건 | **ROAD** | 비교 기준선 |
+| ⚪ 보조 | 폭설 실주행 | 눈 장면·포인트 라벨 | **CADC · WADS** | 악천후 점검 |
+| ⚪ 보조 | 차선 가시성 | 자동 라벨 | **CARLA** | 합성 데이터 생성 |
+
+### RSCD — 노면 분류 주 학습 데이터
+
+<p align="center">
+  <img src="docs/images/ds_rscd_classes.jpg" width="100%" alt="RSCD 클래스별 샘플">
+  <br>
+  <sub>RSCD 27클래스를 우리 4클래스로 매핑한다. 건조→정상, 젖음·물고임→젖음, 결빙·녹은눈→결빙 위험, 요철 '심함'→포트홀</sub>
+</p>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/ds_rscd_patch.jpg" alt="노면 패치 추출"></td>
+<td width="50%"><img src="docs/images/ds_rscd_camera.jpg" alt="전방 카메라 설치"></td>
+</tr>
+<tr>
+<td align="center"><sub>주행 영상에서 노면 영역만 잘라 패치로 쓴다</sub></td>
+<td align="center"><sub>차량 전방 카메라, 20~80 km/h 주행 촬영</sub></td>
+</tr>
+</table>
+
+약 100만 장(공개 서브셋 37만 장), 27클래스 = 마찰 6 × 재질 4 × 요철 3. 240×360 패치라 NPU 입력 크기에 맞다. 베이징 약 700 km 실도로 주행. 눈·얼음은 결빙 57,262 · 녹은 눈 64,263 · 신설 76,730장이다.
+
+### RoadSaW · AI Hub — 반사도 헤드와 국내 도로 검증
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/ds_roadsaw.jpg" alt="RoadSaW ROI와 노면 3종"></td>
+<td width="50%"><img src="docs/images/ds_aihub.jpg" alt="AI Hub 악천후 2D 분할·라이다 3D 박스"></td>
+</tr>
+<tr>
+<td align="center"><sub><b>RoadSaW</b> 12클래스 = 노면 3종 × 젖음 4단계. MARWIS 센서로 수막 두께를 실측해 반사도를 회귀로 배울 근거가 된다. 패치 약 72만 장</sub></td>
+<td align="center"><sub><b>AI Hub</b> 승용 자율주행차 악천후 데이터. 카메라·라이다·레이더에 2D 분할 라벨과 3D 박스. 우리 라벨 내보내기 형식의 본보기</sub></td>
+</tr>
+</table>
+
+### PVS · ROAD — 2차 방어 검증용 실측 신호
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/ds_pvs.jpg" alt="PVS 센서 장착 도식"></td>
+<td width="50%"><img src="docs/images/ds_road.jpg" alt="ROAD 노면·조건"></td>
+</tr>
+<tr>
+<td align="center"><sub><b>PVS</b> MPU-9250 IMU 100 Hz를 대시보드·서스펜션 상/하 3곳에. 9세트 = 차량 3 × 운전자 3 × 경로 3. 실측 노이즈로 칼만 공분산을 잡는다</sub></td>
+<td align="center"><sub><b>ROAD</b> 카메라 30 fps + IMU 5개 400 Hz 동기, 약 115만 프레임. 야간·폭우·먼지 악조건. 우리 이중 구조와 같은 논리</sub></td>
+</tr>
+</table>
+
+### CADC · WADS — 폭설 실주행 점검
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/ds_cadc.jpg" alt="CADC 눈길 주행"></td>
+<td width="50%"><img src="docs/images/ds_wads.jpg" alt="WADS 라벨된 포인트클라우드"></td>
+</tr>
+<tr>
+<td align="center"><sub><b>CADC</b> 눈길 실주행 5.6만 장, 라이다 7천 스윕, 75개 장면 (캐나다 워털루)</sub></td>
+<td align="center"><sub><b>WADS</b> 미시간 폭설 라이다. '내리는 눈 / 쌓인 눈'을 포인트별로 라벨 (36억 점). 우리 시맨틱 라이다 표현의 참고</sub></td>
+</tr>
+</table>
+
+<details>
+<summary><b>출처와 라이선스 (펼치기)</b></summary>
+
+위 데이터셋 그림은 각 공개 데이터셋의 논문·공식 사이트에서 가져온 것이며, 설명 목적의 비상업적 인용이다.
+
+| 데이터셋 | 출처 | 라이선스 |
+|---|---|---|
+| RSCD | thu-rsxd.com/rscd · Zhao et al., *Data in Brief* (2022) | CC BY |
+| RoadSaW | viscoda.com · CVPRW 2022 | CC BY-NC-SA 4.0 |
+| AI Hub | 승용 자율주행차 악천후 데이터 (71626) | AI Hub 이용약관 |
+| PVS | github.com/jefmenegazzo | CC BY-NC-ND 4.0 |
+| ROAD | arXiv 2601.20847 | 논문 명시 조건 |
+| CADC | cadcd.uwaterloo.ca · arXiv 2001.10117 | CC BY-NC-SA |
+| WADS | digitalcommons.mtu.edu/wads · arXiv 2109.07078 | 논문 명시 조건 |
+
+하드웨어 사진은 팀이 직접 촬영했다.
+</details>
+
+> **⚠️ 냉정한 한계.** 공개 데이터에 '블랙아이스' 라벨은 없다. RSCD의 `ice` 5.7만 장도 다져진 눈·서리에 가까운 '얼음 노면'일 뿐, 투명한 블랙아이스를 따로 구분하지 않는다. 그래서 1차는 블랙아이스를 직접 맞히려 하지 않고 **결빙 위험 노면 확률 + 반사도 이상 + 기상 맥락**으로 위험도를 올린다. 그리고 그 전략이 실패할 때를 위해 2차가 있다.
+
+---
+
+## 파라미터
+
+<details open>
+<summary><b>1차 방어 — 모델과 배포</b></summary>
+
+| 항목 | 값 |
+|---|---|
+| 백본 | MobileNetV3-Small (ImageNet 사전학습) |
+| 입력 | 1×3×224×224 NCHW, int8 |
+| 출력 | 4클래스 로짓 + 반사도 헤드 (576→64→1) |
+| 내보내기 | ONNX opset 13, 고정 배치 1 |
+| 양자화 | int8 PTQ (QDQ), 가중치 채널별, 활성 대칭 |
+| 입력 양자화 | scale 0.018658448, zero-point −14 |
+| 출력 양자화 | scale 0.029451849 |
+| 프레임당 전송 | 150,528 B |
+| NPU | Neural-ART @ 1 GHz · 추론 25 ms |
+| ROI | 차량 전방 7.9~42.2 m (카메라 FOV 60°, 피치 −12°) |
+
+</details>
+
+<details open>
+<summary><b>위험도 융합 — risk = α·p_ice + β·반사도 + γ·(1−차선가시성)</b></summary>
+
+| 기상·위치 맥락 | α (분류) | β (반사도) | γ (차선) |
+|---|---:|---:|---:|
+| 교량·새벽 등 결빙 위험 높음 | 0.35 | 0.45 | 0.20 |
+| 일반 | 0.50 | 0.30 | 0.20 |
+| 저위험 | 0.55 | 0.15 | 0.30 |
+
+운영 문턱 **0.603** (실사진 69,358장 스윕으로 결정). 사용할 수 없는 신호는 0을 넣지 않고 **분모에서 빼서 재정규화**한다. 0은 중립값이 아니라 최솟값이라 위험도 상한이 잘리기 때문이다.
+
+</details>
+
+<details open>
+<summary><b>2차 방어 — 미끄러짐 감지</b></summary>
+
+| 항목 | 값 | 비고 |
+|---|---|---|
+| 축거 L | 2.7 m | 자전거 모델 |
+| 특성속도 v_ch | 17 m/s | 고속 언더스티어 보정 `1/(1+(v/v_ch)²)` |
+| 조향 지연 τ | 0.06 s | 급조향 시 모델 즉답 가정이 오탐을 만들어 추가 |
+| 횡가속 임계 | 0.30 g | |
+| yaw 오차 임계 | 0.35 rad/s | |
+| 판정 규칙 | **타원** | 직사각형은 모서리에서 저속 지연이 생겼다 |
+| 확정 샘플 | 3 (60 ms @ 50 Hz) | |
+| 저마찰 트리거 | 제동 ≥ 0.3이 0.3 s 지속 + 감속 < 1.2 m/s² | 필터 지연 구간 오탐 방지 |
+| 필터 | 2상태 칼만 (값·변화율), Q=2000/3000, R=0.16/0.0005 | |
+
+</details>
+
+<details open>
+<summary><b>2차 방어 — 비상 제어</b></summary>
+
+| 항목 | 값 |
+|---|---|
+| 조향 Kp (방향 오차) | 1.4 |
+| 조향 Kl (차선 횡오프셋) | 0.15 |
+| 조향 Kd (yaw rate) | 0.30 |
+| 조향 한계 | ±0.5 (정규화) |
+| 제동 펄스 (ABS 흉내) | 0.70 ↔ 0.35, 약 3 Hz |
+| 빙판 감속 가정 | 1.0 m/s² |
+| 접지 회복 판정 | 감속 2.5 m/s² 이상이 5샘플 → 마른 노면 6.0 m/s² 적용 |
+| 빈 차로 기준 | 앞차 간격 20 m 이상 |
+| 차로 폭 | 3.5 m |
+| 제어 모드 | 차선유지 / 좌·우 회피 / 최대 제동 / 정지 |
+
+</details>
+
+<details>
+<summary><b>HIL 시뮬레이션 설정</b></summary>
+
+| 항목 | 값 |
+|---|---|
+| 맵 · 모드 | CARLA Town04, 동기 모드 50 Hz |
+| 빙판 | 마찰 트리거 0.02 (저마찰 시나리오 0.08), 길이 40 m / 100 m |
+| 타이어 마찰 | 1.0 (CARLA 기본 3.5는 비현실적이라 바꿨다) |
+| 주행 속도 | 40 km/h 기본, 60 km/h 고속 시나리오 |
+| 주변 차량 | 8대 자율주행 + 정차 차량 1대 |
+| 날씨 | CARLA 프리셋 10종 + 직접 구현한 `Snow` |
+| 시점 | 1인칭+조감 / 조감 / 라이다 3D / 시맨틱 라이다 |
+
+</details>
+
+---
+
 ## 근거 문서
 
 모든 숫자는 **실측에서 자동 생성**된다. 손으로 적은 값이 아니므로 생성기를 다시 돌리면 갱신된다.
@@ -152,11 +361,11 @@ flowchart LR
 | [16_조향지연보정](docs/evidence/16_조향지연보정.md) | ★ 2차가 정상 노면에서 발화한 것을 고친 기록 | `yawlag_report.py` |
 | [17_경보거리와_해상도](docs/evidence/17_경보거리와_해상도.md) | ★ 경보 거리를 늘리려면 무엇을 바꿔야 하나 | `range_resolution.py` |
 
-전체 목록은 [`docs/evidence/00_분석문서_목록.md`](docs/evidence/00_분석문서_목록.md), 발표용 자료 지도는 [`docs/presentation_evidence_map.md`](docs/presentation_evidence_map.md)에 있다.
+전체 목록은 [`00_분석문서_목록`](docs/evidence/00_분석문서_목록.md), 발표용 자료 지도는 [`presentation_evidence_map`](docs/presentation_evidence_map.md)에 있다.
 
 ---
 
-## 구조
+## 저장소 구조
 
 ```
 src/icepredict/        파이썬 패키지
@@ -170,7 +379,8 @@ fw/npu_lib/            STM32N6 펌웨어 글루
   patch_fw_slip.py     ThreadX 융합 스레드에 2차 방어 주입
 scripts/               수집 · 학습 · 양자화 · 배포 · 데모 · 분석
 docs/evidence/         자동 생성 근거 문서 19개
-docs/figures/          그림 28장
+docs/figures/          결과 그림 28장
+docs/images/           하드웨어·데이터셋 사진
 docs/data/events/      주행 이벤트 107건 (분석 재현용)
 media/                 README 애니메이션 + 영상
 ```
@@ -193,26 +403,14 @@ python3 -m pytest -q                     # 단위 테스트
 python3 fw/npu_lib/test_slip_core.py     # gcc 로 C 코어를 빌드해 동치 비교
 ```
 
-전체 파이프라인(수집 → 학습 → int8 양자화 → 보드 배포 → HIL 데모)은 [`docs/demo_pipeline_2026-09-19.md`](docs/demo_pipeline_2026-09-19.md)에 있다.
-
----
-
-## 하드웨어
-
-| 구성 | 역할 |
-|---|---|
-| STM32N6570-DK | 1차 NPU 추론 + 2차 ThreadX 실시간 판정·제어 |
-| Raspberry Pi 5 (16 GB) + AI HAT+ 2 (Hailo-10H) | 호스트, 기상 맥락, 통신 브리지 |
-| RTX 5090 워크스테이션 | CARLA 시뮬레이션 (HIL 환경) |
-
-실물 빙판 노면을 만드는 1/5 차량 실측이 현실적으로 어려워, **실물 보드가 실제 펌웨어를 돌리고 CARLA가 센서와 물리를 제공하는 HIL 검증**으로 대체했다. 실물 데이터는 RSCD 실사진 69,358장을 보드에 직접 넣는 방식으로 보강했다.
+전체 파이프라인(수집 → 학습 → int8 양자화 → 보드 배포 → HIL 데모)은 [`demo_pipeline`](docs/demo_pipeline_2026-09-19.md)에 있다.
 
 ---
 
 ## 한계
 
-- **블랙아이스 전용 라벨이 공개 데이터에 없다.** RSCD의 `ice`는 다져진 눈·서리에 가깝고 투명한 블랙아이스와 다르다. 그래서 1차는 '결빙 위험 노면 확률 + 반사도 이상 + 기상 맥락'으로 위험도를 올리는 전략을 쓴다.
-- **경보 거리는 기하 문제다.** 모델 입력이 요구하는 최소 픽셀 수와 ROI 해상도가 경보 거리를 결정한다. 해상도를 올리는 것이 먼저다 ([`17번 문서`](docs/evidence/17_경보거리와_해상도.md)).
+- **블랙아이스 전용 라벨이 공개 데이터에 없다.** 그래서 1차는 '결빙 위험 노면 확률 + 반사도 이상 + 기상 맥락' 전략을 쓴다.
+- **경보 거리는 기하 문제다.** 모델이 요구하는 최소 픽셀 수와 ROI 해상도가 경보 거리를 결정한다. 해상도를 올리는 것이 먼저다 ([17번 문서](docs/evidence/17_경보거리와_해상도.md)).
 - **CARLA 질감으로 학습한 모델은 실사진 질감의 얼음에 반응하지 않는다.** 재수집·재학습이 다음 과제다.
 - 1차 방어 영상 중 일부는 렌더 품질이 다른 환경에서 찍혔다. 비교할 때 주의가 필요하다.
 
