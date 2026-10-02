@@ -138,7 +138,7 @@ by = T + 112
 rect(sh, PAD, by, CW, 104, fill=HBLUE)
 for i, (num, cap) in enumerate([("96.1%", "실사진 블랙아이스 6,340장 정답률<br>경보율 96.6 %"),
                                 ("0.3%", "마른 노면 19,018장 오경보율<br>젖은 노면 0.8 %"),
-                                ("22.6µs", "2차 방어 최악 응답<br>리눅스는 5,790 µs"),
+                                ("22.6 µs", "2차 방어 최악 응답<br>리눅스는 5,790 µs"),
                                 ("9/9", "방어를 모두 끈 기준선<br>전부 제어 상실")]):
     x = PAD + 24 + i * (CW / 4)
     text(sh, x, by + 14, CW / 4 - 30, 46, num, size=32, color=WHITE, face=FONT_X, spacing=1.0)
@@ -176,10 +176,8 @@ rx, rw = PAD + fw + 32, CW - fw - 32
 blocks = [("라벨이 없다", "공개 데이터셋에 '블랙아이스' 라벨이 없다. RSCD 의 ice 57,262장도 다져진 눈·서리에 가까운 '얼음 노면'일 뿐, 투명한 블랙아이스를 따로 구분하지 않는다."),
           ("원래 어려운 문제다", "투명·검은 얼음이 아스팔트와 시각적으로 구분되지 않는다는 것은 업계 통설이다. 우리 모델도 마찬가지로, 실사진 얼음 6,340장 중 215장(3.4 %)이 문턱 아래에 남는다."),
           ("그래서 내린 결론", "1차는 블랙아이스를 직접 맞히려 하지 않는다. '결빙 위험 노면 확률 + 반사도 이상 + 기상 맥락'으로 위험도를 올린다. 그리고 그 전략이 실패할 때를 위해 2차가 있다.")]
-bh = (B - T - 2 * 14) / 3
-for i, (t, b) in enumerate(blocks):
-    block(sh, rx, T + i * (bh + 14), rw, bh, t, b, size=10, fill=PANEL if i == 2 else None,
-          color=HBLUE)
+for (t_, b_), (y_, h_, f_) in zip(blocks, [(T, 128, None), (T + 142, 128, None), (T + 292, 176, PANEL)]):
+    block(sh, rx, y_, rw, h_, t_, b_, size=10, fill=f_, color=HBLUE)
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 4. 구조
@@ -587,7 +585,8 @@ for i, ((kind, src), t, b) in enumerate(fails):
     text(sh, x, T + ih4 + 12, 44, 30, f"0{i + 1}", size=20, color=ARED, face=FONT_X, spacing=1.0, wrap=False)
     text(sh, x + 44, T + ih4 + 15, cw4 - 44, 24, t, size=11.5, color=INK, bold=True, spacing=1.0)
     text(sh, x, T + ih4 + 48, cw4, 90, b, size=9.5, color=BODY, spacing=1.45)
-text(sh, PAD + cw4 + 12, T + ih4 - 16, cw4, 14, "▶ 발표 모드에서 자동 재생", size=8, color=WHITE)
+veil(sh, PAD + cw4 + 12, T + ih4 - 22, 132, 22, HBLUE, 0.85)
+text(sh, PAD + cw4 + 20, T + ih4 - 22, 124, 22, "▶ 발표 모드에서 자동 재생", size=8, color=WHITE, anchor=MSO_ANCHOR.MIDDLE)
 ry = T + ih4 + 160
 block(sh, PAD, ry, CW, 128, "그 밖에 남은 것",
       ["· Hailo-10H 교차 검증은 Dataflow Compiler 미확보로 열지 못했다. 1차는 STM32N6 Neural-ART 단독 결과다.　· D435i 실측 IMU 노이즈는 PVS 공개 데이터로 대체했다. 실물 연결 측정은 남은 과제다.",
