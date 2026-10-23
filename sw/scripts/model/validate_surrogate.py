@@ -134,11 +134,11 @@ for j, r in enumerate(cl):
           f"  최대 방향오차 {c_['head_max']:6.1f} / {sur['head_max']:6.1f}°  스핀 {int(c_['spin'])}/{int(sur['spin'])}"
           + (f"  앞차 충돌 {int(c_['crash'])}/{int(sur['crash'])}" if r["gap0"] < 900 else ""), flush=True)
 # 2) 방어 없음 — 제어 상실 이후
-for f in sorted(pathlib.Path(a.closed).glob("state_s4c_nodef_*.csv")):
-    m = re.match(r"state_s4c_nodef_f([0-9.]+)_k(\d+)\.csv", f.name)
+for f in sorted(pathlib.Path(a.closed).glob("state_s4[cd]_nodef_*.csv")):
+    m = re.match(r"state_s4[cd]_nodef_f([0-9.]+)_k(\d+)\.csv", f.name)
     fr, kph = float(m.group(1)), int(m.group(2))
     X = np.genfromtxt(f, delimiter=",", names=True, dtype=None, encoding=None)
-    ev = json.loads((pathlib.Path(a.closed) / f"events_s4c_nodef_f{fr:g}_k{kph}.json").read_text())["events"]
+    ev = json.loads((pathlib.Path(a.closed) / f.name.replace("state_", "events_").replace(".csv", ".json")).read_text())["events"]
     res = run_nodef(dict(mode="nodef", fr=fr, kph=kph, X=X, events=ev, mu=MU.get(fr, mu_of_friction(fr, MU))))
     if res is None: continue
     car, sur = res

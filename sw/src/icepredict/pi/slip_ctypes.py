@@ -10,7 +10,8 @@ import pathlib
 import subprocess
 
 LIB_DIR = pathlib.Path(__file__).resolve().parents[3] / "fw" / "npu_lib"
-FLAGS = {"": [], "mu": ["-DSLIP_MU_EST=1"], "gs": ["-DSLIP_MU_EST=1", "-DSLIP_GAIN_SCHED=1"]}
+FLAGS = {"": [], "mu": ["-DSLIP_MU_EST=1"], "gs": ["-DSLIP_MU_EST=1", "-DSLIP_GAIN_SCHED=1"],
+         "gsw": ["-DSLIP_MU_EST=1", "-DSLIP_GAIN_SCHED=1", "-DSLIP_WDT=1"]}
 MODES = {0: "none", 1: "lane_keep", 2: "evade_left", 3: "evade_right", 4: "hard_stop", 5: "stopped"}
 TRIGS = {0: None, 1: "lat_acc", 2: "yaw_rate", 3: "low_mu", 4: "combo"}
 _F = ctypes.c_float
@@ -53,6 +54,14 @@ class SlipCoreC:
         from icepredict.pi.gain_lut import PARAM_NAMES
         g = (_F * 10)(*[float(gains[k]) for k in PARAM_NAMES]) if gains else (_F * 10)()
         self.L.sc_set_gains(self.buf, g, 1 if gains else 0)
+
+    def set_host_fresh(self, fresh: bool):
+        """SLIP_WDT 빌드: 이번 샘플에 호스트(파이) 패킷이 새로 왔는가."""
+        self.L.sc_set_host_fresh(1 if fresh else 0)
+
+    def degraded(self) -> bool:
+        self.L.sc_degraded.restype = ctypes.c_int
+        return bool(self.L.sc_degraded(self.buf))
 
     def gains(self):
         from icepredict.pi.gain_lut import PARAM_NAMES

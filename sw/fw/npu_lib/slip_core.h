@@ -84,6 +84,16 @@ static inline float kf2_step(kf2_t *k, float z)
 #ifndef SLIP_GAIN_SCHED
 #define SLIP_GAIN_SCHED    0
 #endif
+/* ---- 호스트 감시 (SLIP_WDT, 기본 0) ----
+   보드는 라즈베리파이(리눅스)를 지키는 안전 섬이다. IMU 는 보드에 직결되고(실차 설계), 차선·앞차 간격은 파이가 카메라로 만들어 보낸다.
+   파이 패킷이 SLIP_WDT_TIMEOUT 샘플(50 Hz 에서 100 ms) 넘게 끊기면 축소 모드: 낡은 차선·간격 입력을 버리고,
+   조향 명령을 내지 않으며(운전자 몫), 회피 판단 없이 마찰 추정에 맞춘 제동 조절만 계속한다. 패킷이 다시 오면 정상으로 돌아간다.
+   추가 연산: 카운터 증가·비교 1회. */
+#ifndef SLIP_WDT
+#define SLIP_WDT           0
+#endif
+#define SLIP_WDT_TIMEOUT   5
+
 /* ---- 마찰별 제어표 (SLIP_GAIN_SCHED, 기본 0 = 기존 고정 게인 그대로) ----
    μ̂(마찰 추정)·속도로 slip_gain_lut.h 의 표를 쌍선형 보간해 이번 샘플의 제어 파라미터 10개를 얻는다.
    표는 시뮬레이션(대리 모델 탐색 → CARLA 검증)에서 미리 만들고 보드는 찾아 쓰기만 한다.
@@ -119,6 +129,9 @@ typedef struct {
   float mu_hat; int mu_n; int pulse_hi_n;                        /* 마찰 추정값, 쓴 샘플 수, 펄스 강 구간 연속 샘플 수 */
   float b_hi_last;                                               /* 직전 샘플 모드의 '강' 펄스 제동값 — 지금 걸린 제동이 강인지 판단 */
 #endif
+#if SLIP_WDT
+  uint32_t host_age; int degraded;                               /* 마지막 호스트 패킷 이후 샘플 수, 축소 모드 */
+#endif
 #if SLIP_GAIN_SCHED
   float g[10];                                                   /* 이번 샘플에 쓴 제어 파라미터 (진단·로그) */
   int g_ovr; float g_ovr_v[10];                                  /* 시험용: 표 대신 고정값을 쓴다 (CARLA 에서 후보 하나를 검증할 때) */
@@ -139,6 +152,9 @@ static inline void slip_reset(slipdet_t *d, float dt, int confirm, float min_spe
 #endif
 #if SLIP_GAIN_SCHED
   memset(d->g, 0, sizeof(d->g)); d->g_ovr = 0;
+#endif
+#if SLIP_WDT
+  d->host_age = 0; d->degraded = 0;
 #endif
   d->ye = 0.f; d->ye_init = 0;
 }
@@ -254,11 +270,25 @@ static inline void slip_mu_update(slipdet_t *d, float speed, float ax_f, float a
 }
 #endif
 
+#if SLIP_WDT
+/* 매 샘플 제어 전에 부른다. host_fresh = 이번 샘플에 파이의 차선·간격 패킷이 새로 왔는가. */
+static inline void slip_host_watchdog(slipdet_t *d, int host_fresh)
+{
+  d->host_age = host_fresh ? 0u : d->host_age + 1u;
+  d->degraded = d->host_age > (uint32_t)SLIP_WDT_TIMEOUT;
+}
+#endif
+
 static inline void slip_control2(slipdet_t *d, float speed, float gz, float lane_err, float lat_off,
                                  float gap_front, float gap_left, float gap_right,
                                  float ax_f, float brake_cmd, float ice_lane_off, float front_rel_v, float *brake, float *steer)
 {
   d->n_emerg++;
+#if SLIP_WDT
+  if (d->degraded) {                    /* 낡은 차선·간격은 버린다: 조향 없음, 앞차 모름 → 회피 없이 최대제동형 제동 조절 */
+    lane_err = 0.f; lat_off = 0.f; gz = 0.f; gap_front = -1.f; gap_left = -1.f; gap_right = -1.f; d->lat_shift = 0.f;
+  }
+#endif
 #if SLIP_MU_EST
   slip_mu_update(d, speed, ax_f, d->kay.x0, brake_cmd, d->b_hi_last);
 #endif

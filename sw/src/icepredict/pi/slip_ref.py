@@ -47,7 +47,9 @@ class KF2:
 class SlipCoreRef:
     """보드 한 샘플(sc_board) 의 파이썬 판. 상태·상수 이름은 C 와 같다."""
 
-    def __init__(self, dt=0.02, confirm=3, min_speed=2.0, mu_est=False, lut=None):
+    def __init__(self, dt=0.02, confirm=3, min_speed=2.0, mu_est=False, lut=None, wdt=False):
+        self.wdt = wdt                # C 의 SLIP_WDT (호스트 감시)
+        self.host_fresh = True
         self.mu_est = mu_est          # C 의 SLIP_MU_EST
         self.lut = lut                # C 의 SLIP_GAIN_SCHED (gain_lut.GainLUT, None 이면 고정 게인)
         self.reset(dt, confirm, min_speed)
@@ -61,6 +63,7 @@ class SlipCoreRef:
         self.ye = 0.0; self.ye_init = False; self.a_stop_used = 0.0
         self.mu_hat = MU_INIT; self.mu_n = 0; self.pulse_hi_n = 0; self.b_hi_last = 0.7
         self.g_ovr = None; self.g = None
+        self.host_age = 0; self.degraded = False
 
     # ---- slip_step2 ----
     def step2(self, ay, gz, speed, steer, ax, brake_cmd):
@@ -99,6 +102,8 @@ class SlipCoreRef:
     # ---- slip_control2 ----
     def control2(self, speed, gz, lane_err, lat_off, gf, gl, gr, ax_f, brake_cmd, ice_off, front_rel_v):
         self.n_emerg += 1
+        if self.wdt and self.degraded:
+            lane_err = lat_off = gz = 0.0; gf = gl = gr = -1.0; self.lat_shift = 0.0
         if self.mu_est: self.mu_update(speed, ax_f, self.kay.x0, brake_cmd, self.b_hi_last)
         if brake_cmd >= 0.3 and ax_f <= -GRIP_DECEL:
             self.grip_n += 1
@@ -157,6 +162,9 @@ class SlipCoreRef:
         slip, trig, ay_g, ye = self.step2(ay, gz, speed, steer, ax, brake_cmd)
         if slip: self.emerg = True
         emerg = self.emerg; b = st = 0.0
+        if self.wdt:
+            self.host_age = 0 if self.host_fresh else self.host_age + 1
+            self.degraded = self.host_age > 5
         if emerg:
             b, st = self.control2(speed, gz, lane_err, lat_off, gf, gl, gr, self.kax.x0, brake_cmd, ice_off, front_rel_v)
         return dict(slip=slip, trig=trig, ay_g=ay_g, yaw_err=ye, emerg=int(emerg), brake=b, steer=st,

@@ -20,6 +20,9 @@ int sc_flags(void)
 #if defined(SLIP_GAIN_SCHED) && SLIP_GAIN_SCHED
   f |= 4;
 #endif
+#if defined(SLIP_WDT) && SLIP_WDT
+  f |= 8;
+#endif
   return f;
 }
 
@@ -55,12 +58,27 @@ void sc_control2(slipdet_t *d, float speed, float gz, float lane_err, float lat_
 /* 펌웨어 IMU 분기와 같은 한 샘플.
    in [13] = ay, gz, speed, steer, ax, brake_cmd, lane_err, lat_off, gap_front, gap_left, gap_right, ice_lane_off, front_rel_v
    out[12] = slip, trig, ay_g, yaw_err, emerg, brake, steer, mode, grip, mu_hat, mu_n, a_stop */
+/* SLIP_WDT 빌드: 이번 샘플에 호스트 패킷이 새로 왔는지 (기본 1). */
+static int g_host_fresh = 1;
+void sc_set_host_fresh(int fresh) { g_host_fresh = fresh; }
+int sc_degraded(slipdet_t *d)
+{
+#if defined(SLIP_WDT) && SLIP_WDT
+  return d->degraded;
+#else
+  (void)d; return 0;
+#endif
+}
+
 void sc_board(slipdet_t *d, const float *in, float *out)
 {
   unsigned char trig = 0u; float ay_g = 0.f, ye = 0.f, brk = 0.f, st = 0.f;
   int slip = slip_step2(d, in[0], in[1], in[2], in[3], in[4], in[5], &trig, &ay_g, &ye);
   if (slip) d->emerg = 1;
   int emerg = d->emerg;
+#if defined(SLIP_WDT) && SLIP_WDT
+  slip_host_watchdog(d, g_host_fresh);
+#endif
   if (emerg)
     slip_control2(d, in[2], in[1], in[6], in[7], in[8], in[9], in[10], d->kax.x0, in[5], in[11], in[12], &brk, &st);
   out[0] = (float)slip; out[1] = (float)trig; out[2] = ay_g; out[3] = ye;

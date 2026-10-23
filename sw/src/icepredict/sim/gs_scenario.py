@@ -45,32 +45,43 @@ class ScenarioSet:
     adj_v: torch.Tensor
 
 
-def sample_scenarios(n, mu_lo, mu_hi, v_lo, v_hi, gen, device, hard_frac=0.5):
-    """μ 는 [mu_lo, mu_hi] 로그 균등, 속도 [v_lo, v_hi] km/h 균등.
-    확정 순간 상태는 CARLA 폐루프 주행 15회에서 관측한 범위(횡미끄럼 1.2~1.9 m/s, 요레이트 0.11~0.15 rad/s,
-    방향오차 4~7°, 횡오프셋 0.3~1.2 m, 빙판 진입 10~25 m 뒤 확정)를 좌우 대칭으로, 약 1.5 배 넓혀 뽑는다.
-    hard_frac 만큼은 앞차가 빙판 정지거리 안쪽에 있다."""
+def sample_scenarios(n, mu_lo, mu_hi, v_lo, v_hi, gen, device, hard_frac=0.5, lead_frac=0.7):
+    """μ 는 [mu_lo, mu_hi] 로그 균등, 속도 [v_lo, v_hi] km/h 균등. 두 묶음을 섞는다.
+
+    · 앞차 묶음 (lead_frac): CARLA s9 와 같은 장면 — 직선(또는 반경 600 m 이상 완만한 곡선) 빙판 위에 정지한 앞차,
+      운전자가 앞차를 보고 제동해 '제동해도 감속이 안 된다' 로 저마찰이 확정된 순간에서 시작한다. 초기 오차는 작다.
+      앞차 거리 20~200 m. 판단(정지냐 회피냐)과 제동 조절이 결과를 바꾸는 묶음이다.
+    · 곡선 묶음: CARLA 폐루프(s4d) 에서 관측한 곡선 확정 상태(횡미끄럼 1.2~1.9 m/s, 요레이트 ≈ 곡선 추종값, 방향오차 4~7°)를
+      좌우 대칭으로 약 1.5 배 넓힌다. μ ≤ 0.034 에서는 곡선이 요구하는 횡가속이 μg 를 넘어 대부분 피할 수 없다.
+    hard_frac 은 곡선 묶음에서 앞차가 정지거리 안쪽에 있는 비율."""
     u = lambda: torch.rand(n, generator=gen, device=device)
+    pm = lambda: torch.where(u() < 0.5, -torch.ones(n, device=device), torch.ones(n, device=device))
     mu = torch.exp(math.log(mu_lo) + (math.log(mu_hi) - math.log(mu_lo)) * u())
     v0 = (v_lo + (v_hi - v_lo) * u()) / 3.6
-    # 곡선: 반경 90~400 m (좌우), 20 % 는 직선. 빙판 위에서 미끄러짐을 만드는 것은 곡선이 요구하는 횡가속이다.
-    turn = torch.where(u() < 0.5, -torch.ones(n, device=device), torch.ones(n, device=device))
-    R = 90.0 + 310.0 * u()
-    kappa = torch.where(u() < 0.2, torch.zeros_like(v0), turn / R)
-    side = torch.where(kappa != 0, -turn, torch.where(u() < 0.5, -torch.ones(n, device=device), torch.ones(n, device=device)))  # 바깥쪽으로 미끄러진다
-    # CARLA 관측(오른쪽 곡선): 횡속도 1.2~1.9 m/s 바깥(왼쪽), 요레이트 ≈ 곡선 추종값, 방향오차 4~7° 바깥, 횡오프셋 0.3~1.2 m 바깥
-    vy0 = side * (0.6 + 2.2 * u())
-    r0 = kappa * v0 + (u() * 2 - 1) * 0.05
-    psi0 = side * torch.deg2rad(2.0 + 9.0 * u())
-    y0 = side * (0.0 + 1.6 * u())
-    ice_rem = 60.0 + 190.0 * u()                 # CARLA 검증은 200 m 빙판 (트리거를 벗어나면 마찰이 3.5 로 돌아가는 결함 때문)
+    lead_fam = u() < lead_frac
+    # --- 곡선 묶음 ---
+    turn = pm(); R = 90.0 + 310.0 * u()
+    kap_c = torch.where(u() < 0.2, torch.zeros_like(v0), turn / R)
+    side_c = torch.where(kap_c != 0, -turn, pm())
+    vy_c = side_c * (0.6 + 2.2 * u()); r_c = kap_c * v0 + (u() * 2 - 1) * 0.05
+    psi_c = side_c * torch.deg2rad(2.0 + 9.0 * u()); y_c = side_c * (0.0 + 1.6 * u())
+    # --- 앞차 묶음 ---
+    kap_l = torch.where(u() < 0.7, torch.zeros_like(v0), pm() / (600.0 + 900.0 * u()))
+    side_l = pm()
+    vy_l = side_l * 0.4 * u(); r_l = kap_l * v0 + (u() * 2 - 1) * 0.02
+    psi_l = side_l * torch.deg2rad(2.0 * u()); y_l = side_l * 0.5 * u()
+    kappa = torch.where(lead_fam, kap_l, kap_c); vy0 = torch.where(lead_fam, vy_l, vy_c)
+    r0 = torch.where(lead_fam, r_l, r_c); psi0 = torch.where(lead_fam, psi_l, psi_c); y0 = torch.where(lead_fam, y_l, y_c)
+    ice_rem = 60.0 + 190.0 * u()
     nL = torch.floor(u() * 3).clamp(max=2)
     nR = torch.floor(u() * 2).clamp(max=1)
-    has_lead = u() < 0.75
     hard = u() < hard_frac
-    lead_d = torch.where(hard, 10.0 + 30.0 * u(), 40.0 + 110.0 * u())        # 확정 지점에서 앞차 중심까지
-    lead_x = torch.where(has_lead, lead_d, torch.full_like(lead_d, 1e6))
-    lead_v = torch.where(u() < 0.6, torch.zeros_like(v0), v0 * 0.3 * u())
+    lead_d_c = torch.where(hard, 10.0 + 30.0 * u(), 40.0 + 110.0 * u())
+    has_lead_c = u() < 0.75
+    lead_d_l = 20.0 + 180.0 * u()
+    lead_x = torch.where(lead_fam, lead_d_l, torch.where(has_lead_c, lead_d_c, torch.full_like(v0, 1e6)))
+    ice_rem = torch.where(lead_fam, torch.maximum(ice_rem, lead_d_l + 40.0), ice_rem)       # 앞차는 빙판 위에 있다
+    lead_v = torch.where(lead_fam | (u() < 0.6), torch.zeros_like(v0), v0 * 0.3 * u())
     occL = (u() < 0.5) & (nL > 0); occR = (u() < 0.5) & (nR > 0)
     adjL_x = torch.where(occL, -25.0 + 60.0 * u(), torch.full_like(v0, 1e6))
     adjR_x = torch.where(occR, -25.0 + 60.0 * u(), torch.full_like(v0, 1e6))
@@ -84,7 +95,9 @@ def _boxes_hit(dx, dy, dpsi):
 
 
 def simulate(sc: ScenarioSet, gains, vparams: VehicleParams, mu_dry: float, device, fixed=False, lut_fn=None,
-             max_s=15.0, dt=0.02, substeps=10):
+             max_s=15.0, dt=0.02, substeps=10, assist=False):
+    """assist=True: 운전자 보조 — 조향은 운전자 모델(0.25 s 지연, 조향 속도 1.5/s, ±0.6, 보드 회피 안내를 따라 차로 이동),
+    보드는 제동만 낸다 (CARLA 데모 --assist 와 같은 운전자 모델)."""
     """확정 순간(X=0)부터 보드 제어기가 정지까지 몬다. 빙판은 X ∈ [−20, ice_rem]."""
     n = sc.mu.numel()
     sim = Surrogate(n, vparams, device=device, dt_ctrl=dt, substeps=substeps)
@@ -96,10 +109,13 @@ def simulate(sc: ScenarioSet, gains, vparams: VehicleParams, mu_dry: float, devi
     done = torch.zeros(n, dtype=torch.bool, device=device)
     crash = done.clone(); crash_v = zeros.clone(); spin = done.clone(); dep = done.clone()
     d_stop = zeros.clone(); track_max = zeros.clone(); head_max = zeros.clone(); t_stop = torch.full_like(zeros, max_s)
+    ctype = torch.zeros(n, dtype=torch.int8, device=device)       # 충돌 상대: 1 앞차, 2 옆 차로 차, 3 방호벽
     lead_x = sc.lead_x.clone(); adjL = sc.adjL_x.clone(); adjR = sc.adjR_x.clone()
     brake_prev = torch.full_like(zeros, 0.6)                 # 확정 샘플의 초기 명령 (emergency_command)
     slip_lane = torch.zeros_like(zeros)                      # 미끄러진 차로 = 자차 차로 (Y=0)
     steps = int(max_s / dt)
+    from collections import deque
+    hist = deque(maxlen=max(1, int(0.25 / dt))); drv = torch.zeros_like(sc.v0)
     from icepredict.sim.road import ArcLane, wrap
     road = ArcLane(sc.kappa, torch.zeros_like(sc.v0), torch.zeros_like(sc.v0), torch.zeros_like(sc.v0))
     for k in range(steps):
@@ -129,6 +145,13 @@ def simulate(sc: ScenarioSet, gains, vparams: VehicleParams, mu_dry: float, devi
         ice_off = Yv - slip_lane                                    # 미끄러진 차로(자차 차로) 중심 대비 횡위치
         _, _, b_cmd, s_cmd = ctl.board(-sim.ay_b, -sim.r, spd, zeros, sim.ax_b, brake_prev,
                                        lane_err, lat_off, gf, gl, gr, ice_off, frv, step_idx=k)
+        if assist:
+            adv = torch.where(ctl.mode == 2, torch.full_like(zeros, -3.5), torch.where(ctl.mode == 3, torch.full_like(zeros, 3.5), zeros))
+            hist.append((lane_err, lat_off + adv, -sim.r))
+            le_d, lo_d, gz_d = hist[0]
+            want = torch.clamp((1.0 * le_d + 0.12 * lo_d - 0.15 * gz_d) / 0.61086524 / 2.0, -0.6, 0.6)
+            drv = drv + torch.clamp(want - drv, -1.5 * dt, 1.5 * dt)
+            s_cmd = drv
         steer = torch.where(done, zeros, s_cmd); brake = torch.where(done, ones, b_cmd)
         sim.step(steer, brake, muf, mur)
         for nm in ("vx", "vy", "r"):
@@ -155,13 +178,14 @@ def simulate(sc: ScenarioSet, gains, vparams: VehicleParams, mu_dry: float, devi
         hit = (hit_lead | hit_L | hit_R | hit_w) & live
         rel = torch.where(hit_lead, (spd2 - sc.lead_v).abs(), torch.where(hit_L | hit_R, (spd2 - sc.adj_v).abs(), spd2))
         crash_v = torch.where(hit & ~crash, rel, crash_v)
+        ctype = torch.where(hit & ~crash, torch.where(hit_lead, 1, torch.where(hit_L | hit_R, 2, 3)).to(torch.int8), ctype)
         crash = crash | hit
         stopped = (spd2 < 0.3) & live & (k > 3)
         t_stop = torch.where(stopped, torch.full_like(t_stop, (k + 1) * dt), t_stop)
         done = done | hit | stopped
         if bool(done.all()): break
     det = torch.ones(n, dtype=torch.bool, device=device)
-    return dict(detected=det, crash=crash, crash_v=crash_v, spin=spin, departure=dep, d_stop=d_stop, t_stop=t_stop,
+    return dict(detected=det, crash=crash, crash_v=crash_v, crash_type=ctype, mode_final=ctl.mode, spin=spin, departure=dep, d_stop=d_stop, t_stop=t_stop,
                 track_max=track_max, head_max=head_max, mu_hat=ctl.mu_hat, mu_n=ctl.mu_n, steps=k + 1)
 
 

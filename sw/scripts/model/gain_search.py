@@ -41,6 +41,8 @@ ap.add_argument("--seed", type=int, default=20261023)
 ap.add_argument("--cells", default=None, help="일부 셀만 (예: 0-0,3-2)")
 ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
 ap.add_argument("--chunk", type=int, default=400000, help="한 번에 굴릴 env 수 상한 (GPU 메모리)")
+ap.add_argument("--assist", action="store_true",
+                help="운전자 보조: 조향은 운전자 모델, 보드는 제동만 — 조향 게인 4개는 고정하고 제동 파라미터 6개만 찾는다")
 a = ap.parse_args()
 dev = torch.device(a.device)
 out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
@@ -54,6 +56,10 @@ if a.cells:
     want = {tuple(int(x) for x in c.split("-")) for c in a.cells.split(",")}
     cells = [c for c in cells if c in want]
 LO = np.array([BOUNDS[k][0] for k in PARAM_NAMES]); HI = np.array([BOUNDS[k][1] for k in PARAM_NAMES])
+STEER_KEYS = ["Kp", "Kl", "Kd", "steer_max"]
+if a.assist:                                    # 조향 게인은 쓰이지 않는다 — 고정값으로 묶어 탐색 차원을 줄인다
+    for k in STEER_KEYS:
+        i = PARAM_NAMES.index(k); LO[i] = HI[i] = FIXED[k]
 
 
 def cell_ranges(i, j):
@@ -98,7 +104,7 @@ def evaluate(cands, fixed=False):
                     gains_parts[k].append(g[:, t].repeat_interleave(a.scen))
         sc = cat(scs)
         gains = None if fixed else {k: torch.cat(v) for k, v in gains_parts.items()}
-        r = simulate(sc, gains, VP, MU_DRY, dev, fixed=fixed)
+        r = simulate(sc, gains, VP, MU_DRY, dev, fixed=fixed, assist=a.assist)
         cst = cost(r, W)
         off = 0
         for c, P in batch:
@@ -148,7 +154,7 @@ def main():
     es = {}
     for c in cells:
         best = min(hist[c], key=lambda h: h[0])
-        x0 = (np.array(best[1]) - LO) / (HI - LO)
+        x0 = (np.array(best[1]) - LO) / np.maximum(HI - LO, 1e-9)
         es[c] = cma.CMAEvolutionStrategy(np.clip(x0, 0.02, 0.98), 0.15,
                                          {"popsize": a.pop, "bounds": [0, 1], "seed": a.seed % 10000 + c[0] * 10 + c[1], "verbose": -9})
     for g in range(a.gens):

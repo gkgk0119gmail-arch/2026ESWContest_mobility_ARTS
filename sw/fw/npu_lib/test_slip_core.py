@@ -205,6 +205,25 @@ with _tf.TemporaryDirectory() as _td:
             fb = a["brake"] if a["emerg"] else None
         ok = bad is None and worst < 1e-4; fails += not ok
         print(f"[{'OK ' if ok else 'FAIL'}] SLIP_GAIN_SCHED 표 경로 {kind:9s}: " + (f"최대 오차 {worst:.2e}" if bad is None else f"샘플 {bad} 이산값 불일치"))
+# SLIP_WDT (호스트 감시): 확정 뒤 호스트 패킷이 1.2 s 끊겼다 돌아오는 경우 C = 파이썬
+def compare_wdt(kind):
+    X = board_scenario(kind, 5)
+    c = SlipCoreC(0.02, 3, 2.0, variant="gsw"); p = SlipCoreRef(0.02, 3, 2.0, mu_est=True, wdt=True, lut=None)
+    g = _rand_gains(); c.set_gains(g); p.g_ovr = g
+    worst, fb, deg_n = 0.0, None, 0
+    for i, row in enumerate(X):
+        row = row.copy()
+        if fb is not None: row[5] = fb
+        fresh = not (130 <= i < 190)
+        c.set_host_fresh(fresh); p.host_fresh = fresh
+        a = c.board(*row.tolist()); b = p.board(*row.tolist())
+        if any(a[k] != b[k] for k in ("slip", "emerg", "mode")) or c.degraded() != p.degraded: return False, f"샘플 {i} 불일치"
+        worst = max(worst, abs(a["brake"] - b["brake"]), abs(a["steer"] - b["steer"])); deg_n += c.degraded()
+        fb = a["brake"] if a["emerg"] else None
+    return worst < 1e-4 and deg_n > 0, f"최대 오차 {worst:.2e}, 축소 모드 {deg_n} 샘플"
+for kind in ("plain", "evade", "grip"):
+    ok, msg = compare_wdt(kind); fails += not ok
+    print(f"[{'OK ' if ok else 'FAIL'}] SLIP_WDT 호스트 감시 {kind:6s}: {msg}")
 # LocalEmergency7(데모 폴백) 이 같은 제어를 내는지 — 확정 이후 구간만
 X = board_scenario("evade", 4); c = SlipCoreC(0.02, 3, 2.0); le = None; worst = 0.0
 for row in X:

@@ -151,6 +151,18 @@ def spawn_traffic(world, bl, cmap, tm, ego, n, patch_wp, lead_stop, rng):
                 lead.apply_control(carla.VehicleControl(hand_brake=True, brake=1.0))
     return spawned, lead
 
+def direct_lead_gap(ego, lead):
+    """직선 경로용 앞차 간격: 자차 진행 방향 투영 − 차 길이, 횡거리 2.5 m 안일 때만 (아니면 999).
+    neighbor_gaps 는 차로 id 로 같은 차로를 고르는데, 직선 시험 구간에서 앞차와 자차의 도로 id 가 달라(48 vs 774)
+    앞차를 못 보는 일이 있었다 — 운전자가 충돌 0.04 s 전에야 제동했다."""
+    if lead is None: return 999.0, 0.0
+    tf = ego.get_transform(); l = lead.get_location(); y = math.radians(tf.rotation.yaw)
+    dx, dy = l.x - tf.location.x, l.y - tf.location.y
+    fwd = dx * math.cos(y) + dy * math.sin(y); lat = -dx * math.sin(y) + dy * math.cos(y)
+    if fwd < -5.0 or abs(lat) > 2.5: return 999.0, 0.0
+    lv = lead.get_velocity(); ev = ego.get_velocity()
+    return fwd - 4.8, math.hypot(lv.x, lv.y) - math.hypot(ev.x, ev.y)
+
 def wrap_pi(a):
     return (a + math.pi) % (2 * math.pi) - math.pi
 
@@ -626,7 +638,7 @@ ap.add_argument("--slip-local", action="store_true",
                 help="2차 방어(IMU 미끄러짐 감지)를 보드 대신 이 프로세스에서. 기본: --fusion n6/n6npu 면 보드(STM32N6 ThreadX)가 판정")
 ap.add_argument("--slip-ctypes", action="store_true",
                 help="2차 방어 감지·제어를 보드 펌웨어와 같은 C 코어(slip_core.h)를 ctypes 로 불러 돌린다 (보드 없이 보드 코드로 HIL 대체)")
-ap.add_argument("--slip-variant", default="", choices=["", "mu", "gs"],
+ap.add_argument("--slip-variant", default="", choices=["", "mu", "gs", "gsw"],
                 help="--slip-ctypes 의 컴파일 플래그: ''=보드와 같은 기본, mu=SLIP_MU_EST(마찰 추정), gs=마찰 추정+SLIP_GAIN_SCHED(마찰별 제어표)")
 ap.add_argument("--slip-legacy", action="store_true", help="로컬 비상 제어 폴백을 구버전 v3 로 (기본은 보드와 같은 v7)")
 ap.add_argument("--slip-gains", default=None,
@@ -636,6 +648,21 @@ ap.add_argument("--log-core", default=None,
 ap.add_argument("--seed", type=int, default=None, help="주변 차량 배치 등 난수 시드 (재현용)")
 ap.add_argument("--log-state", default=None,
                 help="CSV 경로: 매 틱 차량 상태(위치·방향·차체 속도·요레이트·차체 가속도)와 입력, 앞/뒤축 빙판 여부 — 대리 모델 보정용")
+ap.add_argument("--pi-hang", default=None,
+                help="고장 주입 'START:DUR' — 빙판 진입 START s 뒤부터 DUR s 동안 호스트(라즈베리파이) 프로세스가 멈춘다 (DUR=inf 면 죽는다)."
+                     " 2차 방어가 파이에서 돌면(--defense-host pi) 그동안 판정·명령이 끊겨 마지막 명령이 그대로 걸린다."
+                     " STM32 안전 섬에서 돌면(stm32) IMU 는 계속 들어오고(직결 가정) 차선·간격 입력만 마지막 값으로 굳는다")
+ap.add_argument("--assist", action="store_true",
+                help="운전자 보조 모드: 비상 제어 중 조향은 운전자 모델(반응 0.25 s, 조향 속도 제한)이 하고 보드는 제동만 낸다."
+                     " 보드의 회피 판단은 '빈 차로' 안내로 운전자에게 전달되고 운전자 모델이 그쪽으로 차로를 옮긴다")
+ap.add_argument("--driver", default="tm", choices=["tm", "model"],
+                help="빙판 진입 전 운전 주체: tm = CARLA 교통 관리자(앞차 14 m 앞에서야 제동한다), model = 운전자 모델"
+                     "(차선 유지 + 속도 유지, 앞차까지 충돌 시간이 --driver-ttc 이하면 제동 --driver-brake)")
+ap.add_argument("--driver-ttc", type=float, default=4.0)
+ap.add_argument("--driver-brake", type=float, default=0.6)
+ap.add_argument("--route", default="demo", choices=["demo", "straight"],
+                help="demo = 지금까지의 출발점(빙판이 반경 약 120 m 곡선에 걸린다), straight = 직선·평탄 구간")
+ap.add_argument("--defense-host", default="stm32", choices=["stm32", "pi"], help="2차 방어 계산이 도는 곳 (--slip-ctypes 와 함께)")
 ap.add_argument("--no-video", action="store_true")
 ap.add_argument("--show-patch", action="store_true", help="빙판 구간 표시(BLACK ICE 라벨·테두리·기둥) 켜기. 기본은 끔 — 실제처럼 보여야 한다")
 ap.add_argument("--no-overlay", action="store_true", help="(구) 빙판 시각화 오버레이 끄기 — 이제 기본이 끔")
@@ -677,6 +704,15 @@ world = client.get_world()
 if a.town not in world.get_map().name:
     print(f"[sim] loading {a.town} ..."); world = client.load_world(a.town)
 cmap = world.get_map()
+# 앞 주행이 강제 종료(timeout·kill)돼 정리 코드가 못 돌면 마찰 트리거·차량·센서가 월드에 남는다.
+# 남은 트리거가 이번 빙판과 겹치면 마찰이 설정과 달라진다 — 실제로 friction 0.3 주행이 0.04 의 마찰(μ 0.033)로 달렸다.
+# 이 프로세스는 월드를 혼자 쓴다고 가정하므로 시작할 때 전부 지운다.
+_left = [x for x in world.get_actors() if x.type_id.startswith(("static.trigger", "vehicle.", "sensor.", "walker.", "controller."))]
+if _left:
+    for _x in _left:
+        try: _x.destroy()
+        except Exception: pass
+    print(f"[sim] 앞 주행이 남긴 액터 {len(_left)}개 정리 (트리거 {sum(x.type_id.startswith('static.trigger') for x in _left)}개)", flush=True)
 
 # ---- 동기 모드 + 겨울 날씨 -------------------------------------------------
 orig = world.get_settings()
@@ -745,6 +781,20 @@ try:
     vbp = bl.filter("vehicle.tesla.model3")[0]
     spawns = cmap.get_spawn_points()
     ego = None
+    if a.route == "straight":
+        # 직선·평탄 구간: 빙판 끝 + 60 m 까지 방향 변화·높이 변화가 가장 작은 출발점부터 시도한다
+        # (곡선 빙판에서는 곡선이 요구하는 횡가속이 μg 를 넘어 제어와 무관하게 결과가 정해진다 — 2차 방어 판단을 보려면 직선이 필요하다)
+        def _score(sp):
+            wp0 = cmap.get_waypoint(sp.location, project_to_road=True); y0 = wp0.transform.rotation.yaw; z0 = wp0.transform.location.z
+            cur, moved, dy, dz = wp0, 0.0, 0.0, 0.0
+            while moved < a.patch_ahead + a.patch_len / 2 + 60:
+                nxt = cur.next(5.0)
+                if not nxt: return 1e9
+                cur = nxt[0]; moved += 5.0
+                dy = max(dy, abs((cur.transform.rotation.yaw - y0 + 180) % 360 - 180)); dz = max(dz, abs(cur.transform.location.z - z0))
+            return dy + 10.0 * dz
+        spawns = sorted(spawns, key=_score)[:20]
+        print(f"[sim] 직선 구간 출발점 (점수 {_score(spawns[0]):.2f}: 방향 변화° + 10×높이 변화 m)", flush=True)
     for sp in spawns:
         wp = cmap.get_waypoint(sp.location, project_to_road=True)
         # 앞으로 patch_ahead+60m 직진 가능한 지점 고르기
@@ -998,7 +1048,8 @@ try:
 
     for _ in range(int(0.5 * a.fps)):      # 스폰 낙하 충격 소산
         world.tick()
-    ego.set_autopilot(True, TM_PORT); autopiloted.append(ego)
+    if a.driver == "tm":
+        ego.set_autopilot(True, TM_PORT); autopiloted.append(ego)
     tm.ignore_lights_percentage(ego, 100); tm.auto_lane_change(ego, False)
     tm.vehicle_percentage_speed_difference(ego, (30.0 - a.target_kph) / 30.0 * 100.0)
 
@@ -1022,13 +1073,19 @@ try:
         from icepredict.pi.slip_ctypes import SlipCoreC
         core_c = SlipCoreC(dt, 3, a.min_detect_kph / 3.6, variant=a.slip_variant)
         if a.slip_gains:
-            if a.slip_variant != "gs": raise SystemExit("--slip-gains 는 --slip-variant gs 에서만 쓴다")
+            if a.slip_variant not in ("gs", "gsw"): raise SystemExit("--slip-gains 는 --slip-variant gs/gsw 에서만 쓴다")
             core_c.set_gains(json.loads(a.slip_gains))
         slip_board = False
         print(f"[core] 2차 방어 = 보드와 같은 C 코어(ctypes, 플래그 {core_c.flags:#x}, variant '{a.slip_variant}')", flush=True)
     core_log = open(a.log_core, "w") if (a.log_core and core_c is not None) else None
     if core_log: core_log.write("t,speed,ay,gz,ax,brake_cmd,steer_eq,lane_err,lat_off,gap_f,inside,slip,emerg,mode,brake,steer,grip,mu_hat,mu_n,a_stop\n")
     last_ax = 0.0; last_brake_cmd = 0.0; last_ice_off = 0.0
+    hang = None
+    if a.pi_hang:
+        _h0, _h1 = a.pi_hang.split(":"); hang = (float(_h0), float("inf") if _h1 == "inf" else float(_h1))
+    hang_prev = False; frozen = None; held_ctrl = None
+    # 운전자 모델 (--assist): 차선 오차를 보고 0.25 s 늦게 조향한다. 조향 속도 1.5/s, ±0.6 으로 제한. 보드의 회피 안내가 있으면 그 차로를 목표로.
+    drv_hist = deque(maxlen=max(1, int(0.25 / dt))); drv_steer = 0.0; drv_braking = False
     state_log = open(a.log_state, "w") if a.log_state else None
     if state_log: state_log.write("t,x,y,yaw,vx,vy,r,ax,ay,steer,throttle,brake,inside,inside_f,inside_r,lane_err,lat_off,state\n"); lane_departed = False; spun = False
     control_lost = False; t_lost = None
@@ -1232,6 +1289,8 @@ try:
             ax = m.accelerometer.x + G * math.sin(math.radians(tr.rotation.pitch))   # 경사로 새어든 중력 성분 제거 (근사)
             lane_err, lat_off, cur_wp = lane_state(cmap, ego)
             gap_f, gap_l, gap_r = neighbor_gaps(traffic_vehicles, ego, cur_wp) if traffic_vehicles else (999.0, 999.0, 999.0)
+            if a.route == "straight" and lead_vehicle is not None:
+                gap_f, neighbor_gaps.front_rel_v = direct_lead_gap(ego, lead_vehicle)
             if not traffic_vehicles:      # 차량이 없어도 차로 존재 여부는 알려준다
                 if not _same_dir_lane(cur_wp.get_left_lane(), cur_wp): gap_l = -1.0
                 if not _same_dir_lane(cur_wp.get_right_lane(), cur_wp): gap_r = -1.0
@@ -1246,15 +1305,36 @@ try:
             board_ctrl = None                                       # 보드가 준 이번 샘플의 비상 제어 명령 (emerg 중)
             last_ax = float(ax); last_brake_cmd = float(ctrl.brake)
             last_ice_off = float(lane_center_offset(cmap, ego, cur_wp, slip_lane_id) if slip_lane_id is not None else 0.0)
-            if core_c is not None:
-                co = core_c.board(float(ay), float(gz), float(spd), steer_eq, float(ax), float(ctrl.brake), float(lane_err), float(lat_off),
-                                  float(gap_f), float(gap_l), float(gap_r), last_ice_off, float(getattr(neighbor_gaps, "front_rel_v", 0.0)))
+            t_ent = next((e["t"] for e in events if e["event"] == "patch_enter"), None)
+            hang_on = bool(hang and t_ent is not None and hang[0] <= t_sim - t_ent < hang[0] + hang[1])
+            if hang_on and not hang_prev:
+                events.append({"t": round(t_sim, 2), "event": "pi_hang_start", "host": a.defense_host, "dur_s": hang[1]})
+                print(f"[{t_sim:6.2f}s] 고장 주입: 라즈베리파이 정지 ({hang[1]} s) — 2차 방어 위치 {a.defense_host}", flush=True)
+                frozen = (float(lane_err), float(lat_off), float(gap_f), float(gap_l), float(gap_r), last_ice_off, float(getattr(neighbor_gaps, "front_rel_v", 0.0)))
+            if hang_prev and not hang_on:
+                events.append({"t": round(t_sim, 2), "event": "pi_hang_end"})
+            hang_prev = hang_on
+            if core_c is not None and hang_on and a.defense_host == "pi":
+                # 파이에서 도는 2차 방어: 판정도 명령도 끊긴다. 액추에이터는 마지막 명령을 그대로 유지한다.
+                co = None
+                board_ctrl = held_ctrl
+            elif core_c is not None:
+                if a.slip_variant == "gsw":            # 호스트 감시: 파이가 멈추면 차선·간격 패킷이 끊긴 것으로 알린다
+                    core_c.set_host_fresh(not (hang_on and a.defense_host == "stm32"))
+                    _deg = core_c.degraded()
+                    if _deg and not getattr(core_c, "_deg_logged", False):
+                        events.append({"t": round(t_sim, 2), "event": "host_watchdog_degraded"}); core_c._deg_logged = True
+                        print(f"[{t_sim:6.2f}s] 호스트 감시: 파이 패킷 100 ms 끊김 → 축소 모드 (조향 없음, 제동 조절만)", flush=True)
+                li = frozen if (hang_on and a.defense_host == "stm32") else (float(lane_err), float(lat_off), float(gap_f), float(gap_l), float(gap_r),
+                                                                             last_ice_off, float(getattr(neighbor_gaps, "front_rel_v", 0.0)))
+                co = core_c.board(float(ay), float(gz), float(spd), steer_eq, float(ax), float(ctrl.brake), li[0], li[1], li[2], li[3], li[4], li[5], li[6])
                 if core_log:
                     core_log.write(f"{t_sim:.3f},{spd:.3f},{ay:.4f},{gz:.4f},{ax:.4f},{ctrl.brake:.3f},{steer_eq:.4f},{lane_err:.4f},{lat_off:.3f},"
                                    f"{gap_f:.1f},{int(inside)},{co['slip']},{co['emerg']},{co['mode']},{co['brake']:.3f},{co['steer']:.4f},"
                                    f"{co['grip']},{co['mu_hat']:.4f},{co['mu_n']},{co['a_stop']:.3f}\n")
                 if co["emerg"]:
                     board_ctrl = {"brake": co["brake"], "steer": co["steer"], "mode": LocalEmergency7.MODES_NAME[co["mode"]]}
+                    held_ctrl = board_ctrl
                 if co["slip"]:
                     ev = SlipEvent(t=t_sim, trigger={1: "lat_acc", 2: "yaw_rate", 3: "low_mu", 4: "combo"}.get(co["trig"], "?"),
                                    ay_g=float(co["ay_g"]), yaw_err=float(co["yaw_err"]))
@@ -1311,6 +1391,25 @@ try:
                 ego.set_autopilot(False, TM_PORT)
                 ego.apply_control(carla.VehicleControl(throttle=0.0, brake=cmd["brake"], steer=cmd["steer"]))
 
+        # ---------- 운전자 모델 (빙판 진입 전 · 2차 방어 개입 전) ----------
+        if a.driver == "model" and state == "DRIVE":
+            try:
+                le_m, lo_m, wp_m = lane_state(cmap, ego)
+                if a.route == "straight" and lead_vehicle is not None: gf_m = direct_lead_gap(ego, lead_vehicle)[0]
+                else: gf_m = neighbor_gaps(traffic_vehicles, ego, wp_m)[0] if traffic_vehicles else 999.0
+            except Exception:
+                le_m, lo_m, gf_m = 0.0, 0.0, 999.0
+            st_m = max(-0.5, min(0.5, (1.0 * le_m + 0.12 * lo_m) / 0.61086524 / steer_gain))
+            v_t = a.target_kph / 3.6
+            if gf_m < 900 and spd > 1.0 and gf_m / spd < a.driver_ttc:
+                if not drv_braking:
+                    events.append({"t": round(t_sim, 2), "event": "driver_brake", "gap_m": round(gf_m, 1), "speed_kph": round(spd * 3.6, 1)})
+                    print(f"[{t_sim:6.2f}s] 운전자 제동 — 앞차 {gf_m:.1f} m, 충돌까지 {gf_m / spd:.1f} s", flush=True)
+                    drv_braking = True
+                ego.apply_control(carla.VehicleControl(throttle=0.0, brake=a.driver_brake, steer=st_m))
+            else:
+                ego.apply_control(carla.VehicleControl(throttle=max(0.0, min(0.8, 0.6 * (v_t - spd) + 0.25)) if not drv_braking else 0.0,
+                                                       brake=a.driver_brake if drv_braking else 0.0, steer=st_m))
         # ---------- 상태별 제어 ----------
         if control_lost and state not in ("CRASH",):
             # 조향·가속 없음. 브레이크도 없다 — 빙판 위에서 잠긴 바퀴는 조향을 잃을 뿐이다.
@@ -1342,6 +1441,14 @@ try:
                                                            gap_f if imus else 999.0, gap_l if imus else 999.0, gap_r if imus else 999.0,
                                                            last_ax, last_brake_cmd, last_ice_off, float(getattr(neighbor_gaps, "front_rel_v", 0.0)))
                 who_now = "local"
+            if a.assist:
+                # 보드는 제동만, 조향은 운전자 모델 — 보드 회피 판단은 안내(목표 차로 이동)로만 쓴다
+                adv = {"evade_left": -3.5, "evade_right": 3.5}.get(mode_now, 0.0)
+                drv_hist.append((lane_err, lat_off + adv, gz if imus else 0.0))
+                le_d, lo_d, gz_d = drv_hist[0]
+                want = max(-0.6, min(0.6, (1.0 * le_d + 0.12 * lo_d - 0.15 * gz_d) / 0.61086524 / steer_gain))
+                drv_steer += max(-1.5 * dt, min(1.5 * dt, want - drv_steer))
+                s_cmd = drv_steer
             ego.apply_control(carla.VehicleControl(throttle=0.0, brake=float(b_), steer=float(s_cmd)))
             if mode_now != emerg_mode:
                 emerg_mode = mode_now

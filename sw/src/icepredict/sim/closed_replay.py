@@ -26,7 +26,7 @@ DT = 0.02
 CAR_L = 4.8
 
 
-def load_runs(dirs, mu_table, pattern=r"state_(s4c_fix|s4c_gs)_(.+)\.csv"):
+def load_runs(dirs, mu_table, pattern=r"state_(s4[cd]_fix|s4[cd]_gs|s9_ab)_(.+)\.csv"):
     runs = []
     for d in dirs:
         d = pathlib.Path(d)
@@ -77,7 +77,11 @@ def load_runs(dirs, mu_table, pattern=r"state_(s4c_fix|s4c_gs)_(.+)\.csv"):
             # 방향: 확정 순간의 차선 방향 대비 (CARLA 부호 = 오른손 head). lane_err 는 가장 가까운 차로의 앞 6 m 점을 겨눠서
             # 차로를 건너면 튄다 — 차체 요각 누적으로 바꾼다. (CARLA yaw 는 시계 양수 → 오른손 ψ = −yaw)
             psi = -np.unwrap(X["yaw"]); head_c = (psi - psi[i0]) + float(X["lane_err"][i0])
+            # 확정 순간 차로선 기준 횡변위 (오른손, 왼쪽 +) — 직선 구간 비교용
+            psiL0 = psi[i0] - float(X["lane_err"][i0]); xr, yr = X["x"] - X["x"][i0], -(X["y"] - X["y"][i0])
+            dlat_c = -xr * np.sin(psiL0) + yr * np.cos(psiL0) - float(X["lat_off"][i0])
             runs.append(dict(tag=tag, fr=fr, mu=mu_table.get(fr, mu_of_friction(fr, mu_table)), kph=float(args["target_kph"]),
+                             assist=bool(args.get("assist")),
                              gains=gains, s0=(float(X["vx"][i0]), float(-X["vy"][i0]), float(-X["r"][i0])),
                              lane=(-float(X["lane_err"][i0]), -float(X["lat_off"][i0])), brake0=float(X["brake"][i0]),
                              d_ice=float(s[i0 + later[0]]) if len(later) else 1e9, gap0=gap0,
@@ -88,7 +92,9 @@ def load_runs(dirs, mu_table, pattern=r"state_(s4c_fix|s4c_gs)_(.+)\.csv"):
                                         head_max=float(np.degrees(np.abs(head_c[i0:min(i0 + stop_i + 1, i_end)]).max())),
                                         spin=bool(np.abs(head_c[i0:i_end]).max() > 1.5),
                                         crash=col is not None and col["t"] <= X["t"][min(i_end, len(X) - 1)] and col["with"] not in ("wall", "guardrail") and gap0 < 900,
-                                        crash_any=col is not None and col["t"] <= X["t"][min(i_end, len(X) - 1)], exited=exited)))
+                                        crash_any=col is not None and col["t"] <= X["t"][min(i_end, len(X) - 1)], exited=exited,
+                                        lead_crash=col is not None and gap0 < 900 and col["with"] not in ("wall", "guardrail"),
+                                        lat_max=float(np.abs(dlat_c[i0:i_end]).max()))))
     return runs
 
 
@@ -125,9 +131,13 @@ def rollout(runs, vparams_list, device="cpu", dtype=torch.float32, steps=None, f
     # 차로 기준점: 차량(원점) 오른쪽 lat_off 위치의 차로 중심 — 오른손 좌표 (0, −lat_off) 를 차로 방향 법선으로 근사
     road = ArcLane(kap, -y_l * torch.sin(psi_l), y_l * torch.cos(psi_l), psi_l)
     lead_s = torch.where(gap0 < 900, gap0 + CAR_L, torch.full_like(gap0, 1e6))
+    assist_mask = torch.tensor([bool(r.get("assist")) for r in runs], device=device).repeat(P)
+    from collections import deque
+    hist = deque(maxlen=max(1, int(0.25 / DT))); drv_st = torch.zeros(N, device=device, dtype=dtype)
     V = torch.zeros(N, L, device=device, dtype=dtype); H = torch.zeros(N, L, device=device, dtype=dtype)
     crash = torch.zeros(N, dtype=torch.bool, device=device); done = crash.clone()
-    d_stop = torch.zeros(N, device=device, dtype=dtype); z = torch.zeros(N, device=device, dtype=dtype)
+    d_stop = torch.zeros(N, device=device, dtype=dtype); z = torch.zeros(N, device=device, dtype=dtype); lat_max = z.clone()
+    crash_step = torch.full((N,), 10 ** 9, device=device, dtype=torch.long)
     for k in range(L):
         along, dlat, psiL = road.frenet(sim.X, sim.Y)
         lane_err = wrap(sim.psi - psiL)                                   # CARLA 부호 lane_err = 오른손 (ψ − ψ_L)
@@ -138,6 +148,14 @@ def rollout(runs, vparams_list, device="cpu", dtype=torch.float32, steps=None, f
         in_lane = dlat.abs() < 1.75 + 0.2
         gf = torch.where((lead_s < 1e5) & in_lane, lead_s - along - CAR_L, torch.full_like(z, 999.0))
         _, act, b, st = ctl.board(-sim.ay_b, -sim.r, spd, z, sim.ax_b, brake_prev, lane_err, lat, gf, gl, gr, dlat, z, step_idx=k)
+        if assist_mask.any():
+            # 운전자 보조: 조향은 CARLA 데모 --assist 와 같은 운전자 모델 (0.25 s 지연, 1.5/s, ±0.6, 회피 안내를 따라 차로 이동)
+            adv = torch.where(ctl.mode == 2, torch.full_like(z, -3.5), torch.where(ctl.mode == 3, torch.full_like(z, 3.5), z))
+            hist.append((lane_err, lat + adv, -sim.r))
+            le_d, lo_d, gz_d = hist[0]
+            want = torch.clamp((1.0 * le_d + 0.12 * lo_d - 0.15 * gz_d) / 0.61086524 / 2.0, -0.6, 0.6)
+            drv_st = drv_st + torch.clamp(want - drv_st, -1.5 * DT, 1.5 * DT)
+            st = torch.where(assist_mask, drv_st, st)
         b = torch.where(done, torch.ones_like(b), b); st = torch.where(done, z, st)
         muf = torch.where(trav + 1.4 < d_ice, mu_i, mu_d); mur = torch.where(trav - 1.6 < d_ice, mu_i, mu_d)
         sim.step(st, b, muf, mur)
@@ -145,10 +163,12 @@ def rollout(runs, vparams_list, device="cpu", dtype=torch.float32, steps=None, f
             setattr(sim, nm, torch.where(done, torch.zeros_like(getattr(sim, nm)), getattr(sim, nm)))
         trav = trav + spd * DT; brake_prev = b
         hit = (lead_s < 1e5) & in_lane & (lead_s - along - CAR_L < 0.0) & ~done
+        crash_step = torch.where(hit & ~crash, torch.full_like(crash_step, k), crash_step)
         crash = crash | hit
         d_stop = torch.where(~done, d_stop + sim.speed * DT, d_stop)
+        lat_max = torch.where(~done, torch.maximum(lat_max, dlat.abs()), lat_max)
         done = done | hit | ((sim.speed < 0.3) & (k > 3))
-    return dict(V=V.view(P, R, L), H=H.view(P, R, L), crash=crash.view(P, R), d_stop=d_stop.view(P, R))
+    return dict(V=V.view(P, R, L), H=H.view(P, R, L), crash=crash.view(P, R), d_stop=d_stop.view(P, R), lat_max=lat_max.view(P, R), crash_step=crash_step.view(P, R))
 
 
 def traj_loss(out, runs, w_head=3.0):

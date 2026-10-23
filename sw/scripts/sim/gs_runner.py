@@ -55,6 +55,18 @@ def port_open(p):
         return s.connect_ex(("127.0.0.1", p)) == 0
 
 
+def world_ready(p, timeout_s=180):
+    """포트가 열려도 맵을 올리는 동안은 응답하지 않는다 (서버 네 대를 동시에 콜드 스타트하면 1분 넘게 걸렸다).
+    클라이언트로 get_world() 가 실제로 돌아올 때까지 기다린다."""
+    t0 = time.time()
+    while time.time() - t0 < timeout_s:
+        r = subprocess.run([a.py, "-c", f"import carla; c=carla.Client('127.0.0.1',{p}); c.set_timeout(20); c.get_world().get_map().name"],
+                           capture_output=True, timeout=60)
+        if r.returncode == 0: return True
+        time.sleep(5)
+    return False
+
+
 def server_pid(p):
     r = subprocess.run(["pgrep", "-f", f"[C]arlaUE4-Linux-Shipping.*-carla-rpc-port={p}( |$)"], capture_output=True, text=True)
     return [int(x) for x in r.stdout.split()]
@@ -79,7 +91,7 @@ def restart(p):
                      env={**os.environ, "DISPLAY": ""}, start_new_session=True)
     for _ in range(36):
         time.sleep(5)
-        if port_open(p): time.sleep(15); say(f"서버 {p} 재기동 완료"); return True
+        if port_open(p) and world_ready(p): say(f"서버 {p} 재기동 완료"); return True
     say(f"서버 {p} 재기동 실패"); return False
 
 
@@ -99,7 +111,7 @@ def run_one(p, job):
 
 
 def worker(p):
-    if not port_open(p): restart(p)
+    if not port_open(p) or not world_ready(p, 60): restart(p)
     while True:
         with lock:
             if not queue: return
