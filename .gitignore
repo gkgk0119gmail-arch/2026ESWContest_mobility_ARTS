@@ -11,3 +11,4 @@ hailort.log
 *.zip
 *.bak
 sw/fw/npu_lib/build/
+sw/src/icepredict.egg-info/
