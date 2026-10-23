@@ -17,6 +17,7 @@ LOWMU_BRAKE, LOWMU_DECEL, LOWMU_HOLD, LOWMU_CONFIRM = 0.3, 1.2, 15, 8
 KP, KL, KD, SMAX = 1.4, 0.15, 0.30, 0.5
 A_ICE, A_DRY, GAP_FREE, LANE_W = 1.0, 6.0, 20.0, 3.5
 GRIP_DECEL, GRIP_N = 2.5, 5
+MU_INIT, MU_MIN, MU_MAX, MU_A_UP, MU_A_DN, MU_VMIN, MU_SKIP = 0.05, 0.02, 1.0, 0.08, 0.35, 2.0, 2
 MODES = {0: "none", 1: "lane_keep", 2: "evade_left", 3: "evade_right", 4: "hard_stop", 5: "stopped"}
 TRIGS = {0: None, 1: "lat_acc", 2: "yaw_rate", 3: "low_mu", 4: "combo"}
 
@@ -46,7 +47,9 @@ class KF2:
 class SlipCoreRef:
     """보드 한 샘플(sc_board) 의 파이썬 판. 상태·상수 이름은 C 와 같다."""
 
-    def __init__(self, dt=0.02, confirm=3, min_speed=2.0):
+    def __init__(self, dt=0.02, confirm=3, min_speed=2.0, mu_est=False, lut=None):
+        self.mu_est = mu_est          # C 의 SLIP_MU_EST
+        self.lut = lut                # C 의 SLIP_GAIN_SCHED (gain_lut.GainLUT, None 이면 고정 게인)
         self.reset(dt, confirm, min_speed)
 
     def reset(self, dt, confirm=3, min_speed=2.0):
@@ -56,6 +59,7 @@ class SlipCoreRef:
         self.emerg = False; self.n_emerg = 0; self.mode = 0; self.lat_shift = 0.0
         self.brake_n = 0; self.lowmu_hits = 0; self.grip_n = 0; self.grip = False
         self.ye = 0.0; self.ye_init = False; self.a_stop_used = 0.0
+        self.mu_hat = MU_INIT; self.mu_n = 0; self.pulse_hi_n = 0; self.b_hi_last = 0.7
 
     # ---- slip_step2 ----
     def step2(self, ay, gz, speed, steer, ax, brake_cmd):
@@ -83,9 +87,18 @@ class SlipCoreRef:
             return 1, trig, ay_g, yaw_err
         return 0, 0, ay_g, yaw_err
 
+    # ---- slip_mu_update (SLIP_MU_EST) ----
+    def mu_update(self, speed, ax_f, ay_f, brake_cmd, b_hi):
+        self.pulse_hi_n = self.pulse_hi_n + 1 if brake_cmd >= b_hi - 1e-3 else 0
+        if self.pulse_hi_n <= MU_SKIP or speed <= MU_VMIN: return
+        m = min(MU_MAX, max(MU_MIN, math.sqrt(ax_f * ax_f + ay_f * ay_f) / G))
+        a = MU_A_UP if m > self.mu_hat else MU_A_DN
+        self.mu_hat += a * (m - self.mu_hat); self.mu_n += 1
+
     # ---- slip_control2 ----
     def control2(self, speed, gz, lane_err, lat_off, gf, gl, gr, ax_f, brake_cmd, ice_off, front_rel_v):
         self.n_emerg += 1
+        if self.mu_est: self.mu_update(speed, ax_f, self.kay.x0, brake_cmd, self.b_hi_last)
         if brake_cmd >= 0.3 and ax_f <= -GRIP_DECEL:
             self.grip_n += 1
             if self.grip_n >= GRIP_N: self.grip = True
@@ -114,6 +127,7 @@ class SlipCoreRef:
         if self.mode in (2, 3): b = 0.25 if abs(lat_off + self.lat_shift) > 0.8 else (0.7 if pulse else 0.35)
         elif self.mode == 4: b = 1.0 if self.grip else (0.95 if pulse else 0.5)
         else: b = 0.9 if self.grip else (0.7 if pulse else 0.35)
+        if self.mu_est: self.b_hi_last = 0.95 if self.mode == 4 else 0.7
         if speed < 2.0: b = 1.0
         if speed < 0.5:
             self.emerg = False; self.mode = 5; b = 1.0; st = 0.0
@@ -127,7 +141,8 @@ class SlipCoreRef:
         if emerg:
             b, st = self.control2(speed, gz, lane_err, lat_off, gf, gl, gr, self.kax.x0, brake_cmd, ice_off, front_rel_v)
         return dict(slip=slip, trig=trig, ay_g=ay_g, yaw_err=ye, emerg=int(emerg), brake=b, steer=st,
-                    mode=self.mode, grip=int(self.grip), mu_hat=-1.0, mu_n=0, a_stop=self.a_stop_used)
+                    mode=self.mode, grip=int(self.grip), mu_hat=self.mu_hat if self.mu_est else -1.0,
+                    mu_n=self.mu_n if self.mu_est else 0, a_stop=self.a_stop_used)
 
 
 class LocalEmergency7:

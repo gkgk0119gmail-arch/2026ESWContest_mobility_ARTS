@@ -66,6 +66,25 @@ static inline float kf2_step(kf2_t *k, float z)
    비용: 곱 2 + 합 1. 분기 수는 그대로다. */
 #define SLIP_RULE_ELLIPSE  1
 
+/* ---- 마찰 추정 (SLIP_MU_EST, 기본 0 = 기존 동작 그대로) ----
+   마찰원: 바퀴가 한계에 있으면 낼 수 있는 가속도 합이 곧 μ·g 다 → μ ≈ √(ax_f² + ay_f²)/g.
+   한계에 있다는 보장이 있는 샘플만 쓴다: 미끄러짐 확정 이후 + 펄스 '강(high)' 구간 + v > 2 m/s.
+   시작값 0.05(가장 미끄러운 쪽), 범위 [0.02, 1.0]. 과대추정이 더 위험하므로(정지거리를 짧게 잡아 회피가 늦어진다)
+   올라갈 때는 느리게(α_up), 내려갈 때는 빠르게(α_dn) 따라간다. 연산: 곱 6 + 제곱근 1 + 비교 몇 개, 고정 횟수. */
+#ifndef SLIP_MU_EST
+#define SLIP_MU_EST        0
+#endif
+#define SLIP_MU_INIT       0.05f
+#define SLIP_MU_MIN        0.02f
+#define SLIP_MU_MAX        1.0f
+#define SLIP_MU_ALPHA_UP   0.08f        /* 샘플당 — 50 Hz 에서 시상수 약 0.25 s */
+#define SLIP_MU_ALPHA_DN   0.35f
+#define SLIP_MU_VMIN       2.0f
+#define SLIP_MU_SKIP       2            /* 펄스가 강으로 바뀐 직후 몇 샘플은 제동력이 오르는 중이라 뺀다 */
+#ifndef SLIP_GAIN_SCHED
+#define SLIP_GAIN_SCHED    0
+#endif
+
 /* 비상 제어 모드 */
 #define SLIP_MODE_NONE     0u
 #define SLIP_MODE_LANEKEEP 1u            /* 차선 유지 + 펄스 제동 */
@@ -84,6 +103,10 @@ typedef struct {
   float ye; int ye_init;                                         /* 기대 yaw 의 1차 지연 상태 */
   int grip_n, grip;                                              /* 접지 회복: 제동 중 감속이 살아난 샘플 수 / 플래그 */
   float a_stop_used;                                             /* 진단용: 이번 샘플 정지거리 계산에 쓴 감속 (판단에는 안 쓰인다) */
+#if SLIP_MU_EST
+  float mu_hat; int mu_n; int pulse_hi_n;                        /* 마찰 추정값, 쓴 샘플 수, 펄스 강 구간 연속 샘플 수 */
+  float b_hi_last;                                               /* 직전 샘플 모드의 '강' 펄스 제동값 — 지금 걸린 제동이 강인지 판단 */
+#endif
 } slipdet_t;
 
 static inline void slip_reset(slipdet_t *d, float dt, int confirm, float min_speed_mps)
@@ -95,6 +118,9 @@ static inline void slip_reset(slipdet_t *d, float dt, int confirm, float min_spe
   d->dt = dt; d->min_speed = min_speed_mps > 0.f ? min_speed_mps : 2.0f; d->ready = 1;
   d->emerg = 0; d->n_emerg = 0; d->mode = SLIP_MODE_NONE; d->lat_shift = 0.f; d->brake_n = 0; d->lowmu_hits = 0;
   d->grip_n = 0; d->grip = 0; d->a_stop_used = 0.f;
+#if SLIP_MU_EST
+  d->mu_hat = SLIP_MU_INIT; d->mu_n = 0; d->pulse_hi_n = 0; d->b_hi_last = 0.7f;
+#endif
   d->ye = 0.f; d->ye_init = 0;
 }
 
@@ -166,11 +192,30 @@ static inline int slip_step(slipdet_t *d, float ay, float gz, float speed, float
 #define SLIP_A_DRY     6.0f
 #define SLIP_GRIP_DECEL 2.5f
 #define SLIP_GRIP_N    5
+#if SLIP_MU_EST
+/* 비상 제어 중 매 샘플: 이번 샘플의 제동이 '강' 펄스면 마찰원으로 μ 를 갱신한다.
+   ax_f, ay_f 는 칼만 필터 값(m/s²), brake_cmd 는 지금 차에 걸려 있는 제동(직전 샘플 명령). */
+static inline void slip_mu_update(slipdet_t *d, float speed, float ax_f, float ay_f, float brake_cmd, float b_hi)
+{
+  if (brake_cmd >= b_hi - 1e-3f) d->pulse_hi_n++; else d->pulse_hi_n = 0;
+  if (d->pulse_hi_n <= SLIP_MU_SKIP || speed <= SLIP_MU_VMIN) return;
+  float m = sqrtf(ax_f * ax_f + ay_f * ay_f) / SLIP_G;
+  if (m < SLIP_MU_MIN) m = SLIP_MU_MIN;
+  if (m > SLIP_MU_MAX) m = SLIP_MU_MAX;
+  float a = (m > d->mu_hat) ? SLIP_MU_ALPHA_UP : SLIP_MU_ALPHA_DN;
+  d->mu_hat += a * (m - d->mu_hat);
+  d->mu_n++;
+}
+#endif
+
 static inline void slip_control2(slipdet_t *d, float speed, float gz, float lane_err, float lat_off,
                                  float gap_front, float gap_left, float gap_right,
                                  float ax_f, float brake_cmd, float ice_lane_off, float front_rel_v, float *brake, float *steer)
 {
   d->n_emerg++;
+#if SLIP_MU_EST
+  slip_mu_update(d, speed, ax_f, d->kay.x0, brake_cmd, d->b_hi_last);
+#endif
   if (brake_cmd >= 0.3f && ax_f <= -SLIP_GRIP_DECEL) { if (++d->grip_n >= SLIP_GRIP_N) d->grip = 1; } else d->grip_n = 0;
   float a_stop = d->grip ? SLIP_A_DRY : SLIP_A_ICE;
   float d_stop = speed * speed / (2.f * a_stop) + 4.f;
@@ -202,6 +247,9 @@ static inline void slip_control2(slipdet_t *d, float speed, float gz, float lane
     case SLIP_MODE_HARDSTOP: b = d->grip ? 1.0f : (pulse ? 0.95f : 0.5f); break;
     default:                 b = d->grip ? 0.9f : (pulse ? 0.7f : 0.35f); break;      /* 접지 회복 후엔 펄스 없이 강제동 */
   }
+#if SLIP_MU_EST
+  d->b_hi_last = (d->mode == SLIP_MODE_HARDSTOP) ? 0.95f : 0.7f;
+#endif
   if (speed < 2.0f) b = 1.0f;
   *steer = st; *brake = b;
   if (speed < 0.5f) { d->emerg = 0; d->mode = SLIP_MODE_STOPPED; *brake = 1.0f; *steer = 0.f; }

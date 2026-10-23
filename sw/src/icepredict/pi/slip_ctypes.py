@@ -45,6 +45,9 @@ class SlipCoreC:
     def reset(self, dt, confirm=3, min_speed=2.0):
         self.L.sc_reset(self.buf, dt, confirm, min_speed)
 
+    def force_emerg(self):
+        self.L.sc_force_emerg(self.buf)
+
     def board(self, ay, gz, speed, steer, ax, brake_cmd, lane_err, lat_off, gf, gl, gr, ice_off, front_rel_v):
         for i, v in enumerate((ay, gz, speed, steer, ax, brake_cmd, lane_err, lat_off, gf, gl, gr, ice_off, front_rel_v)):
             self._in[i] = v

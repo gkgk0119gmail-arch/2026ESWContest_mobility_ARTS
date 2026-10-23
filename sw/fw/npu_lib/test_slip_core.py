@@ -98,6 +98,9 @@ with tempfile.TemporaryDirectory() as td:
 # 시나리오를 만든다. 이산값(slip·trig·emerg·mode·grip)은 정확히, 연속값은 1e-5 안에서 같아야 한다.
 from icepredict.pi.slip_ref import SlipCoreRef, LocalEmergency7
 from icepredict.pi.slip_ctypes import SlipCoreC
+def _lut():
+    from icepredict.pi.gain_lut import GainLUT
+    return GainLUT.from_header(pathlib.Path(__file__).parent / "slip_gain_lut.h")
 
 def board_scenario(kind, seed, n=600, dt=0.02):
     rng = np.random.default_rng(seed)
@@ -119,18 +122,23 @@ def board_scenario(kind, seed, n=600, dt=0.02):
     if kind == "lowmu":    ay[:] = rng.normal(0, 0.3, n); gz[:] = rng.normal(0, 0.015, n); brake[:] = np.where(t > 1.0, 0.5, 0.0); ax[:] = np.where(t > 1.0, -0.3, 0.0)
     return np.stack([ay, gz, v, steer, ax, brake, lane_err, lat_off, gf, gl, gr, ice, frv], 1)
 
-def compare_board(kind, seed):
+def compare_board(kind, seed, variant=""):
     X = board_scenario(kind, seed)
-    c, p = SlipCoreC(0.02, 3, 2.0), SlipCoreRef(0.02, 3, 2.0)
-    worst, modes = 0.0, set()
+    c = SlipCoreC(0.02, 3, 2.0, variant=variant)
+    p = SlipCoreRef(0.02, 3, 2.0, mu_est=variant in ("mu", "gs"), lut=_lut() if variant == "gs" else None)
+    worst, modes, fb, mun = 0.0, set(), None, 0
     for i, row in enumerate(X):
+        row = row.copy()
+        if fb is not None: row[5] = fb                                   # 폐루프: 지난 샘플 제동 명령이 지금 걸린 제동이다
         a = c.board(*row.tolist()); b = p.board(*row.tolist())
+        fb = a["brake"] if a["emerg"] else None; mun = max(mun, a["mu_n"])
         for k in ("slip", "trig", "emerg", "mode", "grip"):
             if a[k] != b[k]: return False, f"샘플 {i} {k}: C {a[k]} py {b[k]}", modes
-        for k in ("ay_g", "yaw_err", "brake", "steer", "a_stop"):
+        for k in ("ay_g", "yaw_err", "brake", "steer", "a_stop", "mu_hat", "mu_n"):
             worst = max(worst, abs(a[k] - b[k]))
         modes.add(a["mode"])
-    return worst < 1e-5, f"최대 오차 {worst:.2e}", modes
+    # 회피 이동 중에는 제동이 0.25 로 고정돼 '강' 펄스가 없다 → 마찰 추정 샘플 0 이 설계대로다
+    return worst < 1e-5 and (variant == "" or kind == "evade" or mun > 0), f"최대 오차 {worst:.2e}, 마찰 추정 샘플 {mun}", modes
 
 need = {"grip": {4}, "overlap": {4}, "receding": {1}, "ice_lane": {2}, "evade": {3}, "plain": {1}, "lowmu": {1}}
 for kind in need:
@@ -139,6 +147,11 @@ for kind in need:
         ok = ok and need[kind] <= modes
         fails += not ok
         print(f"[{'OK ' if ok else 'FAIL'}] v7 보드 경로 {kind:9s} seed {seed}: {msg}  모드 {sorted(modes)}")
+# SLIP_MU_EST=1 변형도 같은 시나리오에서 C = 파이썬 (마찰 추정값·샘플 수 포함)
+for kind in ("plain", "grip", "evade", "lowmu"):
+    ok, msg, modes = compare_board(kind, 1, "mu")
+    fails += not ok
+    print(f"[{'OK ' if ok else 'FAIL'}] SLIP_MU_EST 보드 경로 {kind:9s}: {msg}")
 # LocalEmergency7(데모 폴백) 이 같은 제어를 내는지 — 확정 이후 구간만
 X = board_scenario("evade", 4); c = SlipCoreC(0.02, 3, 2.0); le = None; worst = 0.0
 for row in X:

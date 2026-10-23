@@ -24,6 +24,8 @@ int sc_flags(void)
 }
 
 void sc_reset(slipdet_t *d, float dt, int confirm, float min_speed) { slip_reset(d, dt, confirm, min_speed); }
+/* 재생 검증용: 감지 없이 비상 제어 상태로 만든다 (마찰 추정기를 기록된 제동 펄스로 돌릴 때) */
+void sc_force_emerg(slipdet_t *d) { d->emerg = 1; }
 
 int sc_step2(slipdet_t *d, float ay, float gz, float speed, float steer, float ax, float brake_cmd,
              unsigned char *trig, float *ay_g, float *yaw_err)
