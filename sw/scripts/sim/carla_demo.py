@@ -99,7 +99,7 @@ def spawn_traffic(world, bl, cmap, tm, ego, n, patch_wp, lead_stop, rng):
         tf = wps[0].transform; tf.location.z += 0.3
         v = world.try_spawn_actor(bp, tf)
         if v is None: continue
-        v.set_autopilot(True, 8000); autopiloted.append(v)
+        v.set_autopilot(True, TM_PORT); autopiloted.append(v)
         if TIRE_MU > 0:
             try:
                 pc = v.get_physics_control()
@@ -587,6 +587,9 @@ ap.add_argument("--model", default=os.path.expanduser("~/icepredict/models/roadn
 ap.add_argument("--out", default=os.path.expanduser("~/icepredict/logs/carla_demo"))
 ap.add_argument("--patch-ahead", type=float, default=90.0, help="패치를 차량 앞 몇 m에 둘지")
 ap.add_argument("--patch-len", type=float, default=40.0)
+ap.add_argument("--patch-width", type=float, default=7.0,
+                help="빙판(마찰 트리거) 폭 m. CARLA 는 트리거를 벗어나면 타이어 마찰을 기본 3.5(횡 2 g)로 되돌린다 —"
+                     " 옆으로 미끄러져 7 m 폭을 벗어나면 2.5 g 로 급정지한다. 검증 주행은 20 m 로 넓혀 이 결함을 피한다")
 ap.add_argument("--friction", type=float, default=0.02)
 ap.add_argument("--target-kph", type=float, default=60.0)
 ap.add_argument("--max-steps", type=int, default=1200)
@@ -626,9 +629,13 @@ ap.add_argument("--slip-ctypes", action="store_true",
 ap.add_argument("--slip-variant", default="", choices=["", "mu", "gs"],
                 help="--slip-ctypes 의 컴파일 플래그: ''=보드와 같은 기본, mu=SLIP_MU_EST(마찰 추정), gs=마찰 추정+SLIP_GAIN_SCHED(마찰별 제어표)")
 ap.add_argument("--slip-legacy", action="store_true", help="로컬 비상 제어 폴백을 구버전 v3 로 (기본은 보드와 같은 v7)")
+ap.add_argument("--slip-gains", default=None,
+                help="--slip-variant gs 에서 제어표 대신 쓸 고정 파라미터 JSON (시험용: 후보 하나를 CARLA 에서 검증할 때)")
 ap.add_argument("--log-core", default=None,
                 help="CSV 경로: --slip-ctypes 일 때 C 코어의 샘플별 입출력(모드·제동·조향·마찰 추정)을 기록")
 ap.add_argument("--seed", type=int, default=None, help="주변 차량 배치 등 난수 시드 (재현용)")
+ap.add_argument("--log-state", default=None,
+                help="CSV 경로: 매 틱 차량 상태(위치·방향·차체 속도·요레이트·차체 가속도)와 입력, 앞/뒤축 빙판 여부 — 대리 모델 보정용")
 ap.add_argument("--no-video", action="store_true")
 ap.add_argument("--show-patch", action="store_true", help="빙판 구간 표시(BLACK ICE 라벨·테두리·기둥) 켜기. 기본은 끔 — 실제처럼 보여야 한다")
 ap.add_argument("--no-overlay", action="store_true", help="(구) 빙판 시각화 오버레이 끄기 — 이제 기본이 끔")
@@ -657,6 +664,8 @@ ap.add_argument("--lead-stop", type=float, default=0.0,
                 help="빙판 중심에서 이만큼 앞(m)의 자차 차로에 정차 차량(비상등)을 둔다. 0=없음. 2차 방어의 회피 판단을 보여주는 장애물")
 a = ap.parse_args()
 TIRE_MU = a.tire_friction
+# 서버 여러 대를 동시에 돌릴 때 트래픽 매니저 포트가 겹치면 서로의 차를 몬다 (gs_runner 가 서버마다 다르게 준다)
+TM_PORT = int(os.environ.get("ICEPRED_TM_PORT", "8000"))
 try: sys.stdout.reconfigure(line_buffering=True)   # 크래시/kill 시에도 로그가 남게
 except Exception: pass
 a.no_overlay = not a.show_patch          # 표시는 명시적으로 켤 때만
@@ -673,7 +682,8 @@ cmap = world.get_map()
 orig = world.get_settings()
 st = world.get_settings(); st.synchronous_mode = True; st.fixed_delta_seconds = dt
 world.apply_settings(st)
-tm = client.get_trafficmanager(8000); tm.set_synchronous_mode(True)
+tm = client.get_trafficmanager(TM_PORT); tm.set_synchronous_mode(True)
+if a.seed is not None: tm.set_random_device_seed(int(a.seed))
 
 if a.weather == "winter":
     w = world.get_weather()
@@ -708,7 +718,7 @@ def cleanup():
     # 자율주행 등록을 먼저 해제한다. 등록된 채로 차량을 파괴하면 종료 시 Traffic Manager 소멸자가 파괴된 액터를
     # 건드려 C++ 예외(terminate)로 죽는다 — 경고 없이 끝난 주행(시간 초과 등)에서만 나타나던 크래시의 원인.
     for v in list(globals().get("autopiloted", [])):
-        try: v.set_autopilot(False, 8000)
+        try: v.set_autopilot(False, TM_PORT)
         except Exception: pass
     for x in actors:                      # 콜백을 먼저 끊는다 (destroyed actor 크래시 예방)
         try:
@@ -775,7 +785,7 @@ try:
 
     # ---- 블랙아이스 패치 -------------------------------------------------
     wp_ice = waypoint_ahead(cmap, ego, a.patch_ahead)
-    patch = spawn_ice_patch(world, wp_ice, length_m=a.patch_len, width_m=7.0, friction=a.friction)
+    patch = spawn_ice_patch(world, wp_ice, length_m=a.patch_len, width_m=a.patch_width, friction=a.friction)
     actors.append(patch.actor)
     traffic_vehicles, lead_vehicle = [], None
     if a.traffic > 0 or a.lead_stop > 0:
@@ -988,7 +998,7 @@ try:
 
     for _ in range(int(0.5 * a.fps)):      # 스폰 낙하 충격 소산
         world.tick()
-    ego.set_autopilot(True, 8000); autopiloted.append(ego)
+    ego.set_autopilot(True, TM_PORT); autopiloted.append(ego)
     tm.ignore_lights_percentage(ego, 100); tm.auto_lane_change(ego, False)
     tm.vehicle_percentage_speed_difference(ego, (30.0 - a.target_kph) / 30.0 * 100.0)
 
@@ -1011,11 +1021,16 @@ try:
     if a.slip_ctypes:
         from icepredict.pi.slip_ctypes import SlipCoreC
         core_c = SlipCoreC(dt, 3, a.min_detect_kph / 3.6, variant=a.slip_variant)
+        if a.slip_gains:
+            if a.slip_variant != "gs": raise SystemExit("--slip-gains 는 --slip-variant gs 에서만 쓴다")
+            core_c.set_gains(json.loads(a.slip_gains))
         slip_board = False
         print(f"[core] 2차 방어 = 보드와 같은 C 코어(ctypes, 플래그 {core_c.flags:#x}, variant '{a.slip_variant}')", flush=True)
     core_log = open(a.log_core, "w") if (a.log_core and core_c is not None) else None
     if core_log: core_log.write("t,speed,ay,gz,ax,brake_cmd,steer_eq,lane_err,lat_off,gap_f,inside,slip,emerg,mode,brake,steer,grip,mu_hat,mu_n,a_stop\n")
-    last_ax = 0.0; last_brake_cmd = 0.0; last_ice_off = 0.0; lane_departed = False; spun = False
+    last_ax = 0.0; last_brake_cmd = 0.0; last_ice_off = 0.0
+    state_log = open(a.log_state, "w") if a.log_state else None
+    if state_log: state_log.write("t,x,y,yaw,vx,vy,r,ax,ay,steer,throttle,brake,inside,inside_f,inside_r,lane_err,lat_off,state\n"); lane_departed = False; spun = False
     control_lost = False; t_lost = None
     dyn_log = open(a.log_dyn, "w") if a.log_dyn else None
     if dyn_log: dyn_log.write("t,speed,steer_eq,gz,ay,ax,brake,inside\n")
@@ -1025,6 +1040,7 @@ try:
             world.debug.draw_box(carla.BoundingBox(patch.location + carla.Location(z=0.1),
                                  carla.Vector3D(patch.extent[0], patch.extent[1], 0.05)),
                                  patch.transform.rotation, 0.08, carla.Color(120, 220, 255), dt * 1.5)
+        prev_spd = spd if step > 0 else 0.0
         world.tick(); t_sim += dt
         v = ego.get_velocity(); spd = math.sqrt(v.x**2 + v.y**2 + v.z**2)
         loc = ego.get_location()
@@ -1174,20 +1190,33 @@ try:
                     events.append({"t": round(t_sim,2), "event": "control_lost",
                                    "reason": "spin" if spun else "lane_departure", "speed_kph": round(spd*3.6,1)})
                     print(f"[{t_sim:6.2f}s] 제어 상실 — 자율주행 해제, 관성 주행으로 둔다")
-                    try: ego.set_autopilot(False, 8000)
+                    try: ego.set_autopilot(False, TM_PORT)
                     except Exception: pass
             except Exception:
                 pass
         if collisions and state != "CRASH":
             ce = collisions[-1]; other = getattr(ce.other_actor, "type_id", "?"); imp = ce.normal_impulse
             state = "CRASH"; t_crash = t_sim
-            events.append({"t": round(t_sim,2), "event": "collision", "with": other.split(".")[-1], "speed_kph": round(spd*3.6,1),
+            # 충돌 센서 콜백은 충격이 일어난 틱 뒤에 처리된다 — 그 시점의 spd 는 이미 충격으로 줄어든 속도다
+            # (방호벽 충돌에서 42 km/h 로 부딪혔는데 12 km/h 로 기록됐다). 충돌 직전 틱 속도를 speed_kph 로 남긴다.
+            events.append({"t": round(t_sim,2), "event": "collision", "with": other.split(".")[-1],
+                           "speed_kph": round(prev_spd*3.6,1), "speed_after_kph": round(spd*3.6,1),
                            "impulse": round(math.sqrt(imp.x**2 + imp.y**2 + imp.z**2), 1), "dist_to_patch_m": round(dist,1)})
-            print(f"[{t_sim:6.2f}s] !! 충돌: {other}  속도 {spd*3.6:.1f} km/h")
-            try: ego.set_autopilot(False, 8000)
+            print(f"[{t_sim:6.2f}s] !! 충돌: {other}  충돌 직전 {prev_spd*3.6:.1f} km/h (충격 뒤 {spd*3.6:.1f})")
+            try: ego.set_autopilot(False, TM_PORT)
             except Exception: pass
-            sec_info = (f"NO DEFENSE (baseline)  ->  COLLISION with {other.split('.')[-1]} at {spd*3.6:.0f} km/h" if a.no_secondary
-                        else f"COLLISION with {other.split('.')[-1]} at {spd*3.6:.0f} km/h")
+            sec_info = (f"NO DEFENSE (baseline)  ->  COLLISION with {other.split('.')[-1]} at {prev_spd*3.6:.0f} km/h" if a.no_secondary
+                        else f"COLLISION with {other.split('.')[-1]} at {prev_spd*3.6:.0f} km/h")
+        if state_log is not None:
+            _tf = ego.get_transform(); _y = math.radians(_tf.rotation.yaw); _c, _s = math.cos(_y), math.sin(_y)
+            _v = ego.get_velocity(); _ac = ego.get_acceleration(); _av = ego.get_angular_velocity(); _cc = ego.get_control()
+            _fl = carla.Location(_tf.location.x + 1.4 * _c, _tf.location.y + 1.4 * _s, _tf.location.z)
+            _rl = carla.Location(_tf.location.x - 1.6 * _c, _tf.location.y - 1.6 * _s, _tf.location.z)
+            try: _le, _lo, _ = lane_state(cmap, ego)
+            except Exception: _le, _lo = 0.0, 0.0
+            state_log.write(f"{t_sim:.3f},{_tf.location.x:.3f},{_tf.location.y:.3f},{_y:.5f},{_v.x*_c+_v.y*_s:.4f},{-_v.x*_s+_v.y*_c:.4f},"
+                            f"{math.radians(_av.z):.5f},{_ac.x*_c+_ac.y*_s:.4f},{-_ac.x*_s+_ac.y*_c:.4f},{_cc.steer:.4f},{_cc.throttle:.3f},{_cc.brake:.3f},"
+                            f"{int(inside)},{int(patch.contains(_fl))},{int(patch.contains(_rl))},{_le:.4f},{_lo:.3f},{state}\n")
         if dyn_log is not None and imus and t_sim >= a.warmup:          # 감지기 모델 보정용 로그 — 2차 방어 켜짐/꺼짐과 무관하게 기록
             m_ = imus[-1]; tr_ = ego.get_transform(); c_ = ego.get_control()
             dyn_log.write(f"{t_sim:.3f},{spd:.3f},{float(c_.steer) * steer_gain:.4f},{m_.gyroscope.z:.4f},"
@@ -1279,7 +1308,7 @@ try:
                 sec_base = f"2ND DEFENSE [{who}] IMU SLIP ({ev.trigger}) ay {ev.ay_g:.2f}g yaw {ev.yaw_err:.2f}"
                 sec_info = sec_base
                 print(f"           판정 주체: {who}  (로컬 참조 구현 동시 확정: {'예' if ev_local else '아니오'})", flush=True)
-                ego.set_autopilot(False, 8000)
+                ego.set_autopilot(False, TM_PORT)
                 ego.apply_control(carla.VehicleControl(throttle=0.0, brake=cmd["brake"], steer=cmd["steer"]))
 
         # ---------- 상태별 제어 ----------
@@ -1290,7 +1319,7 @@ try:
             ego.apply_control(carla.VehicleControl(throttle=0.0, brake=1.0, steer=0.0))
             if t_sim - t_crash > 2.0: break
         if state == "WARN":
-            ego.set_autopilot(False, 8000); state = "BRAKE"
+            ego.set_autopilot(False, TM_PORT); state = "BRAKE"
         if state == "BRAKE":
             ego.apply_control(carla.VehicleControl(throttle=0.0, brake=1.0, steer=0.0))
             if spd < 0.3:
@@ -1482,6 +1511,7 @@ try:
               f" / 직사각형 {b_['t']:.2f}s ({b_['trigger']})" if b_ else " / 직사각형 미발화",
               (f" → 타원이 {rule_ab['gain_s']:+.2f}s 빠름" if rule_ab.get("gain_s") else ""), flush=True)
     if core_log: core_log.close()
+    if state_log: state_log.close()
     if core_c is not None and core_c.flags & 2:
         _m = core_c.board(0, 0, 0, 0, 0, 0, 0, 0, 999, 999, 999, 0, 0)   # 정지 상태 한 샘플 — 상태만 읽는다
         events.append({"t": round(t_sim, 2), "event": "mu_estimate", "mu_hat": round(float(_m["mu_hat"]), 4), "mu_n": int(_m["mu_n"])})
