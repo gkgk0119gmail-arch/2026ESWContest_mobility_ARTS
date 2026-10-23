@@ -83,11 +83,11 @@ ax.set_xlim(0, max(vals) * 1.15)
 fig.tight_layout(); fig.savefig(FIG / "gs_friction_trigger.png"); plt.close(fig)
 
 # ---- 4) 곡선 빙판 충돌 직전 속도 ----
-im = load("s4c_impacts.json")
-fig, axs = plt.subplots(1, 2, figsize=(7.4, 3.6), dpi=150, sharey=False)
+im = load("s4d_impacts.json")       # s4c 는 강제 종료가 남긴 트리거로 마찰이 오염됐다 — 다시 모은 s4d 를 쓴다
+fig, axs = plt.subplots(1, 3, figsize=(9.6, 3.6), dpi=150, sharey=False)
 names = {"nodef": "방어 없음", "fixed": "고정 게인\n(보드 지금)", "cand": "탐색 후보\n(무작위 게인)"}
 summary = {}
-for ax, k in zip(axs, (40, 60)):
+for ax, k in zip(axs, (40, 60, 80)):
     style(ax, f"진입 {k} km/h")
     for x, kind in enumerate(("nodef", "fixed", "cand")):
         v = np.array([r["pre"] for r in im if r["kph"] == k and r["kind"] == kind and r["pre"] is not None])
@@ -98,7 +98,7 @@ for ax, k in zip(axs, (40, 60)):
         summary[(k, kind)] = (len(v), float(np.median(v)), float(v.min()), float(v.max()))
     ax.set_xticks(range(3)); ax.set_xticklabels([names[n] for n in ("nodef", "fixed", "cand")], fontsize=8, color=INK2)
     ax.set_ylabel("충돌 0.1 s 전 속도 (km/h)", color=INK2, fontsize=9)
-fig.suptitle("반경 약 120 m 곡선 빙판(200 m × 60 m) — 방호벽·차량 충돌 직전 속도, 선 = 중앙값", fontsize=10, color=INK, x=0.02, ha="left")
+fig.suptitle("반경 약 120 m 곡선 빙판(200 m × 60 m, 마찰 5종) — 충돌 직전 속도, 선 = 중앙값", fontsize=10, color=INK, x=0.02, ha="left")
 fig.tight_layout(); fig.savefig(FIG / "gs_curve_impact.png"); plt.close(fig)
 
 # ---- 문서 ----
@@ -115,6 +115,11 @@ cal_rows = [f"| {f:g} | {mt['table'][f'{f:g}']['mu_eff']:.3f} | " + " / ".join(f
 imp_rows = [f"| {k} km/h | {names[kind].replace(chr(10), ' ')} | {n} | {med:.1f} | {lo:.1f} ~ {hi:.1f} |" for (k, kind), (n, med, lo, hi) in summary.items()]
 bi_rows = [f"| {b['tag']} | {b['with']} | {b['recorded_kph']:.1f} | {b['pre_impact_kph']:.1f} |" for b in bi]
 dom = sv["in_domain"]; ho = sv["in_domain_held_out"]
+_hr = {}
+for r in load("surrogate_valid.json")["rows"]:
+    if not r.get("in_domain") or r["carla"]["spin"] or r["sur"]["spin"]: continue
+    _hr.setdefault(round(r["mu"], 3), []).append(abs(r["carla"]["head_max"] - r["sur"]["head_max"]) <= 10)
+head_rows = [f"| {m:.3f} | {len(v)} | {np.mean(v)*100:.0f} % |" for m, v in sorted(_hr.items())]
 txt = f"""# 18. 2차 방어 확장 — 마찰 추정과 마찰별 제어표 (진행 중)
 
 > 자동 생성: `sw/scripts/analysis/gain_sched_report.py` · 데이터: `sw/docs/data/gain_sched/` · 브랜치 `feature/gain-sched`
@@ -181,23 +186,33 @@ Town04 시험 구간은 반경 약 120 m 곡선이다. 60 km/h 로 따라가려�
 |---|---|---|---|---|
 """ + "\n".join(imp_rows) + f"""
 
-2차 방어는 방어 없음보다 충돌 직전 속도를 낮추지만, 무작위로 뽑은 후보 게인 29개는 고정 게인보다 낫지 않았다.
-같은 시드로 다시 녹화한 비교 영상(`sw/media/gs_f0.04_k60_g3.webp`)에서도 두 차 모두 53 km/h 로 방호벽에 부딪혔다.
-μ ≤ 0.25 곡선에서는 '얼마나 빨리 속도를 줄이나'의 물리 한계(≈ μg)가 결과를 정한다. 제어표가 이길 여지는 직선·완만한 곡선, 앞차 회피 판단(정지거리 추정)에 있다.
+2차 방어는 방어 없음보다 충돌 직전 속도를 낮추지만, 무작위로 뽑은 후보 게인 {sum(summary[(k, 'cand')][0] for k in (40, 60, 80))}개는 고정 게인보다 낫지 않았다 (세 속도 모두 중앙값 차이 0.2 km/h 안).
+같은 시드로 다시 녹화한 비교 영상(`sw/media/gs_f0.04_k60_g3.webp`, friction 0.04)에서도 두 차 모두 53 km/h 로 방호벽에 부딪혔다.
+이 표는 강제 종료가 남긴 트리거 오염을 지운 뒤 다시 모은 s4d 다 — 주행마다 강제동 구간 합가속/g 가 설정 μ 의 ±35% 안인지 확인했다.
+μ ≤ 0.25 곡선에서는 '얼마나 빨리 속도를 줄이나'의 물리 한계(≈ μg)가 결과를 정한다.
+직선 빙판 위 정지한 앞차(정지거리 판단이 갈릴 자리)에서도 제어표·μ 인식 판단은 고정 게인을 넘지 못했다 — 결과는 운전자 제동 시점이 정했다 (19번 문서, s10·s11).
 
-## 4단계 — 대리 모델 (기준 미달, 진행 중)
+## 4단계 — 대리 모델 (감속 통과, 자세는 μ ≤ 0.034 에서만)
 
 동역학 자전거 + 축별 PhysX 형 타이어(종·횡 슬립, 마찰원) + 축별 바퀴 회전(암시적 적분) + 엔진 브레이크(CARLA 차량은 발을 떼면 1.95 m/s², 거의 뒷축) + 원호 차로.
 보정 = 개루프 시험 81회 + 폐루프 주행 일부, 검증 = 보정에 안 쓴 폐루프 주행.
 
 | 기준 (작업 지시) | 사용 범위 전체 | 보정에 안 쓴 몫 | 목표 |
 |---|---|---|---|
-| μ별 {dom.get('stop_metric', '정지거리')} 오차 | {', '.join(f'μ {k}: {v*100:.0f}%' for k, v in sorted(dom['stop_err_by_mu'].items()))} | {', '.join(f'μ {k}: {v*100:.0f}%' for k, v in sorted(ho['stop_err_by_mu'].items()))} | ≤ 15 % |
+| μ별 속도 감소량 Δv 오차 | {', '.join(f'μ {k}: {v*100:.0f}%' for k, v in sorted(dom['dv_err_by_mu'].items()))} | {', '.join(f'μ {k}: {v*100:.0f}%' for k, v in sorted(ho['dv_err_by_mu'].items()))} | ≤ 15 % |
+| 정지거리 오차 (멈춘 주행만) | {', '.join(f'μ {k}: {v*100:.0f}%' for k, v in sorted(dom['stop_err_by_mu'].items()))} | {', '.join(f'μ {k}: {v*100:.0f}%' for k, v in sorted(ho['stop_err_by_mu'].items()))} | ≤ 15 % |
 | 최대 방향오차 차이 ≤ 10° 비율 (비스핀) | {dom['head_diff_le10_frac']*100:.0f} % | {ho['head_diff_le10_frac']*100:.0f} % | ≥ 90 % |
 | 스핀 여부 일치 | {dom['spin_agree']*100:.0f} % | {ho['spin_agree']*100:.0f} % | ≥ 90 % |
 
-곡선 빙판 주행은 전부 정지 전에 충돌해 정지거리가 없다 → 같은 비교 구간의 속도 감소량으로 감속 능력을 본다.
-저마찰(μ ≤ 0.07)은 가까워졌지만 μ 0.13·0.25 와 방향오차가 기준에 못 미친다. 보정값 일부가 범위 끝에 붙는 것(조향 배율·횡 강성)은 타이어 구조가 아직 다르다는 신호다.
+μ별로 나누면 방향오차가 갈린다 (보정에 안 쓴 몫 포함 전체, 비스핀):
+
+| μ | 주행 | 방향오차 차이 ≤ 10° |
+|---|---|---|
+""" + "\n".join(head_rows) + f"""
+
+검증 데이터는 트리거 오염을 지운 s4d 곡선 빙판 주행이다. **감속(Δv·정지거리)은 기준을 통과한다.**
+방향(자세)은 μ ≤ 0.034 에서만 기준을 넘고, μ 가 클수록 어긋난다 — 타이어가 아직 붙잡고 있는 영역의 횡력 곡선 모양이 PhysX 와 다르다는 뜻이다.
+따라서 대리 모델은 **μ ≤ 0.034 블랙아이스에서만** 탐색에 쓸 수 있고, 그 위의 칸은 CARLA 로 직접 확인해야 한다.
 **작업 지시대로 대리 모델이 기준을 통과하기 전에는 제어표 탐색(5단계)으로 넘어가지 않는다.**
 
 ## 연산량 (리눅스 — RTOS 최악값 근거 아님)

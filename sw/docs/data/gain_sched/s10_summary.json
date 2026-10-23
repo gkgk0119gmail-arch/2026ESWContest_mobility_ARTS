@@ -1,0 +1,1181 @@
+{
+ "ab": [
+  {
+   "kph": 40,
+   "ttc": 9.0,
+   "mode": "assist",
+   "fixed": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 40,
+   "ttc": 9.0,
+   "mode": "auto",
+   "fixed": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 40,
+   "ttc": 11.0,
+   "mode": "assist",
+   "fixed": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 40,
+   "ttc": 11.0,
+   "mode": "auto",
+   "fixed": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 40,
+   "ttc": 13.0,
+   "mode": "assist",
+   "fixed": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 40,
+   "ttc": 13.0,
+   "mode": "auto",
+   "fixed": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 60,
+   "ttc": 9.0,
+   "mode": "assist",
+   "fixed": {
+    "n": 3,
+    "crash": 3,
+    "pre": [
+     30.2,
+     30.2,
+     30.2
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 3,
+    "pre": [
+     30.2,
+     30.2,
+     30.2
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 3,
+    "pre": [
+     30.3,
+     30.2,
+     30.2
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 60,
+   "ttc": 9.0,
+   "mode": "auto",
+   "fixed": {
+    "n": 3,
+    "crash": 3,
+    "pre": [
+     30.2,
+     30.2,
+     30.2
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 3,
+    "pre": [
+     30.2,
+     30.2,
+     30.3
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 3,
+    "pre": [
+     30.2,
+     30.2,
+     30.2
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 60,
+   "ttc": 11.0,
+   "mode": "assist",
+   "fixed": {
+    "n": 3,
+    "crash": 2,
+    "pre": [
+     19.2,
+     0.0,
+     19.2
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 3,
+    "pre": [
+     19.1,
+     19.1,
+     19.1
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 2,
+    "pre": [
+     19.2,
+     19.2,
+     0.0
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 60,
+   "ttc": 11.0,
+   "mode": "auto",
+   "fixed": {
+    "n": 3,
+    "crash": 3,
+    "pre": [
+     19.2,
+     19.2,
+     19.2
+    ],
+    "not_triggered": 0
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 1,
+    "pre": [
+     0.0,
+     0.0,
+     19.1
+    ],
+    "not_triggered": 0
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 3,
+    "pre": [
+     19.2,
+     19.2,
+     19.2
+    ],
+    "not_triggered": 0
+   }
+  },
+  {
+   "kph": 60,
+   "ttc": 13.0,
+   "mode": "assist",
+   "fixed": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 3
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 3
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 3
+   }
+  },
+  {
+   "kph": 60,
+   "ttc": 13.0,
+   "mode": "auto",
+   "fixed": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 3
+   },
+   "muaware": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 3
+   },
+   "noevade": {
+    "n": 3,
+    "crash": 0,
+    "pre": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "not_triggered": 3
+   }
+  }
+ ],
+ "fault": [
+  {
+   "host": "none",
+   "dur": "0",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 0,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "pi",
+   "dur": "0.5",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 0,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "pi",
+   "dur": "1.0",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 0,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "pi",
+   "dur": "2.0",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 0,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "pi",
+   "dur": "inf",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 0,
+   "not_triggered": 1,
+   "departure": 0
+  },
+  {
+   "host": "stm32",
+   "dur": "0.5",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 0,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "stm32",
+   "dur": "1.0",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 0,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "stm32",
+   "dur": "2.0",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 0,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "stm32",
+   "dur": "inf",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 0,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "stm32w",
+   "dur": "0.5",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 2,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "stm32w",
+   "dur": "1.0",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 2,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "stm32w",
+   "dur": "2.0",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 2,
+   "not_triggered": 0,
+   "departure": 0
+  },
+  {
+   "host": "stm32w",
+   "dur": "inf",
+   "n": 2,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0
+   ],
+   "degraded": 2,
+   "not_triggered": 0,
+   "departure": 0
+  }
+ ],
+ "n_runs": 134,
+ "n_invalid": 0,
+ "mu_eff": 0.06559999999999999,
+ "dec_range": [
+  0.0658,
+  0.0675
+ ],
+ "not_triggered": [
+  "s10_fault_pi_hinf_r1",
+  "s10_k60_t13_assist_fixed_r0",
+  "s10_k60_t13_assist_fixed_r1",
+  "s10_k60_t13_assist_fixed_r2",
+  "s10_k60_t13_assist_muaware_r0",
+  "s10_k60_t13_assist_muaware_r1",
+  "s10_k60_t13_assist_muaware_r2",
+  "s10_k60_t13_assist_noevade_r0",
+  "s10_k60_t13_assist_noevade_r1",
+  "s10_k60_t13_assist_noevade_r2",
+  "s10_k60_t13_auto_fixed_r0",
+  "s10_k60_t13_auto_fixed_r1",
+  "s10_k60_t13_auto_fixed_r2",
+  "s10_k60_t13_auto_muaware_r0",
+  "s10_k60_t13_auto_muaware_r1",
+  "s10_k60_t13_auto_muaware_r2",
+  "s10_k60_t13_auto_noevade_r0",
+  "s10_k60_t13_auto_noevade_r1",
+  "s10_k60_t13_auto_noevade_r2"
+ ],
+ "evade_x_crash": {
+  "fault|미작동": {
+   "n": 1,
+   "crash": 0
+  },
+  "fault|차로 유지": {
+   "n": 25,
+   "crash": 0
+  },
+  "fixed|미작동": {
+   "n": 6,
+   "crash": 0
+  },
+  "fixed|차로 유지": {
+   "n": 19,
+   "crash": 0
+  },
+  "fixed|회피": {
+   "n": 11,
+   "crash": 11
+  },
+  "muaware|미작동": {
+   "n": 6,
+   "crash": 0
+  },
+  "muaware|회피": {
+   "n": 30,
+   "crash": 10
+  },
+  "noevade|미작동": {
+   "n": 6,
+   "crash": 0
+  },
+  "noevade|차로 유지": {
+   "n": 30,
+   "crash": 11
+  }
+ },
+ "s11": [
+  {
+   "kph": 40,
+   "ttc": 9.0,
+   "arm": "fixed",
+   "n": 3,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "valid": 3,
+   "triggered": 3,
+   "dec": [
+    0.066,
+    0.066,
+    0.066
+   ]
+  },
+  {
+   "kph": 40,
+   "ttc": 9.0,
+   "arm": "hang_pi",
+   "n": 3,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "valid": 3,
+   "triggered": 0,
+   "dec": [
+    0.066,
+    0.066,
+    0.066
+   ]
+  },
+  {
+   "kph": 40,
+   "ttc": 9.0,
+   "arm": "hang_stm32",
+   "n": 3,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "valid": 3,
+   "triggered": 3,
+   "dec": [
+    0.066,
+    0.066,
+    0.066
+   ]
+  },
+  {
+   "kph": 40,
+   "ttc": 9.0,
+   "arm": "nodef",
+   "n": 3,
+   "crash": 0,
+   "pre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "valid": 3,
+   "triggered": 0,
+   "dec": [
+    0.066,
+    0.066,
+    0.066
+   ]
+  },
+  {
+   "kph": 60,
+   "ttc": 11.0,
+   "arm": "fixed",
+   "n": 3,
+   "crash": 2,
+   "pre": [
+    0.0,
+    19.2,
+    19.2
+   ],
+   "valid": 3,
+   "triggered": 3,
+   "dec": [
+    0.067,
+    0.068,
+    0.068
+   ]
+  },
+  {
+   "kph": 60,
+   "ttc": 11.0,
+   "arm": "hang_pi",
+   "n": 3,
+   "crash": 3,
+   "pre": [
+    19.2,
+    19.2,
+    19.2
+   ],
+   "valid": 3,
+   "triggered": 3,
+   "dec": [
+    0.068,
+    0.068,
+    0.068
+   ]
+  },
+  {
+   "kph": 60,
+   "ttc": 11.0,
+   "arm": "hang_stm32",
+   "n": 3,
+   "crash": 3,
+   "pre": [
+    19.2,
+    19.2,
+    19.2
+   ],
+   "valid": 3,
+   "triggered": 3,
+   "dec": [
+    0.068,
+    0.068,
+    0.068
+   ]
+  },
+  {
+   "kph": 60,
+   "ttc": 11.0,
+   "arm": "nodef",
+   "n": 3,
+   "crash": 2,
+   "pre": [
+    0.0,
+    19.2,
+    19.2
+   ],
+   "valid": 3,
+   "triggered": 0,
+   "dec": [
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "s12": [
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 40,
+   "arm": "nodef",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    31.1,
+    31.1
+   ],
+   "valid": 2,
+   "triggered": 0,
+   "degraded": 0,
+   "modes": []
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 40,
+   "arm": "fixed",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    23.7,
+    23.7
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 40,
+   "arm": "pre_pi",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    32.2,
+    32.2
+   ],
+   "valid": 2,
+   "triggered": 0,
+   "degraded": 0,
+   "modes": []
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 40,
+   "arm": "pre_stm32",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    23.6,
+    23.6
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 40,
+   "arm": "pre_stm32w",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    23.6,
+    23.6
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 2,
+   "modes": [
+    "hard_stop"
+   ]
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 40,
+   "arm": "mid_pi",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    32.2,
+    32.2
+   ],
+   "valid": 2,
+   "triggered": 0,
+   "degraded": 0,
+   "modes": []
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 40,
+   "arm": "mid_stm32",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    23.6,
+    23.6
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 60,
+   "arm": "nodef",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    55.3,
+    55.3
+   ],
+   "valid": 2,
+   "triggered": 0,
+   "degraded": 0,
+   "modes": []
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 60,
+   "arm": "fixed",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    49.1,
+    49.1
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 60,
+   "arm": "pre_pi",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    55.3,
+    55.3
+   ],
+   "valid": 2,
+   "triggered": 0,
+   "degraded": 0,
+   "modes": []
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 60,
+   "arm": "pre_stm32",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    49.0,
+    49.0
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 60,
+   "arm": "pre_stm32w",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    49.0,
+    49.0
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 2,
+   "modes": [
+    "hard_stop"
+   ]
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 60,
+   "arm": "mid_pi",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    49.1,
+    49.1
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.08,
+   "mu": 0.066,
+   "kph": 60,
+   "arm": "mid_stm32",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    49.1,
+    49.1
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.15,
+   "mu": 0.123,
+   "kph": 60,
+   "arm": "nodef",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    53.1,
+    53.1
+   ],
+   "valid": 2,
+   "triggered": 0,
+   "degraded": 0,
+   "modes": []
+  },
+  {
+   "fr": 0.15,
+   "mu": 0.123,
+   "kph": 60,
+   "arm": "fixed",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    38.9,
+    38.9
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.15,
+   "mu": 0.123,
+   "kph": 60,
+   "arm": "pre_pi",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    53.1,
+    53.1
+   ],
+   "valid": 2,
+   "triggered": 0,
+   "degraded": 0,
+   "modes": []
+  },
+  {
+   "fr": 0.15,
+   "mu": 0.123,
+   "kph": 60,
+   "arm": "pre_stm32",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    39.4,
+    39.4
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.15,
+   "mu": 0.123,
+   "kph": 60,
+   "arm": "pre_stm32w",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    38.8,
+    38.8
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 2,
+   "modes": [
+    "hard_stop"
+   ]
+  },
+  {
+   "fr": 0.15,
+   "mu": 0.123,
+   "kph": 60,
+   "arm": "mid_pi",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    38.8,
+    38.8
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  },
+  {
+   "fr": 0.15,
+   "mu": 0.123,
+   "kph": 60,
+   "arm": "mid_stm32",
+   "n": 2,
+   "crash": 2,
+   "pre": [
+    38.8,
+    38.8
+   ],
+   "valid": 2,
+   "triggered": 2,
+   "degraded": 0,
+   "modes": [
+    "lane_keep"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1212 @@
+{
+ "n_groups": 48,
+ "by_cell": [
+  {
+   "fr": 0.02,
+   "kph": 40,
+   "ttc": 8.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     34.07,
+     34.12
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     33.59,
+     33.59
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     33.59,
+     33.59
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.02,
+   "kph": 40,
+   "ttc": 8.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     34.67,
+     33.6
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     34.63,
+     33.59
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     34.12,
+     33.59
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.02,
+   "kph": 40,
+   "ttc": 11.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     31.95,
+     31.95
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     31.39,
+     31.49
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     31.39,
+     31.39
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.02,
+   "kph": 40,
+   "ttc": 11.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     31.39,
+     31.39
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     31.39,
+     31.4
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     31.9,
+     31.39
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.02,
+   "kph": 60,
+   "ttc": 8.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     52.92,
+     52.53
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     52.54,
+     52.53
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     52.54,
+     52.53
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.02,
+   "kph": 60,
+   "ttc": 8.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     52.53,
+     52.53
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     52.53,
+     52.54
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     52.87,
+     52.91
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.02,
+   "kph": 60,
+   "ttc": 11.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     32.99,
+     50.26
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     50.26,
+     22.95
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     50.26,
+     43.02
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.02,
+   "kph": 60,
+   "ttc": 11.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     43.02,
+     43.02
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     18.59,
+     32.98
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     43.02,
+     50.26
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.04,
+   "kph": 40,
+   "ttc": 8.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     27.84,
+     27.84
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     27.84,
+     27.84
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     33.78,
+     33.62
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.04,
+   "kph": 40,
+   "ttc": 8.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     27.84,
+     27.84
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     27.87,
+     34.12
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     34.12,
+     27.85
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.04,
+   "kph": 40,
+   "ttc": 11.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     31.58,
+     22.38
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     22.38,
+     31.49
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     22.38,
+     22.38
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.04,
+   "kph": 40,
+   "ttc": 11.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     22.38,
+     22.38
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     22.41,
+     31.95
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     31.95,
+     22.39
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.04,
+   "kph": 60,
+   "ttc": 8.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     52.67,
+     47.28
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     52.91,
+     47.28
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     47.29,
+     52.91
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.04,
+   "kph": 60,
+   "ttc": 8.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     47.28,
+     47.28
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     47.28,
+     52.91
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     52.91,
+     52.53
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.04,
+   "kph": 60,
+   "ttc": 11.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     22.97,
+     33.95
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     32.39,
+     33.96
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     33.97,
+     32.98
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.04,
+   "kph": 60,
+   "ttc": 11.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     34.68,
+     42.54
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     42.54,
+     42.54
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     42.55,
+     18.58
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   }
+  },
+  {
+   "fr": 0.08,
+   "kph": 40,
+   "ttc": 8.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     33.68,
+     7.94
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     7.68,
+     34.11
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     34.12,
+     33.59
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.08,
+   "kph": 40,
+   "ttc": 8.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     7.95,
+     7.95
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     7.69,
+     7.6
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     7.69,
+     7.69
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.08,
+   "kph": 40,
+   "ttc": 11.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 1,
+    "pre": [
+     31.96,
+     null
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep",
+     "stopped"
+    ]
+   },
+   "muaware": {
+    "crash": 0,
+    "pre": [
+     null,
+     null
+    ],
+    "modes": [
+     "evade_right",
+     "stopped"
+    ]
+   },
+   "soft": {
+    "crash": 1,
+    "pre": [
+     null,
+     31.39
+    ],
+    "modes": [
+     "evade_right",
+     "stopped"
+    ]
+   }
+  },
+  {
+   "fr": 0.08,
+   "kph": 40,
+   "ttc": 11.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 0,
+    "pre": [
+     null,
+     null
+    ],
+    "modes": [
+     "lane_keep",
+     "stopped"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     31.54,
+     31.94
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 0,
+    "pre": [
+     null,
+     null
+    ],
+    "modes": [
+     "evade_right",
+     "stopped"
+    ]
+   }
+  },
+  {
+   "fr": 0.08,
+   "kph": 60,
+   "ttc": 8.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     34.44,
+     34.44
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     34.44,
+     52.53
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     52.53,
+     34.39
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.08,
+   "kph": 60,
+   "ttc": 8.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     34.44,
+     52.87
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     52.53,
+     34.49
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   },
+   "soft": {
+    "crash": 2,
+    "pre": [
+     52.91,
+     34.37
+    ],
+    "modes": [
+     "evade_right"
+    ]
+   }
+  },
+  {
+   "fr": 0.08,
+   "kph": 60,
+   "ttc": 11.0,
+   "mode": "assist",
+   "n": 2,
+   "fixed": {
+    "crash": 0,
+    "pre": [
+     null,
+     null
+    ],
+    "modes": [
+     "lane_keep",
+     "stopped"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     22.9,
+     19.07
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "soft": {
+    "crash": 1,
+    "pre": [
+     null,
+     19.33
+    ],
+    "modes": [
+     "evade_right",
+     "stopped"
+    ]
+   }
+  },
+  {
+   "fr": 0.08,
+   "kph": 60,
+   "ttc": 11.0,
+   "mode": "auto",
+   "n": 2,
+   "fixed": {
+    "crash": 2,
+    "pre": [
+     19.18,
+     32.9
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "muaware": {
+    "crash": 2,
+    "pre": [
+     19.08,
+     18.13
+    ],
+    "modes": [
+     "evade_right",
+     "lane_keep"
+    ]
+   },
+   "soft": {
+    "crash": 1,
+    "pre": [
+     32.98,
+     null
+    ],
+    "modes": [
+     "evade_right",
+     "stopped"
+    ]
+   }
+  }
+ ],
+ "totals": {
+  "auto": {
+   "fixed": {
+    "n": 24,
+    "crash": 22,
+    "pre_median": 34.019999999999996
+   },
+   "muaware": {
+    "n": 24,
+    "crash": 24,
+    "pre_median": 32.464999999999996
+   },
+   "soft": {
+    "n": 24,
+    "crash": 21,
+    "pre_median": 34.12
+   }
+  },
+  "assist": {
+   "fixed": {
+    "n": 24,
+    "crash": 21,
+    "pre_median": 33.68
+   },
+   "muaware": {
+    "n": 24,
+    "crash": 22,
+    "pre_median": 32.99
+   },
+   "soft": {
+    "n": 24,
+    "crash": 22,
+    "pre_median": 33.7
+   }
+  }
+ },
+ "fault": [
+  {
+   "host": "none",
+   "dur": "0",
+   "rep": 0,
+   "collision": "model3",
+   "pre_kph": 31.48,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "none",
+   "dur": "0",
+   "rep": 1,
+   "collision": "model3",
+   "pre_kph": 31.46,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "pi",
+   "dur": "0.3",
+   "rep": 0,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": true
+  },
+  {
+   "host": "pi",
+   "dur": "0.3",
+   "rep": 1,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": true
+  },
+  {
+   "host": "pi",
+   "dur": "0.6",
+   "rep": 0,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "pi",
+   "dur": "0.6",
+   "rep": 1,
+   "collision": "model3",
+   "pre_kph": 31.88,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "pi",
+   "dur": "1.2",
+   "rep": 0,
+   "collision": "model3",
+   "pre_kph": 31.95,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "pi",
+   "dur": "1.2",
+   "rep": 1,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": true
+  },
+  {
+   "host": "pi",
+   "dur": "inf",
+   "rep": 0,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": true
+  },
+  {
+   "host": "pi",
+   "dur": "inf",
+   "rep": 1,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": true
+  },
+  {
+   "host": "stm32",
+   "dur": "0.3",
+   "rep": 0,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": true
+  },
+  {
+   "host": "stm32",
+   "dur": "0.3",
+   "rep": 1,
+   "collision": "model3",
+   "pre_kph": 31.88,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "stm32",
+   "dur": "0.6",
+   "rep": 0,
+   "collision": "model3",
+   "pre_kph": 31.95,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "stm32",
+   "dur": "0.6",
+   "rep": 1,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "stm32",
+   "dur": "1.2",
+   "rep": 0,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": true
+  },
+  {
+   "host": "stm32",
+   "dur": "1.2",
+   "rep": 1,
+   "collision": "model3",
+   "pre_kph": 31.46,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "stm32",
+   "dur": "inf",
+   "rep": 0,
+   "collision": "model3",
+   "pre_kph": 31.48,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": false
+  },
+  {
+   "host": "stm32",
+   "dur": "inf",
+   "rep": 1,
+   "collision": "a2",
+   "pre_kph": 22.39,
+   "modes": [
+    "evade_right"
+   ],
+   "stopped": false,
+   "spin": false,
+   "detected": true,
+   "departure": true
+  }
+ ]
+}
