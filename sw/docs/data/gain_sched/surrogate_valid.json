@@ -1,0 +1,2396 @@
+{
+ "criteria": {
+  "in_domain": {
+   "stop_err_by_mu": {
+    "0.018": 0.2852594368746164,
+    "0.034": 0.07756797180642916,
+    "0.066": 0.17829262098530818,
+    "0.127": 0.6158120446838773,
+    "0.245": 1.4627979938943287
+   },
+   "dv_err_by_mu": {
+    "0.018": 0.2852594368746164,
+    "0.034": 0.07756797180642916,
+    "0.066": 0.17829262098530818,
+    "0.127": 0.6158120446838773,
+    "0.245": 1.4627979938943287
+   },
+   "stop_metric": "속도 감소량 Δv (정지 전 충돌)",
+   "stop_err_max": 1.4627979938943287,
+   "head_diff_median": 5.960977754992697,
+   "head_diff_le10_frac": 0.5569620253164557,
+   "n_nospin": 79,
+   "spin_agree": 0.975609756097561,
+   "n": 82,
+   "pass": false
+  },
+  "in_domain_held_out": {
+   "stop_err_by_mu": {
+    "0.018": 0.1868992379010248,
+    "0.034": 0.050682406740770736,
+    "0.066": 0.28340174622632563,
+    "0.127": 0.868916244121025,
+    "0.245": 2.0787134483685246
+   },
+   "dv_err_by_mu": {
+    "0.018": 0.1868992379010248,
+    "0.034": 0.050682406740770736,
+    "0.066": 0.28340174622632563,
+    "0.127": 0.868916244121025,
+    "0.245": 2.0787134483685246
+   },
+   "stop_metric": "속도 감소량 Δv (정지 전 충돌)",
+   "stop_err_max": 2.0787134483685246,
+   "head_diff_median": 13.465944230286166,
+   "head_diff_le10_frac": 0.38095238095238093,
+   "n_nospin": 42,
+   "spin_agree": 0.9555555555555556,
+   "n": 45,
+   "pass": false
+  },
+  "out_of_domain_passed_runs": {
+   "stop_err_by_mu": {},
+   "dv_err_by_mu": {},
+   "stop_metric": "속도 감소량 Δv (정지 전 충돌)",
+   "stop_err_max": null,
+   "head_diff_median": null,
+   "head_diff_le10_frac": null,
+   "n_nospin": 0,
+   "spin_agree": NaN,
+   "n": 0,
+   "pass": false
+  }
+ },
+ "rows": [
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.02_k40_l0",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 50.75429247281677,
+    "stopped": false,
+    "head_max": 27.71511446606818,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.381269546076421
+   },
+   "sur": {
+    "d_stop": 51.447472650471376,
+    "stopped": false,
+    "head_max": 29.753099861584577,
+    "spin": false,
+    "crash": false,
+    "dv": 0.8573106548528919
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.02_k40_l30",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 50.75427065944018,
+    "stopped": false,
+    "head_max": 27.717406297248704,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.3813105740663065
+   },
+   "sur": {
+    "d_stop": 51.44754887841502,
+    "stopped": false,
+    "head_max": 29.755999732016786,
+    "spin": false,
+    "crash": false,
+    "dv": 0.8573110250201186
+   },
+   "train": true,
+   "lead": true,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.02_k60_l0",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.952083834060225,
+    "stopped": false,
+    "head_max": 24.4085750303682,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.9693477891619207
+   },
+   "sur": {
+    "d_stop": 52.8982652084837,
+    "stopped": false,
+    "head_max": 24.868316193061414,
+    "spin": false,
+    "crash": false,
+    "dv": 0.7066582426011117
+   },
+   "train": false,
+   "lead": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.02_k60_l30",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.93924403167494,
+    "stopped": false,
+    "head_max": 20.50329469875651,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.9755594866046433
+   },
+   "sur": {
+    "d_stop": 52.94170371600696,
+    "stopped": false,
+    "head_max": 3.4663946605414933,
+    "spin": false,
+    "crash": false,
+    "dv": 0.7125722010586912
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.04_k40_l0",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 52.027610750255754,
+    "stopped": false,
+    "head_max": 29.940482542356307,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.7005606666575233
+   },
+   "sur": {
+    "d_stop": 52.14726052774527,
+    "stopped": false,
+    "head_max": 32.29775297504753,
+    "spin": false,
+    "crash": false,
+    "dv": 1.5798613326829578
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.04_k40_l30",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 52.20685545930809,
+    "stopped": false,
+    "head_max": 30.18169777410638,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.7073462465822633
+   },
+   "sur": {
+    "d_stop": 52.32719756788909,
+    "stopped": false,
+    "head_max": 32.43557215487145,
+    "spin": false,
+    "crash": false,
+    "dv": 1.5870517692056918
+   },
+   "train": true,
+   "lead": true,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.04_k60_l0",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.07088307165555,
+    "stopped": false,
+    "head_max": 24.984970572269813,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.1548409191983406
+   },
+   "sur": {
+    "d_stop": 52.788939704575235,
+    "stopped": false,
+    "head_max": 25.42787182767503,
+    "spin": false,
+    "crash": false,
+    "dv": 1.1527620997205208
+   },
+   "train": false,
+   "lead": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.04_k60_l30",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.749083356183604,
+    "stopped": false,
+    "head_max": 16.782506777176945,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.159900085594911
+   },
+   "sur": {
+    "d_stop": 52.54830643082406,
+    "stopped": false,
+    "head_max": 14.780063690382004,
+    "spin": false,
+    "crash": false,
+    "dv": 1.1689575221856163
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.08_k40_l0",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 56.476027908970664,
+    "stopped": false,
+    "head_max": 28.752168075254975,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 4.166827180921148
+   },
+   "sur": {
+    "d_stop": 57.80772032912679,
+    "stopped": false,
+    "head_max": 33.55614283089791,
+    "spin": false,
+    "crash": false,
+    "dv": 3.6858181686510694
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.08_k40_l30",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 56.823866981575165,
+    "stopped": false,
+    "head_max": 28.093839568649656,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.4280328413138914
+   },
+   "sur": {
+    "d_stop": 54.36632738506786,
+    "stopped": false,
+    "head_max": 30.859200328913303,
+    "spin": false,
+    "crash": false,
+    "dv": 3.4248754823158
+   },
+   "train": true,
+   "lead": true,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.08_k60_l0",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.37125345246402,
+    "stopped": false,
+    "head_max": 24.658957586840366,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.4733279306407567
+   },
+   "sur": {
+    "d_stop": 52.45321014246766,
+    "stopped": false,
+    "head_max": 27.741549407187254,
+    "spin": false,
+    "crash": false,
+    "dv": 2.0703618979591223
+   },
+   "train": false,
+   "lead": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.08_k60_l30",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.05001507469833,
+    "stopped": false,
+    "head_max": 9.995248736057212,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.4818503147559774
+   },
+   "sur": {
+    "d_stop": 52.30342781482565,
+    "stopped": false,
+    "head_max": 20.473380369947648,
+    "spin": false,
+    "crash": false,
+    "dv": 2.061747723487068
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.15_k40_l0",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 56.496414798539675,
+    "stopped": false,
+    "head_max": 22.15398610652841,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.6641987531343894
+   },
+   "sur": {
+    "d_stop": 43.89291982925436,
+    "stopped": false,
+    "head_max": 19.71346343870523,
+    "spin": false,
+    "crash": false,
+    "dv": 6.462279663270482
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.15_k40_l30",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 44.72909664396114,
+    "stopped": false,
+    "head_max": 7.518925145501792,
+    "spin": false,
+    "crash": true,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.4623907439153445
+   },
+   "sur": {
+    "d_stop": 38.41046657233223,
+    "stopped": false,
+    "head_max": 25.679053843438396,
+    "spin": false,
+    "crash": false,
+    "dv": 4.3250382259104025
+   },
+   "train": true,
+   "lead": true,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.15_k60_l0",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 58.51819567467624,
+    "stopped": false,
+    "head_max": 30.212637495043438,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.3207858132585777
+   },
+   "sur": {
+    "d_stop": 55.46965014492622,
+    "stopped": false,
+    "head_max": 18.30520926536255,
+    "spin": false,
+    "crash": false,
+    "dv": 4.364602628868887
+   },
+   "train": false,
+   "lead": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.15_k60_l30",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 56.195084436581766,
+    "stopped": false,
+    "head_max": 3.913301740743521,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.136841474061507
+   },
+   "sur": {
+    "d_stop": 54.19384127665966,
+    "stopped": false,
+    "head_max": 25.507114496183046,
+    "spin": false,
+    "crash": false,
+    "dv": 3.7370503686200642
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.3_k40_l0",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 57.6085657151781,
+    "stopped": false,
+    "head_max": 17.087320324186543,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 3.952648231544109
+   },
+   "sur": {
+    "d_stop": 31.82707237131486,
+    "stopped": true,
+    "head_max": 21.70011467835793,
+    "spin": false,
+    "crash": false,
+    "dv": 10.709729438692651
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "ccore",
+   "tag": "s4c_fix_f0.3_k60_l30",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 55.42408718446033,
+    "stopped": false,
+    "head_max": 12.338646118142282,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.2719746167186265
+   },
+   "sur": {
+    "d_stop": 48.538301559054105,
+    "stopped": false,
+    "head_max": 27.200372859498906,
+    "spin": false,
+    "crash": false,
+    "dv": 5.132030904034664
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k40_g0",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 50.78601292428185,
+    "stopped": false,
+    "head_max": 28.9051478065549,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.3735780988249857
+   },
+   "sur": {
+    "d_stop": 51.78278771386944,
+    "stopped": false,
+    "head_max": 37.179950244929714,
+    "spin": false,
+    "crash": false,
+    "dv": 0.7660658084965579
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k40_g1",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 50.8760501237473,
+    "stopped": false,
+    "head_max": 24.210904591048067,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.8298344069589785
+   },
+   "sur": {
+    "d_stop": 50.493820412111184,
+    "stopped": false,
+    "head_max": 11.04661898967428,
+    "spin": false,
+    "crash": false,
+    "dv": 0.914638002944173
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k40_g2",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 50.93863122378392,
+    "stopped": false,
+    "head_max": 29.210534311359634,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.8142627888502414
+   },
+   "sur": {
+    "d_stop": 51.01955992439623,
+    "stopped": false,
+    "head_max": 24.602477397045224,
+    "spin": false,
+    "crash": false,
+    "dv": 0.7139196458299129
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k40_g3",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 50.727945448299174,
+    "stopped": false,
+    "head_max": 25.33504778509474,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.388473941418665
+   },
+   "sur": {
+    "d_stop": 51.393347762167224,
+    "stopped": false,
+    "head_max": 19.817113637248553,
+    "spin": false,
+    "crash": false,
+    "dv": 0.8969378118263531
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k40_g4",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 50.759845221755896,
+    "stopped": false,
+    "head_max": 27.512860364387,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.3794311570651558
+   },
+   "sur": {
+    "d_stop": 51.45900916659937,
+    "stopped": false,
+    "head_max": 30.694725180023244,
+    "spin": false,
+    "crash": false,
+    "dv": 0.852867742292089
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k40_g5",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 41.82378460813674,
+    "stopped": false,
+    "head_max": 19.27945684835707,
+    "spin": false,
+    "crash": true,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.080587967410068
+   },
+   "sur": {
+    "d_stop": 42.047229234054825,
+    "stopped": false,
+    "head_max": 5.511853989158523,
+    "spin": false,
+    "crash": false,
+    "dv": 0.7357572433460344
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k60_g0",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.96856422865409,
+    "stopped": false,
+    "head_max": 26.032337421768954,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.9636095183564937
+   },
+   "sur": {
+    "d_stop": 53.13930021170611,
+    "stopped": false,
+    "head_max": 28.966718236555185,
+    "spin": false,
+    "crash": false,
+    "dv": 0.5630383305183546
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k60_g1",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.02618778709506,
+    "stopped": false,
+    "head_max": 20.965671639427086,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.6185347042664144
+   },
+   "sur": {
+    "d_stop": 52.59182901461801,
+    "stopped": false,
+    "head_max": 3.968369408359452,
+    "spin": false,
+    "crash": false,
+    "dv": 0.7070416653198741
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k60_g2",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.97447696062187,
+    "stopped": false,
+    "head_max": 26.73249184741882,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.9614037578866981
+   },
+   "sur": {
+    "d_stop": 53.17992959180183,
+    "stopped": false,
+    "head_max": 28.30896384337938,
+    "spin": false,
+    "crash": false,
+    "dv": 0.5367764569074716
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k60_g3",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.93819757841271,
+    "stopped": false,
+    "head_max": 20.341147642734487,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.9760522721795137
+   },
+   "sur": {
+    "d_stop": 52.91862739886767,
+    "stopped": false,
+    "head_max": 3.5501841988494216,
+    "spin": false,
+    "crash": false,
+    "dv": 0.7146546046791027
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k60_g4",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.952977095436,
+    "stopped": false,
+    "head_max": 24.426909679812386,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.9690369839052995
+   },
+   "sur": {
+    "d_stop": 52.885653128913674,
+    "stopped": false,
+    "head_max": 22.857131316486292,
+    "spin": false,
+    "crash": false,
+    "dv": 0.7121710621348623
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.02_k60_g5",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.03589685350151,
+    "stopped": false,
+    "head_max": 19.55848729458578,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 0.6162150049844701
+   },
+   "sur": {
+    "d_stop": 52.691828041155894,
+    "stopped": false,
+    "head_max": 4.315031493915289,
+    "spin": false,
+    "crash": false,
+    "dv": 0.6730857007657658
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k40_g0",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 52.058115841288284,
+    "stopped": false,
+    "head_max": 31.586017329972023,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.6940470752471466
+   },
+   "sur": {
+    "d_stop": 52.54481026276102,
+    "stopped": false,
+    "head_max": 43.805434728435905,
+    "spin": false,
+    "crash": false,
+    "dv": 1.4934147383473562
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k40_g1",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 52.17675733345654,
+    "stopped": false,
+    "head_max": 29.78234619090019,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.7140272904788638
+   },
+   "sur": {
+    "d_stop": 53.33266476991833,
+    "stopped": false,
+    "head_max": 51.302809171751306,
+    "spin": false,
+    "crash": false,
+    "dv": 1.305982716701271
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k40_g2",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 52.26851635051986,
+    "stopped": false,
+    "head_max": 30.920813329825144,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.6944987689577307
+   },
+   "sur": {
+    "d_stop": 52.74060101862256,
+    "stopped": false,
+    "head_max": 31.955362393631404,
+    "spin": false,
+    "crash": false,
+    "dv": 1.4854748552766495
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k40_g3",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 52.3252651502952,
+    "stopped": false,
+    "head_max": 24.710523788402146,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.7282608324487132
+   },
+   "sur": {
+    "d_stop": 52.12234613224399,
+    "stopped": false,
+    "head_max": 4.807115901147599,
+    "spin": false,
+    "crash": false,
+    "dv": 1.7014579356702004
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k40_g4",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 52.013122289529655,
+    "stopped": false,
+    "head_max": 28.59575059718426,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.7038336550865356
+   },
+   "sur": {
+    "d_stop": 52.07860560061994,
+    "stopped": false,
+    "head_max": 27.555278210423968,
+    "spin": false,
+    "crash": false,
+    "dv": 1.5940933427684651
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k40_g5",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 52.548705045373936,
+    "stopped": false,
+    "head_max": 17.53881106674963,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.7290415258474212
+   },
+   "sur": {
+    "d_stop": 52.85518535455239,
+    "stopped": false,
+    "head_max": 43.9648078269553,
+    "spin": false,
+    "crash": false,
+    "dv": 1.6143183828879408
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k60_g0",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.12184785944299,
+    "stopped": false,
+    "head_max": 27.952891951047473,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.1371824390344099
+   },
+   "sur": {
+    "d_stop": 53.27072165138367,
+    "stopped": false,
+    "head_max": 16.60594945941962,
+    "spin": false,
+    "crash": false,
+    "dv": 0.8564523208100958
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k60_g1",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.752351446257926,
+    "stopped": false,
+    "head_max": 15.721961898389788,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.1595296814692055
+   },
+   "sur": {
+    "d_stop": 52.77333299184237,
+    "stopped": false,
+    "head_max": 26.398208517756466,
+    "spin": false,
+    "crash": false,
+    "dv": 0.9959154192362512
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k60_g2",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.109675742836444,
+    "stopped": false,
+    "head_max": 26.874585380611272,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.1418354036107683
+   },
+   "sur": {
+    "d_stop": 53.120915140193205,
+    "stopped": false,
+    "head_max": 21.800586143293955,
+    "spin": false,
+    "crash": false,
+    "dv": 0.9765784807134477
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k60_g3",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.03386023616287,
+    "stopped": false,
+    "head_max": 17.959935046170784,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.1691791096339372
+   },
+   "sur": {
+    "d_stop": 52.73420708117474,
+    "stopped": false,
+    "head_max": 17.04728625551934,
+    "spin": false,
+    "crash": false,
+    "dv": 1.2214516046082835
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k60_g4",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.082308798654104,
+    "stopped": false,
+    "head_max": 25.140242134750267,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.151256442338175
+   },
+   "sur": {
+    "d_stop": 52.83046478504303,
+    "stopped": false,
+    "head_max": 23.084930241864942,
+    "spin": false,
+    "crash": false,
+    "dv": 1.1368730447897502
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.04_k60_g5",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.029656769244646,
+    "stopped": false,
+    "head_max": 18.73686581636818,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.1699782265619731
+   },
+   "sur": {
+    "d_stop": 52.561192651038766,
+    "stopped": false,
+    "head_max": 3.7872510258147445,
+    "spin": false,
+    "crash": false,
+    "dv": 1.2671780339810308
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k40_g0",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 56.96119446108134,
+    "stopped": false,
+    "head_max": 35.43629371325116,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.3772720444459274
+   },
+   "sur": {
+    "d_stop": 56.595943200734354,
+    "stopped": false,
+    "head_max": 35.510531370497034,
+    "spin": false,
+    "crash": false,
+    "dv": 2.7193539129182893
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k40_g1",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 56.107967968568154,
+    "stopped": false,
+    "head_max": 7.809987705428252,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.3855551615569084
+   },
+   "sur": {
+    "d_stop": 53.561009745355776,
+    "stopped": false,
+    "head_max": 67.3426854287407,
+    "spin": false,
+    "crash": false,
+    "dv": 3.4658636448463964
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k40_g2",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 56.23527641688523,
+    "stopped": false,
+    "head_max": 43.409574390291695,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 4.099088919636136
+   },
+   "sur": {
+    "d_stop": 59.17041012073654,
+    "stopped": false,
+    "head_max": 47.82914500077728,
+    "spin": false,
+    "crash": false,
+    "dv": 3.248958048869836
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k40_g3",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 55.491283991005105,
+    "stopped": false,
+    "head_max": 4.663876452364901,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.31971295814224
+   },
+   "sur": {
+    "d_stop": 53.06694734941055,
+    "stopped": false,
+    "head_max": 27.417581196820766,
+    "spin": false,
+    "crash": false,
+    "dv": 3.486254449094509
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k40_g4",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 56.85504935275138,
+    "stopped": false,
+    "head_max": 31.517835352351455,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.408910747263997
+   },
+   "sur": {
+    "d_stop": 54.71678162078712,
+    "stopped": false,
+    "head_max": 37.47881310734415,
+    "spin": false,
+    "crash": false,
+    "dv": 3.3447981095375683
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k40_g5",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 56.248456307608656,
+    "stopped": false,
+    "head_max": 11.92955425241887,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.4008817274939958
+   },
+   "sur": {
+    "d_stop": 53.21116391643198,
+    "stopped": false,
+    "head_max": 21.398395767934044,
+    "spin": false,
+    "crash": false,
+    "dv": 3.549923495310919
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k60_g0",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.74275535692325,
+    "stopped": false,
+    "head_max": 24.75120379185643,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.455123411902747
+   },
+   "sur": {
+    "d_stop": 53.60384363153269,
+    "stopped": false,
+    "head_max": 12.062036996114662,
+    "spin": false,
+    "crash": false,
+    "dv": 1.5566877446605094
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k60_g1",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.57686099557459,
+    "stopped": false,
+    "head_max": 7.84608404652149,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.3103560265811343
+   },
+   "sur": {
+    "d_stop": 52.705860028574975,
+    "stopped": false,
+    "head_max": 38.72827433399758,
+    "spin": false,
+    "crash": false,
+    "dv": 2.1546657737564487
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k60_g2",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.734270227261675,
+    "stopped": false,
+    "head_max": 25.306399895338203,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.4573762960016108
+   },
+   "sur": {
+    "d_stop": 53.40007058911613,
+    "stopped": false,
+    "head_max": 32.48950548556294,
+    "spin": false,
+    "crash": false,
+    "dv": 1.6681313704295793
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k60_g3",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.80282577413173,
+    "stopped": false,
+    "head_max": 7.487412466769599,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.4630007172878603
+   },
+   "sur": {
+    "d_stop": 52.350663382949826,
+    "stopped": false,
+    "head_max": 22.809961444187444,
+    "spin": false,
+    "crash": false,
+    "dv": 1.8240295202315213
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k60_g4",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 53.36027886833787,
+    "stopped": false,
+    "head_max": 24.07683246698745,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.4769142927475567
+   },
+   "sur": {
+    "d_stop": 52.43060762139696,
+    "stopped": false,
+    "head_max": 28.390537802674423,
+    "spin": false,
+    "crash": false,
+    "dv": 2.0670236832363074
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.08_k60_g5",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 52.59474341357291,
+    "stopped": false,
+    "head_max": 5.958761069360562,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.305613129753203
+   },
+   "sur": {
+    "d_stop": 52.88026623439664,
+    "stopped": false,
+    "head_max": 33.59077052992986,
+    "spin": false,
+    "crash": false,
+    "dv": 2.1016400897638032
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k40_g1",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 55.95098977238159,
+    "stopped": false,
+    "head_max": 14.361760092749215,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.637129308562672
+   },
+   "sur": {
+    "d_stop": 44.05894336450036,
+    "stopped": false,
+    "head_max": 78.35506776959396,
+    "spin": false,
+    "crash": false,
+    "dv": 6.28864162819628
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k40_g2",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 51.33246360506071,
+    "stopped": false,
+    "head_max": 24.306588542834906,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.8594734679015765
+   },
+   "sur": {
+    "d_stop": 46.536900027841206,
+    "stopped": false,
+    "head_max": 27.75935801268228,
+    "spin": false,
+    "crash": false,
+    "dv": 3.4879522088544386
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k40_g3",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 55.50848926645574,
+    "stopped": false,
+    "head_max": 7.277709913751713,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.5579686498246392
+   },
+   "sur": {
+    "d_stop": 48.58708198523514,
+    "stopped": false,
+    "head_max": 24.347859492002566,
+    "spin": false,
+    "crash": false,
+    "dv": 4.3954030791304275
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k40_g4",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 56.72769998134269,
+    "stopped": false,
+    "head_max": 24.88699478930243,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.645592915069251
+   },
+   "sur": {
+    "d_stop": 44.113624815042314,
+    "stopped": false,
+    "head_max": 19.52695823919531,
+    "spin": false,
+    "crash": false,
+    "dv": 6.411830266517858
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k40_g5",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 8.874592621682112,
+    "stopped": false,
+    "head_max": 4.852952524758073,
+    "spin": false,
+    "crash": true,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.1830947335856496
+   },
+   "sur": {
+    "d_stop": 8.841559748702814,
+    "stopped": false,
+    "head_max": 13.553225912707035,
+    "spin": false,
+    "crash": false,
+    "dv": 0.9902033228701832
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k60_g0",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 58.0609354461846,
+    "stopped": false,
+    "head_max": 61.675468899062324,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 5.040818937140612
+   },
+   "sur": {
+    "d_stop": 62.515510740887585,
+    "stopped": false,
+    "head_max": 40.28452691805774,
+    "spin": false,
+    "crash": false,
+    "dv": 2.7062223472255926
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k60_g1",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 56.41523709289019,
+    "stopped": false,
+    "head_max": 3.20856365273261,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.1601286379989073
+   },
+   "sur": {
+    "d_stop": 53.72232862724513,
+    "stopped": false,
+    "head_max": 15.228163558832447,
+    "spin": false,
+    "crash": false,
+    "dv": 4.22726974941148
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k60_g2",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 58.410990954249485,
+    "stopped": false,
+    "head_max": 45.689373457117235,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.1775982090998305
+   },
+   "sur": {
+    "d_stop": 58.34253234481131,
+    "stopped": false,
+    "head_max": 27.581245490796434,
+    "spin": false,
+    "crash": false,
+    "dv": 2.701779988820496
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k60_g3",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 56.12915725286734,
+    "stopped": false,
+    "head_max": 3.20856365273261,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.1565334449093587
+   },
+   "sur": {
+    "d_stop": 53.344356492230254,
+    "stopped": false,
+    "head_max": 18.62226186835936,
+    "spin": false,
+    "crash": false,
+    "dv": 4.248272342288935
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k60_g4",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 58.02620847604043,
+    "stopped": false,
+    "head_max": 54.434428284199,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 5.061128469052065
+   },
+   "sur": {
+    "d_stop": 61.380647825937,
+    "stopped": false,
+    "head_max": 35.583570532437214,
+    "spin": false,
+    "crash": false,
+    "dv": 3.329850865948403
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.15_k60_g5",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 54.55339850937649,
+    "stopped": false,
+    "head_max": 18.89786695679994,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.087918089572204
+   },
+   "sur": {
+    "d_stop": 52.43494811859077,
+    "stopped": false,
+    "head_max": 72.54686652528025,
+    "spin": false,
+    "crash": false,
+    "dv": 3.969420779409843
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k40_g0",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 58.13171915475154,
+    "stopped": false,
+    "head_max": 22.832941093758443,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 4.006294304375321
+   },
+   "sur": {
+    "d_stop": 46.12139107368141,
+    "stopped": false,
+    "head_max": 25.33843538198805,
+    "spin": false,
+    "crash": false,
+    "dv": 6.297289239911508
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k40_g1",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 52.09651673615381,
+    "stopped": false,
+    "head_max": 10.789941197903666,
+    "spin": false,
+    "crash": true,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.237500362611007
+   },
+   "sur": {
+    "d_stop": 32.17464780521273,
+    "stopped": false,
+    "head_max": 10.210443565551957,
+    "spin": false,
+    "crash": false,
+    "dv": 9.459668458791285
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k40_g2",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 58.16224718386655,
+    "stopped": false,
+    "head_max": 24.094021200841375,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 3.9969317849569155
+   },
+   "sur": {
+    "d_stop": 46.76967836826192,
+    "stopped": false,
+    "head_max": 29.554121887319674,
+    "spin": false,
+    "crash": false,
+    "dv": 6.010261597678421
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k40_g4",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 57.61750979030029,
+    "stopped": false,
+    "head_max": 16.721200293097947,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 3.9505373027935686
+   },
+   "sur": {
+    "d_stop": 35.96236275503858,
+    "stopped": false,
+    "head_max": 36.54434240989158,
+    "spin": false,
+    "crash": false,
+    "dv": 9.873310708230157
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k40_g5",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 40.0,
+   "carla": {
+    "d_stop": 50.80540336971191,
+    "stopped": false,
+    "head_max": 4.1482144367471605,
+    "spin": false,
+    "crash": true,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.796587184788443
+   },
+   "sur": {
+    "d_stop": 34.854277157996165,
+    "stopped": false,
+    "head_max": 140.52562452160188,
+    "spin": true,
+    "crash": false,
+    "dv": 7.899194445478917
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k60_g0",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 50.691212108350975,
+    "stopped": false,
+    "head_max": 20.914105437865313,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.3960211890994003
+   },
+   "sur": {
+    "d_stop": 46.369899971256835,
+    "stopped": false,
+    "head_max": 43.02948207518616,
+    "spin": false,
+    "crash": false,
+    "dv": 3.6054286320779436
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k60_g1",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 55.4330666148615,
+    "stopped": false,
+    "head_max": 11.502700695046412,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.269701123555663
+   },
+   "sur": {
+    "d_stop": 49.10400824212511,
+    "stopped": false,
+    "head_max": 34.237250044056,
+    "spin": false,
+    "crash": false,
+    "dv": 4.722674030340583
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k60_g2",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 56.03648574927651,
+    "stopped": false,
+    "head_max": 23.789780611626906,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.3077120441829972
+   },
+   "sur": {
+    "d_stop": 50.703136483856646,
+    "stopped": false,
+    "head_max": 25.1273305661789,
+    "spin": false,
+    "crash": false,
+    "dv": 4.163924949511044
+   },
+   "train": true,
+   "lead": false,
+   "in_domain": true,
+   "held_out": false
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k60_g3",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 50.648170665777315,
+    "stopped": false,
+    "head_max": 11.74162409561596,
+    "spin": false,
+    "crash": true,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 1.4534084044578783
+   },
+   "sur": {
+    "d_stop": 42.20276031498124,
+    "stopped": false,
+    "head_max": 101.53428976322894,
+    "spin": true,
+    "crash": false,
+    "dv": 6.516215347165019
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "cand",
+   "tag": "s4c_gs_f0.3_k60_g5",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 60.0,
+   "carla": {
+    "d_stop": 55.957065480882555,
+    "stopped": false,
+    "head_max": 18.403404379602048,
+    "spin": false,
+    "crash": false,
+    "crash_any": 1.0,
+    "exited": false,
+    "dv": 2.368440337422589
+   },
+   "sur": {
+    "d_stop": 50.11674628922499,
+    "stopped": false,
+    "head_max": 18.370127564893785,
+    "spin": false,
+    "crash": false,
+    "dv": 4.438911697233456
+   },
+   "train": false,
+   "lead": true,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "nodef",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 40,
+   "carla": {
+    "head_max": 5.700930061551691,
+    "spin": false,
+    "departure": true,
+    "lost": true
+   },
+   "sur": {
+    "head_max": 5.700930061551687,
+    "spin": false,
+    "departure": true
+   },
+   "train": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "nodef",
+   "fr": 0.02,
+   "mu": 0.01775098085096464,
+   "kph": 60,
+   "carla": {
+    "head_max": 15.555804137801852,
+    "spin": false,
+    "departure": true,
+    "lost": true
+   },
+   "sur": {
+    "head_max": 15.555804137801855,
+    "spin": false,
+    "departure": true
+   },
+   "train": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "nodef",
+   "fr": 0.04,
+   "mu": 0.0339846981066443,
+   "kph": 40,
+   "carla": {
+    "head_max": 56.2358075920903,
+    "spin": false,
+    "departure": true,
+    "lost": true
+   },
+   "sur": {
+    "head_max": 55.27044321997604,
+    "spin": false,
+    "departure": true
+   },
+   "train": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "nodef",
+   "fr": 0.08,
+   "mu": 0.06646194095989735,
+   "kph": 40,
+   "carla": {
+    "head_max": 111.0512528100513,
+    "spin": true,
+    "departure": true,
+    "lost": true
+   },
+   "sur": {
+    "head_max": 101.65526257539716,
+    "spin": true,
+    "departure": true
+   },
+   "train": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "nodef",
+   "fr": 0.15,
+   "mu": 0.12737542481508216,
+   "kph": 40,
+   "carla": {
+    "head_max": 4.595121516949202,
+    "spin": false,
+    "departure": true,
+    "lost": true
+   },
+   "sur": {
+    "head_max": 4.595121516949205,
+    "spin": false,
+    "departure": true
+   },
+   "train": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "nodef",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 40,
+   "carla": {
+    "head_max": 19.509212924204533,
+    "spin": false,
+    "departure": true,
+    "lost": true
+   },
+   "sur": {
+    "head_max": 19.509212924204533,
+    "spin": false,
+    "departure": true
+   },
+   "train": false,
+   "in_domain": true,
+   "held_out": true
+  },
+  {
+   "mode": "nodef",
+   "fr": 0.3,
+   "mu": 0.24515084583925004,
+   "kph": 60,
+   "carla": {
+    "head_max": 19.950390426455265,
+    "spin": false,
+    "departure": true,
+    "lost": true
+   },
+   "sur": {
+    "head_max": 19.950390426455257,
+    "spin": false,
+    "departure": true
+   },
+   "train": false,
+   "in_domain": true,
+   "held_out": true
+  }
+ ],
+ "fit": {
+  "a": 1.1418795250319642,
+  "Iz": 3289.3234169192096,
+  "delta_scale": 0.7085575209064812,
+  "tau_delta": 0.14833082750398485,
+  "Cy": 77.18814434713909,
+  "Cx": 18.320175572013326,
+  "Iw": 13.13139178594167,
+  "c_roll": 7.056191537691305e-05,
+  "c_drag": 0.5089576698885919,
+  "E_b": 4229.150125991905,
+  "eb_front": 0.0011069645259763339,
+  "mu_dry": 0.6725292035170707,
+  "front_brake_share": 0.5
+ }
+}

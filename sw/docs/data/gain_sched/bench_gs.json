@@ -1,0 +1,30 @@
+{
+ "platform": "Raspberry Pi 5 (Cortex-A76, Linux) — RTOS 최악값 근거 아님",
+ "n": 200000,
+ "results": {
+  "고정 게인": {
+   "mean_ns": 86.447475,
+   "p50_ns": 92.0,
+   "p99_ns": 93.0,
+   "max_ns": 18666.0,
+   "n": 200000,
+   "mean_ratio": 1.0
+  },
+  "SLIP_MU_EST": {
+   "mean_ns": 98.193925,
+   "p50_ns": 92.0,
+   "p99_ns": 93.0,
+   "max_ns": 2199998.0,
+   "n": 200000,
+   "mean_ratio": 1.1358796193873795
+  },
+  "SLIP_MU_EST + SLIP_GAIN_SCHED": {
+   "mean_ns": 97.4296,
+   "p50_ns": 93.0,
+   "p99_ns": 148.0,
+   "max_ns": 19889.0,
+   "n": 200000,
+   "mean_ratio": 1.1270381234385387
+  }
+ }
+}

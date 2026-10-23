@@ -1,0 +1,902 @@
+[
+ {
+  "tag": "s4c_fix_f0.02_k40_l0",
+  "kind": "fixed",
+  "fr": 0.02,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 33.69,
+  "v0": 38.57,
+  "ttc": 5.02
+ },
+ {
+  "tag": "s4c_fix_f0.02_k40_l30",
+  "kind": "fixed",
+  "fr": 0.02,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 33.69,
+  "v0": 38.57,
+  "ttc": 5.02
+ },
+ {
+  "tag": "s4c_fix_f0.02_k60_l0",
+  "kind": "fixed",
+  "fr": 0.02,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.86,
+  "v0": 57.25,
+  "ttc": 3.419999999999999
+ },
+ {
+  "tag": "s4c_fix_f0.02_k60_l30",
+  "kind": "fixed",
+  "fr": 0.02,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.84,
+  "v0": 57.25,
+  "ttc": 3.419999999999999
+ },
+ {
+  "tag": "s4c_fix_f0.04_k40_l0",
+  "kind": "fixed",
+  "fr": 0.04,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 32.47,
+  "v0": 38.5,
+  "ttc": 5.28
+ },
+ {
+  "tag": "s4c_fix_f0.04_k40_l30",
+  "kind": "fixed",
+  "fr": 0.04,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 32.45,
+  "v0": 38.5,
+  "ttc": 5.3
+ },
+ {
+  "tag": "s4c_fix_f0.04_k60_l0",
+  "kind": "fixed",
+  "fr": 0.04,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.2,
+  "v0": 57.26,
+  "ttc": 3.460000000000001
+ },
+ {
+  "tag": "s4c_fix_f0.04_k60_l30",
+  "kind": "fixed",
+  "fr": 0.04,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.18,
+  "v0": 57.26,
+  "ttc": 3.4400000000000004
+ },
+ {
+  "tag": "s4c_fix_f0.08_k40_l0",
+  "kind": "fixed",
+  "fr": 0.08,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 23.71,
+  "v0": 38.53,
+  "ttc": 6.539999999999999
+ },
+ {
+  "tag": "s4c_fix_f0.08_k40_l30",
+  "kind": "fixed",
+  "fr": 0.08,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 29.97,
+  "v0": 38.53,
+  "ttc": 6.0600000000000005
+ },
+ {
+  "tag": "s4c_fix_f0.08_k60_l0",
+  "kind": "fixed",
+  "fr": 0.08,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 52.05,
+  "v0": 57.25,
+  "ttc": 3.540000000000001
+ },
+ {
+  "tag": "s4c_fix_f0.08_k60_l30",
+  "kind": "fixed",
+  "fr": 0.08,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 52.02,
+  "v0": 57.25,
+  "ttc": 3.5199999999999996
+ },
+ {
+  "tag": "s4c_fix_f0.15_k40_l0",
+  "kind": "fixed",
+  "fr": 0.15,
+  "kph": 40.0,
+  "with_": "model3",
+  "pre": 29.3,
+  "v0": 38.55,
+  "ttc": 5.8199999999999985
+ },
+ {
+  "tag": "s4c_fix_f0.15_k40_l30",
+  "kind": "fixed",
+  "fr": 0.15,
+  "kph": 40.0,
+  "with_": "model3",
+  "pre": 33.38,
+  "v0": 38.55,
+  "ttc": 4.48
+ },
+ {
+  "tag": "s4c_fix_f0.15_k60_l0",
+  "kind": "fixed",
+  "fr": 0.15,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.27,
+  "v0": 57.28,
+  "ttc": 4.04
+ },
+ {
+  "tag": "s4c_fix_f0.15_k60_l30",
+  "kind": "fixed",
+  "fr": 0.15,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.68,
+  "v0": 57.28,
+  "ttc": 3.8600000000000003
+ },
+ {
+  "tag": "s4c_fix_f0.3_k40_l0",
+  "kind": "fixed",
+  "fr": 0.3,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 25.01,
+  "v0": 38.56,
+  "ttc": 6.019999999999998
+ },
+ {
+  "tag": "s4c_fix_f0.3_k40_l30",
+  "kind": "fixed",
+  "fr": 0.3,
+  "kph": 40.0,
+  "with_": "a2",
+  "pre": 18.74,
+  "v0": 38.69,
+  "ttc": 11.36
+ },
+ {
+  "tag": "s4c_fix_f0.3_k60_l0",
+  "kind": "fixed",
+  "fr": 0.3,
+  "kph": 60.0,
+  "with_": null,
+  "pre": null,
+  "v0": 31.35,
+  "ttc": null
+ },
+ {
+  "tag": "s4c_fix_f0.3_k60_l30",
+  "kind": "fixed",
+  "fr": 0.3,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.79,
+  "v0": 57.28,
+  "ttc": 3.6400000000000006
+ },
+ {
+  "tag": "s4c_gs_f0.02_k40_g0",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 33.71,
+  "v0": 38.57,
+  "ttc": 5.02
+ },
+ {
+  "tag": "s4c_gs_f0.02_k40_g1",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 35.63,
+  "v0": 38.57,
+  "ttc": 4.9399999999999995
+ },
+ {
+  "tag": "s4c_gs_f0.02_k40_g2",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 35.68,
+  "v0": 38.57,
+  "ttc": 4.9399999999999995
+ },
+ {
+  "tag": "s4c_gs_f0.02_k40_g3",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 33.66,
+  "v0": 38.57,
+  "ttc": 5.02
+ },
+ {
+  "tag": "s4c_gs_f0.02_k40_g4",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 33.69,
+  "v0": 38.57,
+  "ttc": 5.02
+ },
+ {
+  "tag": "s4c_gs_f0.02_k40_g5",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 40.0,
+  "with_": "model3",
+  "pre": 34.77,
+  "v0": 38.57,
+  "ttc": 4.08
+ },
+ {
+  "tag": "s4c_gs_f0.02_k60_g0",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.88,
+  "v0": 57.25,
+  "ttc": 3.419999999999999
+ },
+ {
+  "tag": "s4c_gs_f0.02_k60_g1",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 55.08,
+  "v0": 57.25,
+  "ttc": 3.3999999999999995
+ },
+ {
+  "tag": "s4c_gs_f0.02_k60_g2",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.89,
+  "v0": 57.25,
+  "ttc": 3.419999999999999
+ },
+ {
+  "tag": "s4c_gs_f0.02_k60_g3",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.84,
+  "v0": 57.25,
+  "ttc": 3.419999999999999
+ },
+ {
+  "tag": "s4c_gs_f0.02_k60_g4",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.86,
+  "v0": 57.25,
+  "ttc": 3.419999999999999
+ },
+ {
+  "tag": "s4c_gs_f0.02_k60_g5",
+  "kind": "cand",
+  "fr": 0.02,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 55.08,
+  "v0": 57.25,
+  "ttc": 3.3999999999999995
+ },
+ {
+  "tag": "s4c_gs_f0.04_k40_g0",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 32.49,
+  "v0": 38.5,
+  "ttc": 5.28
+ },
+ {
+  "tag": "s4c_gs_f0.04_k40_g1",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 32.42,
+  "v0": 38.5,
+  "ttc": 5.3
+ },
+ {
+  "tag": "s4c_gs_f0.04_k40_g2",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 32.49,
+  "v0": 38.5,
+  "ttc": 5.3
+ },
+ {
+  "tag": "s4c_gs_f0.04_k40_g3",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 32.37,
+  "v0": 38.5,
+  "ttc": 5.319999999999999
+ },
+ {
+  "tag": "s4c_gs_f0.04_k40_g4",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 32.46,
+  "v0": 38.5,
+  "ttc": 5.28
+ },
+ {
+  "tag": "s4c_gs_f0.04_k40_g5",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 32.37,
+  "v0": 38.5,
+  "ttc": 5.340000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.04_k60_g0",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.26,
+  "v0": 57.26,
+  "ttc": 3.460000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.04_k60_g1",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.18,
+  "v0": 57.26,
+  "ttc": 3.4400000000000004
+ },
+ {
+  "tag": "s4c_gs_f0.04_k60_g2",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.25,
+  "v0": 57.26,
+  "ttc": 3.460000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.04_k60_g3",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.15,
+  "v0": 57.26,
+  "ttc": 3.46
+ },
+ {
+  "tag": "s4c_gs_f0.04_k60_g4",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.21,
+  "v0": 57.26,
+  "ttc": 3.460000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.04_k60_g5",
+  "kind": "cand",
+  "fr": 0.04,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 53.14,
+  "v0": 57.26,
+  "ttc": 3.46
+ },
+ {
+  "tag": "s4c_gs_f0.08_k40_g0",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 30.15,
+  "v0": 38.53,
+  "ttc": 6.059999999999999
+ },
+ {
+  "tag": "s4c_gs_f0.08_k40_g1",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 30.13,
+  "v0": 38.53,
+  "ttc": 5.98
+ },
+ {
+  "tag": "s4c_gs_f0.08_k40_g2",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 23.96,
+  "v0": 38.53,
+  "ttc": 6.479999999999999
+ },
+ {
+  "tag": "s4c_gs_f0.08_k40_g3",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 30.3,
+  "v0": 38.53,
+  "ttc": 5.9
+ },
+ {
+  "tag": "s4c_gs_f0.08_k40_g4",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 30.04,
+  "v0": 38.53,
+  "ttc": 6.059999999999999
+ },
+ {
+  "tag": "s4c_gs_f0.08_k40_g5",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 30.07,
+  "v0": 38.53,
+  "ttc": 6.0
+ },
+ {
+  "tag": "s4c_gs_f0.08_k60_g0",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 52.11,
+  "v0": 57.25,
+  "ttc": 3.5600000000000005
+ },
+ {
+  "tag": "s4c_gs_f0.08_k60_g1",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.13,
+  "v0": 57.25,
+  "ttc": 3.5600000000000005
+ },
+ {
+  "tag": "s4c_gs_f0.08_k60_g2",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 52.1,
+  "v0": 57.25,
+  "ttc": 3.5600000000000005
+ },
+ {
+  "tag": "s4c_gs_f0.08_k60_g3",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 52.08,
+  "v0": 57.25,
+  "ttc": 3.5
+ },
+ {
+  "tag": "s4c_gs_f0.08_k60_g4",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 52.03,
+  "v0": 57.25,
+  "ttc": 3.540000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.08_k60_g5",
+  "kind": "cand",
+  "fr": 0.08,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.14,
+  "v0": 57.25,
+  "ttc": 3.5600000000000005
+ },
+ {
+  "tag": "s4c_gs_f0.15_k40_g0",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 40.0,
+  "with_": null,
+  "pre": null,
+  "v0": 38.68,
+  "ttc": null
+ },
+ {
+  "tag": "s4c_gs_f0.15_k40_g1",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 29.4,
+  "v0": 38.55,
+  "ttc": 5.76
+ },
+ {
+  "tag": "s4c_gs_f0.15_k40_g2",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 40.0,
+  "with_": "model3",
+  "pre": 32.2,
+  "v0": 38.55,
+  "ttc": 5.200000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.15_k40_g3",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 29.69,
+  "v0": 38.55,
+  "ttc": 5.700000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.15_k40_g4",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 29.37,
+  "v0": 38.55,
+  "ttc": 5.840000000000002
+ },
+ {
+  "tag": "s4c_gs_f0.15_k40_g5",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 40.0,
+  "with_": "a2",
+  "pre": 30.17,
+  "v0": 34.08,
+  "ttc": 1.0
+ },
+ {
+  "tag": "s4c_gs_f0.15_k60_g0",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 39.47,
+  "v0": 57.28,
+  "ttc": 4.320000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.15_k60_g1",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.6,
+  "v0": 57.28,
+  "ttc": 3.88
+ },
+ {
+  "tag": "s4c_gs_f0.15_k60_g2",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.53,
+  "v0": 57.28,
+  "ttc": 4.0200000000000005
+ },
+ {
+  "tag": "s4c_gs_f0.15_k60_g3",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.61,
+  "v0": 57.28,
+  "ttc": 3.8600000000000003
+ },
+ {
+  "tag": "s4c_gs_f0.15_k60_g4",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 39.41,
+  "v0": 57.28,
+  "ttc": 4.320000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.15_k60_g5",
+  "kind": "cand",
+  "fr": 0.15,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.86,
+  "v0": 57.28,
+  "ttc": 3.740000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.3_k40_g0",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 24.82,
+  "v0": 38.56,
+  "ttc": 6.08
+ },
+ {
+  "tag": "s4c_gs_f0.3_k40_g1",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 40.0,
+  "with_": "model3",
+  "pre": 31.19,
+  "v0": 38.55,
+  "ttc": 5.300000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.3_k40_g2",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 24.85,
+  "v0": 38.56,
+  "ttc": 6.08
+ },
+ {
+  "tag": "s4c_gs_f0.3_k40_g3",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 40.0,
+  "with_": "a2",
+  "pre": 18.57,
+  "v0": 38.69,
+  "ttc": 10.119999999999997
+ },
+ {
+  "tag": "s4c_gs_f0.3_k40_g4",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 25.02,
+  "v0": 38.56,
+  "ttc": 6.019999999999998
+ },
+ {
+  "tag": "s4c_gs_f0.3_k40_g5",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 40.0,
+  "with_": "model3",
+  "pre": 32.63,
+  "v0": 38.55,
+  "ttc": 5.140000000000001
+ },
+ {
+  "tag": "s4c_gs_f0.3_k60_g0",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 60.0,
+  "with_": "model3",
+  "pre": 52.94,
+  "v0": 57.28,
+  "ttc": 3.3000000000000007
+ },
+ {
+  "tag": "s4c_gs_f0.3_k60_g1",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.8,
+  "v0": 57.28,
+  "ttc": 3.6400000000000006
+ },
+ {
+  "tag": "s4c_gs_f0.3_k60_g2",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.66,
+  "v0": 57.28,
+  "ttc": 3.6799999999999997
+ },
+ {
+  "tag": "s4c_gs_f0.3_k60_g3",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 60.0,
+  "with_": "model3",
+  "pre": 52.74,
+  "v0": 57.28,
+  "ttc": 3.3000000000000007
+ },
+ {
+  "tag": "s4c_gs_f0.3_k60_g4",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 60.0,
+  "with_": null,
+  "pre": null,
+  "v0": 31.35,
+  "ttc": null
+ },
+ {
+  "tag": "s4c_gs_f0.3_k60_g5",
+  "kind": "cand",
+  "fr": 0.3,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 49.44,
+  "v0": 57.28,
+  "ttc": 3.6799999999999997
+ },
+ {
+  "tag": "s4c_nodef_f0.02_k40",
+  "kind": "nodef",
+  "fr": 0.02,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 37.54,
+  "v0": 38.51,
+  "ttc": 6.259999999999999
+ },
+ {
+  "tag": "s4c_nodef_f0.02_k60",
+  "kind": "nodef",
+  "fr": 0.02,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 56.2,
+  "v0": 57.3,
+  "ttc": 4.16
+ },
+ {
+  "tag": "s4c_nodef_f0.04_k40",
+  "kind": "nodef",
+  "fr": 0.04,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 36.4,
+  "v0": 38.5,
+  "ttc": 6.9799999999999995
+ },
+ {
+  "tag": "s4c_nodef_f0.04_k60",
+  "kind": "nodef",
+  "fr": 0.04,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 56.17,
+  "v0": 57.31,
+  "ttc": 4.300000000000001
+ },
+ {
+  "tag": "s4c_nodef_f0.08_k40",
+  "kind": "nodef",
+  "fr": 0.08,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 31.09,
+  "v0": 38.61,
+  "ttc": 10.079999999999998
+ },
+ {
+  "tag": "s4c_nodef_f0.08_k60",
+  "kind": "nodef",
+  "fr": 0.08,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 56.06,
+  "v0": 57.31,
+  "ttc": 4.619999999999999
+ },
+ {
+  "tag": "s4c_nodef_f0.15_k40",
+  "kind": "nodef",
+  "fr": 0.15,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 36.56,
+  "v0": 38.68,
+  "ttc": 10.64
+ },
+ {
+  "tag": "s4c_nodef_f0.15_k60",
+  "kind": "nodef",
+  "fr": 0.15,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 56.05,
+  "v0": 57.31,
+  "ttc": 5.32
+ },
+ {
+  "tag": "s4c_nodef_f0.3_k40",
+  "kind": "nodef",
+  "fr": 0.3,
+  "kph": 40.0,
+  "with_": "guardrail",
+  "pre": 34.92,
+  "v0": 38.69,
+  "ttc": 10.599999999999998
+ },
+ {
+  "tag": "s4c_nodef_f0.3_k60",
+  "kind": "nodef",
+  "fr": 0.3,
+  "kph": 60.0,
+  "with_": "guardrail",
+  "pre": 55.23,
+  "v0": 57.31,
+  "ttc": 6.699999999999999
+ }
+]

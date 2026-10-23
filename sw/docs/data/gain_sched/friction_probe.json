@@ -1,0 +1,8 @@
+{
+ "metric": "조향 0.6 계단 0.4~0.8 s 평균 횡가속 (m/s², 54 km/h)",
+ "results": {
+  "none": 19.56,
+  "dry_trigger": 5.27,
+  "after_ice": 19.85
+ }
+}
