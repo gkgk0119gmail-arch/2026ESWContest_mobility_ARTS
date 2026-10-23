@@ -152,6 +152,59 @@ for kind in ("plain", "grip", "evade", "lowmu"):
     ok, msg, modes = compare_board(kind, 1, "mu")
     fails += not ok
     print(f"[{'OK ' if ok else 'FAIL'}] SLIP_MU_EST 보드 경로 {kind:9s}: {msg}")
+# SLIP_GAIN_SCHED=1 (제어표 경로): 고정 파라미터 덮어쓰기 + 무작위 표 두 가지로 C = 파이썬
+from icepredict.pi.gain_lut import GainLUT, PARAM_NAMES, BOUNDS
+_rng = np.random.default_rng(5)
+def _rand_gains():
+    return {k: float(BOUNDS[k][0] + (BOUNDS[k][1] - BOUNDS[k][0]) * _rng.random()) for k in PARAM_NAMES}
+def compare_gs(kind, gains=None, lut=None):
+    X = board_scenario(kind, 2)
+    c = SlipCoreC(0.02, 3, 2.0, variant="gs"); p = SlipCoreRef(0.02, 3, 2.0, mu_est=True, lut=lut)
+    if gains: c.set_gains(gains); p.g_ovr = gains
+    worst, fb, modes = 0.0, None, set()
+    for i, row in enumerate(X):
+        row = row.copy()
+        if fb is not None: row[5] = fb
+        a = c.board(*row.tolist()); b = p.board(*row.tolist())
+        for k in ("slip", "trig", "emerg", "mode", "grip", "mu_n"):
+            if a[k] != b[k]: return False, f"샘플 {i} {k}: C {a[k]} py {b[k]}"
+        for k in ("brake", "steer", "mu_hat", "a_stop"):
+            worst = max(worst, abs(a[k] - b[k]))
+        fb = a["brake"] if a["emerg"] else None; modes.add(a["mode"])
+    return worst < 1e-4, f"최대 오차 {worst:.2e} 모드 {sorted(modes)}"
+_lut_rand = GainLUT([0.02, 0.034, 0.057, 0.096, 0.163, 0.276, 0.47, 0.8], [30, 40, 50, 60, 70, 80],
+                    [[[float(BOUNDS[k][0] + (BOUNDS[k][1] - BOUNDS[k][0]) * _rng.random()) for k in PARAM_NAMES] for _ in range(6)] for _ in range(8)])
+import tempfile as _tf, subprocess as _sp, os as _os
+for kind in ("plain", "grip", "evade", "ice_lane", "overlap"):
+    ok, msg = compare_gs(kind, gains=_rand_gains()); fails += not ok
+    print(f"[{'OK ' if ok else 'FAIL'}] SLIP_GAIN_SCHED 덮어쓰기 {kind:9s}: {msg}")
+# 표 경로: 무작위 표를 헤더로 써서 그 헤더로 컴파일한 C 와 비교
+sys.path.insert(0, str(ROOT / "scripts" / "model"))
+import build_gain_lut as _bgl
+with _tf.TemporaryDirectory() as _td:
+    _h = pathlib.Path(_td) / "slip_gain_lut.h"
+    _bgl.write_header(np.array(_lut_rand.table), _h, "시험용 무작위 표")
+    from icepredict.pi import slip_ctypes as _sc
+    _lib = pathlib.Path(_td) / "libslipcore_gs_rand.so"
+    # #include "slip_gain_lut.h" 는 -I 보다 slip_core.h 가 있는 폴더를 먼저 찾는다 → 세 파일을 임시 폴더에 함께 두고 컴파일
+    import shutil as _sh
+    for _f in ("slip_core.h", "slip_core_shim.c"): _sh.copy(pathlib.Path(__file__).parent / _f, pathlib.Path(_td) / _f)
+    _sp.run(["gcc", "-O2", "-fPIC", "-shared", "-I", _td, "-DSLIP_MU_EST=1", "-DSLIP_GAIN_SCHED=1",
+             str(pathlib.Path(_td) / "slip_core_shim.c"), "-o", str(_lib), "-lm"], check=True)
+    _lut_h = GainLUT.from_header(_h)
+    for kind in ("plain", "grip", "evade", "lowmu"):
+        X = board_scenario(kind, 3)
+        c = SlipCoreC(0.02, 3, 2.0, lib=str(_lib)); p = SlipCoreRef(0.02, 3, 2.0, mu_est=True, lut=_lut_h)
+        worst, fb, bad = 0.0, None, None
+        for i, row in enumerate(X):
+            row = row.copy()
+            if fb is not None: row[5] = fb
+            a = c.board(*row.tolist()); b = p.board(*row.tolist())
+            if any(a[k] != b[k] for k in ("slip", "emerg", "mode", "mu_n")): bad = i; break
+            worst = max(worst, abs(a["brake"] - b["brake"]), abs(a["steer"] - b["steer"]), abs(a["mu_hat"] - b["mu_hat"]))
+            fb = a["brake"] if a["emerg"] else None
+        ok = bad is None and worst < 1e-4; fails += not ok
+        print(f"[{'OK ' if ok else 'FAIL'}] SLIP_GAIN_SCHED 표 경로 {kind:9s}: " + (f"최대 오차 {worst:.2e}" if bad is None else f"샘플 {bad} 이산값 불일치"))
 # LocalEmergency7(데모 폴백) 이 같은 제어를 내는지 — 확정 이후 구간만
 X = board_scenario("evade", 4); c = SlipCoreC(0.02, 3, 2.0); le = None; worst = 0.0
 for row in X:

@@ -84,6 +84,18 @@ static inline float kf2_step(kf2_t *k, float z)
 #ifndef SLIP_GAIN_SCHED
 #define SLIP_GAIN_SCHED    0
 #endif
+/* ---- 마찰별 제어표 (SLIP_GAIN_SCHED, 기본 0 = 기존 고정 게인 그대로) ----
+   μ̂(마찰 추정)·속도로 slip_gain_lut.h 의 표를 쌍선형 보간해 이번 샘플의 제어 파라미터 10개를 얻는다.
+   표는 시뮬레이션(대리 모델 탐색 → CARLA 검증)에서 미리 만들고 보드는 찾아 쓰기만 한다.
+   추가 연산: 구간 찾기 비교 ≤ 14, 보간 곱 30·합 30 (파라미터 10개 × 3), 고정 횟수 — 동적 메모리·가변 루프 없음.
+   값의 순서: Kp, Kl, Kd, steer_max, B_HI, B_LO, PULSE_HALF, B_EVADE, a_stop_scale, margin */
+#if SLIP_GAIN_SCHED
+#if !SLIP_MU_EST
+#error "SLIP_GAIN_SCHED 는 SLIP_MU_EST 가 있어야 한다 (표의 축이 μ̂ 다)"
+#endif
+#include "slip_gain_lut.h"
+enum { SG_KP, SG_KL, SG_KD, SG_SMAX, SG_BHI, SG_BLO, SG_PH, SG_BEV, SG_ASC, SG_MARGIN, SG_N };
+#endif
 
 /* 비상 제어 모드 */
 #define SLIP_MODE_NONE     0u
@@ -107,6 +119,10 @@ typedef struct {
   float mu_hat; int mu_n; int pulse_hi_n;                        /* 마찰 추정값, 쓴 샘플 수, 펄스 강 구간 연속 샘플 수 */
   float b_hi_last;                                               /* 직전 샘플 모드의 '강' 펄스 제동값 — 지금 걸린 제동이 강인지 판단 */
 #endif
+#if SLIP_GAIN_SCHED
+  float g[10];                                                   /* 이번 샘플에 쓴 제어 파라미터 (진단·로그) */
+  int g_ovr; float g_ovr_v[10];                                  /* 시험용: 표 대신 고정값을 쓴다 (CARLA 에서 후보 하나를 검증할 때) */
+#endif
 } slipdet_t;
 
 static inline void slip_reset(slipdet_t *d, float dt, int confirm, float min_speed_mps)
@@ -120,6 +136,9 @@ static inline void slip_reset(slipdet_t *d, float dt, int confirm, float min_spe
   d->grip_n = 0; d->grip = 0; d->a_stop_used = 0.f;
 #if SLIP_MU_EST
   d->mu_hat = SLIP_MU_INIT; d->mu_n = 0; d->pulse_hi_n = 0; d->b_hi_last = 0.7f;
+#endif
+#if SLIP_GAIN_SCHED
+  memset(d->g, 0, sizeof(d->g)); d->g_ovr = 0;
 #endif
   d->ye = 0.f; d->ye_init = 0;
 }
@@ -192,6 +211,33 @@ static inline int slip_step(slipdet_t *d, float ay, float gz, float speed, float
 #define SLIP_A_DRY     6.0f
 #define SLIP_GRIP_DECEL 2.5f
 #define SLIP_GRIP_N    5
+#if SLIP_GAIN_SCHED
+/* 축 위치 찾기: x 가 axis[i]..axis[i+1] 사이면 i 와 비율 t. 축 밖은 끝값으로 고정 (외삽하지 않는다). */
+static inline void slip_axis_find(const float *axis, int n, float x, int *i, float *t)
+{
+  if (x <= axis[0]) { *i = 0; *t = 0.f; return; }
+  if (x >= axis[n - 1]) { *i = n - 2; *t = 1.f; return; }
+  int k = 0;
+  for (int j = 1; j < n - 1; j++) k += (x >= axis[j]);       /* 고정 횟수 비교 (n−2 번) */
+  *i = k; *t = (x - axis[k]) / (axis[k + 1] - axis[k]);
+}
+/* μ 축은 로그로 보간한다 (0.02 ~ 0.8 로 40 배 넓다). logf 1 회. */
+static inline void slip_gain_lookup(slipdet_t *d, float speed_mps)
+{
+  if (d->g_ovr) { for (int k = 0; k < SG_N; k++) d->g[k] = d->g_ovr_v[k]; return; }
+  int im, iv; float tm, tv;
+  float lm = logf(d->mu_hat > SLIP_GS_MU[0] ? d->mu_hat : SLIP_GS_MU[0]);
+  slip_axis_find(SLIP_GS_LOGMU, SLIP_GS_NMU, lm, &im, &tm);
+  slip_axis_find(SLIP_GS_KPH, SLIP_GS_NV, speed_mps * 3.6f, &iv, &tv);
+  for (int k = 0; k < SG_N; k++) {
+    float a = SLIP_GS_TABLE[im][iv][k],     b = SLIP_GS_TABLE[im][iv + 1][k];
+    float c = SLIP_GS_TABLE[im + 1][iv][k], e = SLIP_GS_TABLE[im + 1][iv + 1][k];
+    float lo = a + (b - a) * tv, hi = c + (e - c) * tv;
+    d->g[k] = lo + (hi - lo) * tm;
+  }
+}
+#endif
+
 #if SLIP_MU_EST
 /* 비상 제어 중 매 샘플: 이번 샘플의 제동이 '강' 펄스면 마찰원으로 μ 를 갱신한다.
    ax_f, ay_f 는 칼만 필터 값(m/s²), brake_cmd 는 지금 차에 걸려 있는 제동(직전 샘플 명령). */
@@ -217,8 +263,16 @@ static inline void slip_control2(slipdet_t *d, float speed, float gz, float lane
   slip_mu_update(d, speed, ax_f, d->kay.x0, brake_cmd, d->b_hi_last);
 #endif
   if (brake_cmd >= 0.3f && ax_f <= -SLIP_GRIP_DECEL) { if (++d->grip_n >= SLIP_GRIP_N) d->grip = 1; } else d->grip_n = 0;
+#if SLIP_GAIN_SCHED
+  slip_gain_lookup(d, speed);
+  float a_ice = d->g[SG_ASC] * d->mu_hat * SLIP_G;
+  if (a_ice < 0.15f) a_ice = 0.15f;
+  float a_stop = d->grip ? SLIP_A_DRY : a_ice;
+  float d_stop = speed * speed / (2.f * a_stop) + d->g[SG_MARGIN];
+#else
   float a_stop = d->grip ? SLIP_A_DRY : SLIP_A_ICE;
   float d_stop = speed * speed / (2.f * a_stop) + 4.f;
+#endif
   d->a_stop_used = a_stop;
   int overlap = gap_front < 0.f;
   int cannot_stop = !overlap && gap_front < d_stop && front_rel_v < 1.0f;
@@ -236,6 +290,23 @@ static inline void slip_control2(slipdet_t *d, float speed, float gz, float lane
     else if (cannot_stop && d->grip) { d->mode = SLIP_MODE_HARDSTOP; d->lat_shift = 0.f; }   /* 접지가 있으면 세게 밟는 게 회피보다 낫다 */
     else { d->mode = SLIP_MODE_LANEKEEP; d->lat_shift = 0.f; }
   }
+#if SLIP_GAIN_SCHED
+  /* 제어표 경로: 같은 구조, 값만 표에서. 최대제동의 강 펄스는 B_HI × 1.357 (보드 고정값 0.95/0.70 의 비율), 상한 1. */
+  float st = (d->g[SG_KP] * lane_err + d->g[SG_KL] * (lat_off + d->lat_shift) - d->g[SG_KD] * gz) / SLIP_MAX_STEER_RAD;
+  if (st > d->g[SG_SMAX]) st = d->g[SG_SMAX];
+  if (st < -d->g[SG_SMAX]) st = -d->g[SG_SMAX];
+  int ph = (int)(d->g[SG_PH] + 0.5f); if (ph < 1) ph = 1;
+  int pulse = (int)(d->n_emerg / (uint32_t)ph) & 1;
+  float b_hi = d->g[SG_BHI], b_lo = d->g[SG_BLO], hs_hi = b_hi * 1.357f; if (hs_hi > 1.f) hs_hi = 1.f;
+  float b;
+  switch (d->mode) {
+    case SLIP_MODE_EVADE_L: case SLIP_MODE_EVADE_R:
+      b = fabsf(lat_off + d->lat_shift) > 0.8f ? d->g[SG_BEV] : (pulse ? b_hi : b_lo); break;
+    case SLIP_MODE_HARDSTOP: b = d->grip ? 1.0f : (pulse ? hs_hi : b_lo); break;
+    default:                 b = d->grip ? 0.9f : (pulse ? b_hi : b_lo); break;
+  }
+  d->b_hi_last = (d->mode == SLIP_MODE_HARDSTOP) ? hs_hi : b_hi;
+#else
   float st = (SLIP_KP * lane_err + SLIP_KL * (lat_off + d->lat_shift) - SLIP_KD * gz) / SLIP_MAX_STEER_RAD;
   if (st > SLIP_STEER_MAX) st = SLIP_STEER_MAX;
   if (st < -SLIP_STEER_MAX) st = -SLIP_STEER_MAX;
@@ -249,6 +320,7 @@ static inline void slip_control2(slipdet_t *d, float speed, float gz, float lane
   }
 #if SLIP_MU_EST
   d->b_hi_last = (d->mode == SLIP_MODE_HARDSTOP) ? 0.95f : 0.7f;
+#endif
 #endif
   if (speed < 2.0f) b = 1.0f;
   *steer = st; *brake = b;

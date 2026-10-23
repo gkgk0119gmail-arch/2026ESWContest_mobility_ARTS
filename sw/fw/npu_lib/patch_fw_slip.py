@@ -2,13 +2,25 @@
 """icepredict_n6 펌웨어(app_netxduo.c)에 2차 방어 — IMU 미끄러짐 감지 — 를 추가한다.
 UDP 5557 융합 스레드가 68B 패킷(ip_imu_t)을 받으면 slip_core.h 로 판정하고 28B(ip_slip_t)로 응답한다.
 길이로 구분: 24B ctx / 28B infer / 68B imu.  멱등: 이미 패치돼 있으면 건너뛴다.
-사용: patch_fw_slip.py <app_netxduo.c>   (slip_core.h 는 이 스크립트 옆에서 읽어 인라인으로 넣는다)"""
+사용: patch_fw_slip.py <app_netxduo.c> [--mu-est] [--gain-sched]
+      (slip_core.h 는 이 스크립트 옆에서 읽어 인라인으로 넣는다. --gain-sched 면 slip_gain_lut.h 도 그 자리에 인라인한다)
+  --mu-est     : SLIP_MU_EST=1 (마찰원 마찰 추정)
+  --gain-sched : SLIP_MU_EST=1 + SLIP_GAIN_SCHED=1 (μ̂·속도 제어표). 둘 다 없으면 지금 보드와 같은 고정 게인."""
 import sys, pathlib
-F = sys.argv[1]
+args = [x for x in sys.argv[1:] if not x.startswith("--")]
+F = args[0]
+GS = "--gain-sched" in sys.argv
+MU = GS or "--mu-est" in sys.argv
 s = open(F, encoding="utf-8", errors="surrogateescape").read()
 if "IP_IMU_MAGIC" in s:
     print("app_netxduo.c: slip 경로 이미 있음"); sys.exit(0)
 core = (pathlib.Path(__file__).parent / "slip_core.h").read_text()
+# 펌웨어 소스는 FSBL 폴더에 있어 #include "slip_gain_lut.h" 가 찾을 수 없다 → 표를 그 자리에 인라인한다
+lut = (pathlib.Path(__file__).parent / "slip_gain_lut.h").read_text()
+assert '#include "slip_gain_lut.h"' in core
+core = core.replace('#include "slip_gain_lut.h"', "/* ---- slip_gain_lut.h (인라인) ---- */\n" + lut)
+flags = ("#define SLIP_MU_EST 1\n" if MU else "") + ("#define SLIP_GAIN_SCHED 1\n" if GS else "")
+core = flags + core
 
 # 1) 정의 + 코어 (NPU 블록 뒤, USER CODE END PD 앞)
 anchor = "/* USER CODE END PD */"

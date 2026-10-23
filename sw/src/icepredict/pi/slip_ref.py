@@ -60,6 +60,7 @@ class SlipCoreRef:
         self.brake_n = 0; self.lowmu_hits = 0; self.grip_n = 0; self.grip = False
         self.ye = 0.0; self.ye_init = False; self.a_stop_used = 0.0
         self.mu_hat = MU_INIT; self.mu_n = 0; self.pulse_hi_n = 0; self.b_hi_last = 0.7
+        self.g_ovr = None; self.g = None
 
     # ---- slip_step2 ----
     def step2(self, ay, gz, speed, steer, ax, brake_cmd):
@@ -103,8 +104,15 @@ class SlipCoreRef:
             self.grip_n += 1
             if self.grip_n >= GRIP_N: self.grip = True
         else: self.grip_n = 0
-        a_stop = A_DRY if self.grip else A_ICE
-        d_stop = speed * speed / (2.0 * a_stop) + 4.0
+        gs = self.lut is not None or self.g_ovr is not None
+        if gs:
+            g = self.g = dict(self.g_ovr) if self.g_ovr is not None else self.lut.lookup(self.mu_hat, speed)
+            a_ice = max(g["a_stop_scale"] * self.mu_hat * G, 0.15)
+            a_stop = A_DRY if self.grip else a_ice
+            d_stop = speed * speed / (2.0 * a_stop) + g["margin"]
+        else:
+            a_stop = A_DRY if self.grip else A_ICE
+            d_stop = speed * speed / (2.0 * a_stop) + 4.0
         self.a_stop_used = a_stop
         overlap = gf < 0.0
         cannot_stop = (not overlap) and gf < d_stop and front_rel_v < 1.0
@@ -121,13 +129,24 @@ class SlipCoreRef:
                 else: self.mode, self.lat_shift = 4, 0.0
             elif cannot_stop and self.grip: self.mode, self.lat_shift = 4, 0.0
             else: self.mode, self.lat_shift = 1, 0.0
-        st = (KP * lane_err + KL * (lat_off + self.lat_shift) - KD * gz) / MAX_STEER_RAD
-        st = max(-SMAX, min(SMAX, st))
-        pulse = (self.n_emerg >> 3) & 1
-        if self.mode in (2, 3): b = 0.25 if abs(lat_off + self.lat_shift) > 0.8 else (0.7 if pulse else 0.35)
-        elif self.mode == 4: b = 1.0 if self.grip else (0.95 if pulse else 0.5)
-        else: b = 0.9 if self.grip else (0.7 if pulse else 0.35)
-        if self.mu_est: self.b_hi_last = 0.95 if self.mode == 4 else 0.7
+        if gs:
+            st = (g["Kp"] * lane_err + g["Kl"] * (lat_off + self.lat_shift) - g["Kd"] * gz) / MAX_STEER_RAD
+            st = max(-g["steer_max"], min(g["steer_max"], st))
+            ph = max(int(g["PULSE_HALF"] + 0.5), 1)
+            pulse = (self.n_emerg // ph) & 1
+            b_hi, b_lo = g["B_HI"], g["B_LO"]; hs_hi = min(b_hi * 1.357, 1.0)
+            if self.mode in (2, 3): b = g["B_EVADE"] if abs(lat_off + self.lat_shift) > 0.8 else (b_hi if pulse else b_lo)
+            elif self.mode == 4: b = 1.0 if self.grip else (hs_hi if pulse else b_lo)
+            else: b = 0.9 if self.grip else (b_hi if pulse else b_lo)
+            self.b_hi_last = hs_hi if self.mode == 4 else b_hi
+        else:
+            st = (KP * lane_err + KL * (lat_off + self.lat_shift) - KD * gz) / MAX_STEER_RAD
+            st = max(-SMAX, min(SMAX, st))
+            pulse = (self.n_emerg >> 3) & 1
+            if self.mode in (2, 3): b = 0.25 if abs(lat_off + self.lat_shift) > 0.8 else (0.7 if pulse else 0.35)
+            elif self.mode == 4: b = 1.0 if self.grip else (0.95 if pulse else 0.5)
+            else: b = 0.9 if self.grip else (0.7 if pulse else 0.35)
+            if self.mu_est: self.b_hi_last = 0.95 if self.mode == 4 else 0.7
         if speed < 2.0: b = 1.0
         if speed < 0.5:
             self.emerg = False; self.mode = 5; b = 1.0; st = 0.0

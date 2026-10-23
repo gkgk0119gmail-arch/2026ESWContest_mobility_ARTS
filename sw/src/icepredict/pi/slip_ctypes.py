@@ -48,6 +48,17 @@ class SlipCoreC:
     def force_emerg(self):
         self.L.sc_force_emerg(self.buf)
 
+    def set_gains(self, gains: dict | None):
+        """제어표 대신 고정 파라미터 (variant 'gs' 에서만 효과). None 이면 표로 돌아간다."""
+        from icepredict.pi.gain_lut import PARAM_NAMES
+        g = (_F * 10)(*[float(gains[k]) for k in PARAM_NAMES]) if gains else (_F * 10)()
+        self.L.sc_set_gains(self.buf, g, 1 if gains else 0)
+
+    def gains(self):
+        from icepredict.pi.gain_lut import PARAM_NAMES
+        g = (_F * 10)(); self.L.sc_get_gains(self.buf, g)
+        return dict(zip(PARAM_NAMES, list(g)))
+
     def board(self, ay, gz, speed, steer, ax, brake_cmd, lane_err, lat_off, gf, gl, gr, ice_off, front_rel_v):
         for i, v in enumerate((ay, gz, speed, steer, ax, brake_cmd, lane_err, lat_off, gf, gl, gr, ice_off, front_rel_v)):
             self._in[i] = v
