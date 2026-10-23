@@ -14,7 +14,7 @@
 """
 import argparse, json, os, random, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import numpy as np, onnx, onnxruntime as ort, cv2
 from onnx import helper
 from onnxruntime.quantization import quantize_static, CalibrationDataReader, QuantType, QuantFormat, CalibrationMethod

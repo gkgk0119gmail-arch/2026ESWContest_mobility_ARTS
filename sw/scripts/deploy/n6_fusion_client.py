@@ -19,7 +19,7 @@ spec/lane에 NaN을 넣으면 그 신호가 없는 것으로 보고 가중치를
 """
 import argparse, math, socket, struct, sys, time
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 CTX_FMT, INFER_FMT, VD_FMT = "<I5f", "<I6f", "<IfBBHI"
 CTX_SZ, INFER_SZ, VD_SZ = struct.calcsize(CTX_FMT), struct.calcsize(INFER_FMT), struct.calcsize(VD_FMT)

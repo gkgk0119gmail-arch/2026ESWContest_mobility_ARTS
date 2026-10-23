@@ -7,7 +7,7 @@
 import argparse, json, pathlib, socket, struct, time, sys, collections
 import numpy as np, cv2
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "sw" / "src"))
 from icepredict.common.rscd import parse
 
 FR_HDR, FR_VD, FR_CHUNK = "<IHHHH", "<I4fffBBHII", 1400

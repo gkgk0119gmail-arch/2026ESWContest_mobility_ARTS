@@ -18,7 +18,7 @@
 """
 import argparse, csv, json, math, os, sys, time
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import torch, torch.nn as nn, torch.nn.functional as F
 from torch.utils.data import DataLoader, ConcatDataset
 from icepredict.common.protocol import ROAD_CLASSES

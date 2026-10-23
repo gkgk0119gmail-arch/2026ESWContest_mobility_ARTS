@@ -5,7 +5,7 @@
 """
 import argparse, os, random, sys, collections
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import numpy as np, cv2
 from icepredict.common.rscd import parse
 from icepredict.pi.reflectance import analyze

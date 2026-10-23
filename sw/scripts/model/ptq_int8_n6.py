@@ -31,7 +31,7 @@
 """
 import argparse, json, os, random, shutil, sys, time
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import numpy as np
 import onnx, onnxruntime as ort
 from onnxruntime.quantization import (quantize_static, CalibrationDataReader, QuantType,

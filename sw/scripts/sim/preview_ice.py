@@ -3,7 +3,7 @@
 import sys, os, math
 from pathlib import Path
 from collections import deque
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import numpy as np, cv2, carla
 from icepredict.sim.blackice import spawn_ice_patch, waypoint_ahead, camera_intrinsics, patch_road_polygon, world_to_image
 from icepredict.sim.ice_render import composite_ice, composite_wet, random_ice_params, road_mask

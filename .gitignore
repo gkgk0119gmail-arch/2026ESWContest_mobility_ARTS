@@ -10,3 +10,4 @@ icepredict_영상
 hailort.log
 *.zip
 *.bak
+sw/fw/npu_lib/build/

@@ -22,7 +22,7 @@ import sys
 import numpy as np
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "sw" / "src"))
 
 CLS = ("normal", "wet", "black_ice", "pothole")
 ICE = CLS.index("black_ice")

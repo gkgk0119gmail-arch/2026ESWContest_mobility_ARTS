@@ -4,7 +4,7 @@
 """
 import argparse, time, json, datetime as dt, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import zmq
 from icepredict.common.protocol import encode, TOPIC_CTX, PORT_PI_PUB
 from icepredict.pi.context import LocationCtx, build_context

@@ -28,7 +28,7 @@ import cv2
 import numpy as np
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "sw" / "src"))
 from icepredict.common.rscd import parse as rscd_parse  # noqa: E402
 
 FR_HDR, FR_VD, FR_CHUNK = "<IHHHH", "<I4fffBBHII", 1400

@@ -25,7 +25,7 @@ import sys
 import numpy as np
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "sw" / "src"))
 from icepredict.pi.imu_slip import Kalman2  # noqa: E402
 
 FIG = ROOT / "logs/carla_demo/figures"

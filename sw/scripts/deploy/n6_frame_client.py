@@ -11,7 +11,7 @@
 import argparse, socket, struct, sys, time
 from pathlib import Path
 import numpy as np, cv2
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 IN_SCALE, IN_ZP = 0.018658448, -14
 MEAN = np.array([0.485, 0.456, 0.406], np.float32).reshape(3, 1, 1)
 STD = np.array([0.229, 0.224, 0.225], np.float32).reshape(3, 1, 1)

@@ -42,3 +42,16 @@ libicepredict_npu.a: $(OBJS)
 	$(GCC)/arm-none-eabi-size -t $@ | tail -1
 clean:
 	rm -rf build libicepredict_npu.a
+
+# ── 호스트(gcc) 공유 라이브러리: CARLA --slip-ctypes 가 보드와 같은 slip_core.h 를 부른다 ──
+HOSTCC ?= gcc
+HOST_CFLAGS = -O2 -fPIC -shared -Wall -Wno-unused-function -I.
+host-shim: build/host/libslipcore.so build/host/libslipcore_mu.so build/host/libslipcore_gs.so
+build/host:
+	mkdir -p build/host
+build/host/libslipcore.so: slip_core_shim.c slip_core.h | build/host
+	$(HOSTCC) $(HOST_CFLAGS) $< -o $@ -lm
+build/host/libslipcore_mu.so: slip_core_shim.c slip_core.h | build/host
+	$(HOSTCC) $(HOST_CFLAGS) -DSLIP_MU_EST=1 $< -o $@ -lm
+build/host/libslipcore_gs.so: slip_core_shim.c slip_core.h $(wildcard slip_gain_lut.h) | build/host
+	$(HOSTCC) $(HOST_CFLAGS) -DSLIP_MU_EST=1 -DSLIP_GAIN_SCHED=1 $< -o $@ -lm

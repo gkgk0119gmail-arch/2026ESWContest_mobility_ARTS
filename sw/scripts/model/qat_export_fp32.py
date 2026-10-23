@@ -14,7 +14,7 @@
 """
 import argparse, os, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import torch, torch.ao.quantization as tq
 from torch.ao.quantization.quantize_fx import prepare_qat_fx
 from icepredict.train.model import RoadNet

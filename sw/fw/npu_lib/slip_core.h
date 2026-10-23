@@ -83,6 +83,7 @@ typedef struct {
   int emerg; uint32_t n_emerg; uint8_t mode; float lat_shift;   /* lat_shift: 회피 시 차선 중심 목표 이동(m) */
   float ye; int ye_init;                                         /* 기대 yaw 의 1차 지연 상태 */
   int grip_n, grip;                                              /* 접지 회복: 제동 중 감속이 살아난 샘플 수 / 플래그 */
+  float a_stop_used;                                             /* 진단용: 이번 샘플 정지거리 계산에 쓴 감속 (판단에는 안 쓰인다) */
 } slipdet_t;
 
 static inline void slip_reset(slipdet_t *d, float dt, int confirm, float min_speed_mps)
@@ -93,7 +94,7 @@ static inline void slip_reset(slipdet_t *d, float dt, int confirm, float min_spe
   d->hits = 0; d->armed = 1; d->confirm = confirm > 0 ? confirm : 3;
   d->dt = dt; d->min_speed = min_speed_mps > 0.f ? min_speed_mps : 2.0f; d->ready = 1;
   d->emerg = 0; d->n_emerg = 0; d->mode = SLIP_MODE_NONE; d->lat_shift = 0.f; d->brake_n = 0; d->lowmu_hits = 0;
-  d->grip_n = 0; d->grip = 0;
+  d->grip_n = 0; d->grip = 0; d->a_stop_used = 0.f;
   d->ye = 0.f; d->ye_init = 0;
 }
 
@@ -173,6 +174,7 @@ static inline void slip_control2(slipdet_t *d, float speed, float gz, float lane
   if (brake_cmd >= 0.3f && ax_f <= -SLIP_GRIP_DECEL) { if (++d->grip_n >= SLIP_GRIP_N) d->grip = 1; } else d->grip_n = 0;
   float a_stop = d->grip ? SLIP_A_DRY : SLIP_A_ICE;
   float d_stop = speed * speed / (2.f * a_stop) + 4.f;
+  d->a_stop_used = a_stop;
   int overlap = gap_front < 0.f;
   int cannot_stop = !overlap && gap_front < d_stop && front_rel_v < 1.0f;
   if (d->mode == SLIP_MODE_NONE || d->mode == SLIP_MODE_LANEKEEP || d->mode == SLIP_MODE_HARDSTOP) {

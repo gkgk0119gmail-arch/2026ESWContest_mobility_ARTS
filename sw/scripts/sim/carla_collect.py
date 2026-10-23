@@ -14,7 +14,7 @@ Traffic Manager를 쓰지 않는 이유는 sw/src/icepredict/sim/route.py 주석
 import argparse, json, math, os, random, sys, time
 from collections import deque, Counter
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import numpy as np, cv2, carla
 from icepredict.sim.blackice import (spawn_ice_patch, camera_intrinsics, patch_road_polygon,
                                      world_to_image, patch_image_mask)

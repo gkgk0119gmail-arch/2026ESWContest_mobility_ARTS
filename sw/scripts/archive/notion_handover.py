@@ -169,7 +169,7 @@ def facts() -> dict:
     # 운영 문턱
     try:
         import sys
-        sys.path.insert(0, str(ROOT / "src"))
+        sys.path.insert(0, str(ROOT / "sw" / "src"))
         from icepredict.pi.context import (WeatherObs, LocationCtx, build_context,
                                            THRESHOLD_HI, THRESHOLD_LO, PRECIP_DISTRUST_MM)
         f["th_demo"] = build_context(WeatherObs(temp_c=-3.0, humidity=88.0, temp_trend_c_per_h=-1.0),
@@ -238,7 +238,7 @@ def facts() -> dict:
     # 기온 게이트
     try:
         import sys
-        sys.path.insert(0, str(ROOT / "src"))
+        sys.path.insert(0, str(ROOT / "sw" / "src"))
         from icepredict.pi.context import ROAD_BELOW_AIR_C
         f["road_gap"] = ROAD_BELOW_AIR_C
     except Exception:

@@ -69,7 +69,7 @@ def photo_stats():  # noqa: C901
     th = 0.603
     try:
         import sys as _s
-        _s.path.insert(0, str(ROOT / "src"))
+        _s.path.insert(0, str(ROOT / "sw" / "src"))
         from icepredict.pi.context import LocationCtx, WeatherObs, build_context
         th = build_context(WeatherObs(temp_c=-3.0, humidity=88.0, temp_trend_c_per_h=-1.0),
                            LocationCtx(feature="bridge", hour=5)).threshold

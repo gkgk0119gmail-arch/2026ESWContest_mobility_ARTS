@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "sw" / "src"))
 
 FIG = ROOT / "logs/carla_demo/figures"
 SAMPLES = ROOT / "logs/rscd_board_samples.jsonl"

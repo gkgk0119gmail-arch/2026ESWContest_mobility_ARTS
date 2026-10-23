@@ -70,11 +70,11 @@ def run_py(dt, confirm, minv, ay, gz, sp, st):
         if ev: evs.append((i, 1 if ev.trigger == "lat_acc" else 2, ev.ay_g, ev.yaw_err))
     return evs
 
+fails = 0
 with tempfile.TemporaryDirectory() as td:
     src = pathlib.Path(td) / "drv.c"; src.write_text('#include <stdlib.h>\n' + DRIVER)
     exe = pathlib.Path(td) / "drv"
     subprocess.run(["gcc", "-O2", "-I", str(pathlib.Path(__file__).parent), str(src), "-o", str(exe), "-lm"], check=True)
-    fails = 0
     cases = [("1kHz 합성", 1000.0, 5, 2.0, dict()), ("50Hz 데모율", 50.0, 3, 6.94, dict()),
              ("50Hz 노이즈2배", 50.0, 3, 6.94, dict(noise_ay=0.8, noise_gz=0.04, seed=3)),
              ("50Hz 언더스티어(음의 yaw)", 50.0, 3, 6.94, dict(seed=5))]
@@ -91,4 +91,68 @@ with tempfile.TemporaryDirectory() as td:
     t, ay, gz, v, steer = synth_run(rate_hz=50.0, slip_at_s=99.0, noise_ay=0.8, noise_gz=0.04, seed=11)
     c = run_c(str(exe), 0.02, 3, 6.94, ay, gz, np.full_like(ay, v), np.full_like(ay, steer))
     print(f"[{'OK ' if not c else 'FAIL'}] 정상 주행 오탐: {len(c)}건"); fails += bool(c)
-    sys.exit(1 if fails else 0)
+
+
+# ---- v7 보드 경로 동치: C(ctypes, sc_board) = 파이썬 slip_ref.SlipCoreRef ----------------------------------
+# 미끄러짐 확정 → 비상 제어 전 구간을 샘플마다 비교한다. 접지 회복·겹침·앞차 멀어짐·빙판 차로 회피 금지가 다 지나가게
+# 시나리오를 만든다. 이산값(slip·trig·emerg·mode·grip)은 정확히, 연속값은 1e-5 안에서 같아야 한다.
+from icepredict.pi.slip_ref import SlipCoreRef, LocalEmergency7
+from icepredict.pi.slip_ctypes import SlipCoreC
+
+def board_scenario(kind, seed, n=600, dt=0.02):
+    rng = np.random.default_rng(seed)
+    t = np.arange(n) * dt
+    v = np.clip(11.0 - np.maximum(t - 4.0, 0) * 1.2, 0.0, None)          # 4 s 뒤부터 감속
+    steer = 0.02 * np.sin(t * 0.7)
+    ay = rng.normal(0, 0.3, n); gz = rng.normal(0, 0.015, n)
+    slip = t >= 2.0
+    ay[slip] += -3.5 * np.clip((t[slip] - 2.0) / 0.2, 0, 1); gz[slip] += -0.4 * np.clip((t[slip] - 2.0) / 0.2, 0, 1)
+    ax = np.where(t > 2.1, -0.6, -0.05) + rng.normal(0, 0.1, n)
+    brake = np.where(t > 2.1, 0.6, 0.0)
+    gf = np.full(n, 999.0); gl = np.full(n, 999.0); gr = np.full(n, 999.0); ice = np.zeros(n); frv = np.zeros(n)
+    lane_err = 0.05 * np.sin(t); lat_off = 0.3 * np.cos(t * 0.5)
+    if kind == "grip":     ax[t > 3.0] = -6.0 + rng.normal(0, 0.2, (t > 3.0).sum()); gf[t > 3.5] = 8.0
+    if kind == "overlap":  gf[t > 2.3] = -1.5
+    if kind == "receding": gf[:] = 12.0; frv[:] = 3.0
+    if kind == "ice_lane": gf[:] = 10.0; ice[:] = 3.5
+    if kind == "evade":    gf[:] = np.linspace(40, 5, n); gl[:] = 5.0          # 오른쪽만 비어 있다 → 우회피
+    if kind == "lowmu":    ay[:] = rng.normal(0, 0.3, n); gz[:] = rng.normal(0, 0.015, n); brake[:] = np.where(t > 1.0, 0.5, 0.0); ax[:] = np.where(t > 1.0, -0.3, 0.0)
+    return np.stack([ay, gz, v, steer, ax, brake, lane_err, lat_off, gf, gl, gr, ice, frv], 1)
+
+def compare_board(kind, seed):
+    X = board_scenario(kind, seed)
+    c, p = SlipCoreC(0.02, 3, 2.0), SlipCoreRef(0.02, 3, 2.0)
+    worst, modes = 0.0, set()
+    for i, row in enumerate(X):
+        a = c.board(*row.tolist()); b = p.board(*row.tolist())
+        for k in ("slip", "trig", "emerg", "mode", "grip"):
+            if a[k] != b[k]: return False, f"샘플 {i} {k}: C {a[k]} py {b[k]}", modes
+        for k in ("ay_g", "yaw_err", "brake", "steer", "a_stop"):
+            worst = max(worst, abs(a[k] - b[k]))
+        modes.add(a["mode"])
+    return worst < 1e-5, f"최대 오차 {worst:.2e}", modes
+
+need = {"grip": {4}, "overlap": {4}, "receding": {1}, "ice_lane": {2}, "evade": {3}, "plain": {1}, "lowmu": {1}}
+for kind in need:
+    for seed in (1, 2, 3):
+        ok, msg, modes = compare_board(kind, seed)
+        ok = ok and need[kind] <= modes
+        fails += not ok
+        print(f"[{'OK ' if ok else 'FAIL'}] v7 보드 경로 {kind:9s} seed {seed}: {msg}  모드 {sorted(modes)}")
+# LocalEmergency7(데모 폴백) 이 같은 제어를 내는지 — 확정 이후 구간만
+X = board_scenario("evade", 4); c = SlipCoreC(0.02, 3, 2.0); le = None; worst = 0.0
+for row in X:
+    a = c.board(*row.tolist())
+    if a["emerg"] and le is None:
+        le = LocalEmergency7(0.02); le.core.kax = __import__("copy").deepcopy(SlipCoreRef(0.02).kax)
+        ref = SlipCoreRef(0.02, 3, 2.0)
+        for r2 in X: 
+            o = ref.board(*r2.tolist())
+            if o["emerg"]: break
+        le.core.kax = ref.kax; le.core.n_emerg = ref.n_emerg - 1; le.core.mode = 0
+        b_, s_, _ = le.core.control2(row[2], row[1], row[6], row[7], row[8], row[9], row[10], ref.kax.x0, row[5], row[11], row[12]), 0, 0
+        worst = max(worst, abs(b_[0] - a["brake"]), abs(b_[1] - a["steer"]))
+ok = le is not None and worst < 1e-5
+fails += not ok
+print(f"[{'OK ' if ok else 'FAIL'}] LocalEmergency7 첫 제어 샘플 = C: 오차 {worst:.2e}")
+sys.exit(1 if fails else 0)

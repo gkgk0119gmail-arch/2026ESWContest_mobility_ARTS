@@ -7,7 +7,7 @@ ONNX Runtime 정적 양자화(per-tensor, MinMax)로 동등 조건 검증한다.
 """
 import argparse, json, os, sys, time
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import numpy as np, onnxruntime as ort
 from PIL import Image
 from onnxruntime.quantization import quantize_static, CalibrationDataReader, QuantType, QuantFormat, CalibrationMethod

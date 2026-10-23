@@ -22,13 +22,14 @@
 import argparse, sys, json, math, os, sys, time
 from collections import deque
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import numpy as np, cv2, carla
 
 from icepredict.common.protocol import ROAD_CLASSES
 from icepredict.pi.fusion import RiskFuser
 from icepredict.pi.context import WeatherObs, LocationCtx, build_context
 from icepredict.pi.imu_slip import SlipDetector, SlipEvent, emergency_command, G
+from icepredict.pi.slip_ref import LocalEmergency7
 from icepredict.sim.blackice import (spawn_ice_patch, waypoint_ahead, follow_lane, next_keeping_lane, RoadNetDetector,
                                      camera_intrinsics, patch_road_polygon, draw_patch_overlay,
                                      patch_image_mask)
@@ -287,8 +288,9 @@ def neighbor_gaps(vehicles, ego, wp):
     if rw is None: gr = -1.0
     return gf, gl, gr
 
-class LocalEmergency:
-    """보드 slip_control() 의 파이썬 참조 구현 (보드 무응답 시 폴백). 상수·논리 동일."""
+class LocalEmergencyV3:
+    """(구버전 v3) 보드 slip_control() 의 예전 파이썬 참조 구현. 접지 회복·빙판 차로·앞차 상대속도·겹침이 없다.
+    지금 보드는 v7(slip_control2) 이라 기본 폴백은 slip_ref.LocalEmergency7 이다. 이 클래스는 --slip-legacy 로만 쓴다."""
     KP, KL, KD, SMAX, A_ICE, GAP_FREE, LANE_W = 1.4, 0.15, 0.30, 0.5, 1.0, 20.0, 3.5
     MODES = {0: "none", 1: "lane_keep", 2: "evade_left", 3: "evade_right", 4: "hard_stop", 5: "stopped"}
     def __init__(self): self.n = 0; self.mode = 0; self.shift = 0.0
@@ -619,6 +621,14 @@ ap.add_argument("--n6-bind", default="tcp://*:5558", help="Pi 브리지가 접�
 ap.add_argument("--n6-timeout", type=float, default=3.0, help="브리지 응답 대기(초)")
 ap.add_argument("--slip-local", action="store_true",
                 help="2차 방어(IMU 미끄러짐 감지)를 보드 대신 이 프로세스에서. 기본: --fusion n6/n6npu 면 보드(STM32N6 ThreadX)가 판정")
+ap.add_argument("--slip-ctypes", action="store_true",
+                help="2차 방어 감지·제어를 보드 펌웨어와 같은 C 코어(slip_core.h)를 ctypes 로 불러 돌린다 (보드 없이 보드 코드로 HIL 대체)")
+ap.add_argument("--slip-variant", default="", choices=["", "mu", "gs"],
+                help="--slip-ctypes 의 컴파일 플래그: ''=보드와 같은 기본, mu=SLIP_MU_EST(마찰 추정), gs=마찰 추정+SLIP_GAIN_SCHED(마찰별 제어표)")
+ap.add_argument("--slip-legacy", action="store_true", help="로컬 비상 제어 폴백을 구버전 v3 로 (기본은 보드와 같은 v7)")
+ap.add_argument("--log-core", default=None,
+                help="CSV 경로: --slip-ctypes 일 때 C 코어의 샘플별 입출력(모드·제동·조향·마찰 추정)을 기록")
+ap.add_argument("--seed", type=int, default=None, help="주변 차량 배치 등 난수 시드 (재현용)")
 ap.add_argument("--no-video", action="store_true")
 ap.add_argument("--show-patch", action="store_true", help="빙판 구간 표시(BLACK ICE 라벨·테두리·기둥) 켜기. 기본은 끔 — 실제처럼 보여야 한다")
 ap.add_argument("--no-overlay", action="store_true", help="(구) 빙판 시각화 오버레이 끄기 — 이제 기본이 끔")
@@ -770,7 +780,7 @@ try:
     traffic_vehicles, lead_vehicle = [], None
     if a.traffic > 0 or a.lead_stop > 0:
         traffic_vehicles, lead_vehicle = spawn_traffic(world, bl, cmap, tm, ego, a.traffic, wp_ice, a.lead_stop,
-                                                       np.random.default_rng(a.ice_seed + 100))
+                                                       np.random.default_rng(a.seed if a.seed is not None else a.ice_seed + 100))
         actors.extend(traffic_vehicles)
         if lead_vehicle is not None: actors.append(lead_vehicle); traffic_vehicles = traffic_vehicles + [lead_vehicle]
         print(f"[traffic] 주변 차량 {len(traffic_vehicles) - (1 if lead_vehicle else 0)}대"
@@ -996,7 +1006,16 @@ try:
     alarm_hits = 0            # 1차 경보가 연속으로 문턱을 넘은 프레임 수 (확정 계층)
     state = "DRIVE"           # DRIVE → WARN → BRAKE → STOPPED / SLIP → EMERG
     t_sim = 0.0; t_warn = None; t_slip = None; entered = False; warn_info = None; sec_info = None; sec_base = None
-    local_emerg = LocalEmergency(); emerg_mode = None; lane_departed = False; spun = False
+    local_emerg = LocalEmergencyV3() if a.slip_legacy else LocalEmergency7(dt); emerg_mode = None
+    core_c = None
+    if a.slip_ctypes:
+        from icepredict.pi.slip_ctypes import SlipCoreC
+        core_c = SlipCoreC(dt, 3, a.min_detect_kph / 3.6, variant=a.slip_variant)
+        slip_board = False
+        print(f"[core] 2차 방어 = 보드와 같은 C 코어(ctypes, 플래그 {core_c.flags:#x}, variant '{a.slip_variant}')", flush=True)
+    core_log = open(a.log_core, "w") if (a.log_core and core_c is not None) else None
+    if core_log: core_log.write("t,speed,ay,gz,ax,brake_cmd,steer_eq,lane_err,lat_off,gap_f,inside,slip,emerg,mode,brake,steer,grip,mu_hat,mu_n,a_stop\n")
+    last_ax = 0.0; last_brake_cmd = 0.0; last_ice_off = 0.0; lane_departed = False; spun = False
     control_lost = False; t_lost = None
     dyn_log = open(a.log_dyn, "w") if a.log_dyn else None
     if dyn_log: dyn_log.write("t,speed,steer_eq,gz,ay,ax,brake,inside\n")
@@ -1196,7 +1215,23 @@ try:
                 t_rule["box"] = (t_sim, ev_box.trigger, round(ev_box.ay_g, 3), round(ev_box.yaw_err, 3))
             ev, cmd, decided_by = None, None, "local"
             board_ctrl = None                                       # 보드가 준 이번 샘플의 비상 제어 명령 (emerg 중)
-            if slip_board:
+            last_ax = float(ax); last_brake_cmd = float(ctrl.brake)
+            last_ice_off = float(lane_center_offset(cmap, ego, cur_wp, slip_lane_id) if slip_lane_id is not None else 0.0)
+            if core_c is not None:
+                co = core_c.board(float(ay), float(gz), float(spd), steer_eq, float(ax), float(ctrl.brake), float(lane_err), float(lat_off),
+                                  float(gap_f), float(gap_l), float(gap_r), last_ice_off, float(getattr(neighbor_gaps, "front_rel_v", 0.0)))
+                if core_log:
+                    core_log.write(f"{t_sim:.3f},{spd:.3f},{ay:.4f},{gz:.4f},{ax:.4f},{ctrl.brake:.3f},{steer_eq:.4f},{lane_err:.4f},{lat_off:.3f},"
+                                   f"{gap_f:.1f},{int(inside)},{co['slip']},{co['emerg']},{co['mode']},{co['brake']:.3f},{co['steer']:.4f},"
+                                   f"{co['grip']},{co['mu_hat']:.4f},{co['mu_n']},{co['a_stop']:.3f}\n")
+                if co["emerg"]:
+                    board_ctrl = {"brake": co["brake"], "steer": co["steer"], "mode": LocalEmergency7.MODES_NAME[co["mode"]]}
+                if co["slip"]:
+                    ev = SlipEvent(t=t_sim, trigger={1: "lat_acc", 2: "yaw_rate", 3: "low_mu", 4: "combo"}.get(co["trig"], "?"),
+                                   ay_g=float(co["ay_g"]), yaw_err=float(co["yaw_err"]))
+                    cmd = {"brake": co["brake"], "steer": co["steer"], "throttle": 0.0}
+                    decided_by = "c_core"
+            elif slip_board:
                 sv = None
                 try:
                     n6.send_json({"kind": "imu", "ay": float(ay), "gz": float(gz), "speed": float(spd),
@@ -1240,7 +1275,7 @@ try:
                                # 그 경우를 불일치로 적으면 거짓말이 된다 — 먼저 잡은 것이지 안 잡은 게 아니다.
                                "local_agrees": bool(ev_local or t_rule["ellipse"])})
                 print(f"[{t_sim:6.2f}s] 2차 미끄러짐 감지 ({ev.trigger}) ay={ev.ay_g:.2f}g yaw_err={ev.yaw_err:.2f} → 비상 제어")
-                who = "STM32N6 RTOS" if decided_by == "stm32n6" else "local"
+                who = {"stm32n6": "STM32N6 RTOS", "c_core": "C core (board code)"}.get(decided_by, "local")
                 sec_base = f"2ND DEFENSE [{who}] IMU SLIP ({ev.trigger}) ay {ev.ay_g:.2f}g yaw {ev.yaw_err:.2f}"
                 sec_info = sec_base
                 print(f"           판정 주체: {who}  (로컬 참조 구현 동시 확정: {'예' if ev_local else '아니오'})", flush=True)
@@ -1265,12 +1300,18 @@ try:
                 print(f"[{t_sim:6.2f}s] 정지 완료  패치까지 {dist:.1f}m  (진입 {'회피' if dist > patch.extent[0] else '실패'})")
         elif state == "EMERG":
             if board_ctrl is not None:
-                b_, s_cmd, mode_now, who_now = board_ctrl["brake"], board_ctrl["steer"], board_ctrl["mode"], "STM32N6 RTOS"
+                b_, s_cmd, mode_now = board_ctrl["brake"], board_ctrl["steer"], board_ctrl["mode"]
+                who_now = "C core (board code)" if core_c is not None else "STM32N6 RTOS"
             elif emerg_mode == "stopped" and slip_board:
                 b_, s_cmd, mode_now, who_now = 1.0, 0.0, "stopped", "STM32N6 RTOS"   # 보드가 '정지'로 끝낸 뒤에는 정지 유지 (라벨 유지)
             else:
-                b_, s_cmd, mode_now = local_emerg.step(spd, gz if imus else 0.0, lane_err if imus else 0.0, lat_off if imus else 0.0,
-                                                       gap_f if imus else 999.0, gap_l if imus else 999.0, gap_r if imus else 999.0)
+                if a.slip_legacy:
+                    b_, s_cmd, mode_now = local_emerg.step(spd, gz if imus else 0.0, lane_err if imus else 0.0, lat_off if imus else 0.0,
+                                                           gap_f if imus else 999.0, gap_l if imus else 999.0, gap_r if imus else 999.0)
+                else:
+                    b_, s_cmd, mode_now = local_emerg.step(spd, gz if imus else 0.0, lane_err if imus else 0.0, lat_off if imus else 0.0,
+                                                           gap_f if imus else 999.0, gap_l if imus else 999.0, gap_r if imus else 999.0,
+                                                           last_ax, last_brake_cmd, last_ice_off, float(getattr(neighbor_gaps, "front_rel_v", 0.0)))
                 who_now = "local"
             ego.apply_control(carla.VehicleControl(throttle=0.0, brake=float(b_), steer=float(s_cmd)))
             if mode_now != emerg_mode:
@@ -1440,6 +1481,10 @@ try:
         print(f"\n[규칙 A/B] 타원 {e_['t']:.2f}s ({e_['trigger']})" if e_ else "\n[규칙 A/B] 타원 미발화",
               f" / 직사각형 {b_['t']:.2f}s ({b_['trigger']})" if b_ else " / 직사각형 미발화",
               (f" → 타원이 {rule_ab['gain_s']:+.2f}s 빠름" if rule_ab.get("gain_s") else ""), flush=True)
+    if core_log: core_log.close()
+    if core_c is not None and core_c.flags & 2:
+        _m = core_c.board(0, 0, 0, 0, 0, 0, 0, 0, 999, 999, 999, 0, 0)   # 정지 상태 한 샘플 — 상태만 읽는다
+        events.append({"t": round(t_sim, 2), "event": "mu_estimate", "mu_hat": round(float(_m["mu_hat"]), 4), "mu_n": int(_m["mu_n"])})
     (out / f"events_{tag}.json").write_text(json.dumps(
         {"args": vars(a), "events": events, "rule_ab": rule_ab}, indent=1))
     (out / f"trace_{tag}.json").write_text(json.dumps(rows))

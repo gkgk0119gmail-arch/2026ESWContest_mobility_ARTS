@@ -20,7 +20,7 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "sw" / "src"))
 from icepredict.pi.context import (LocationCtx, WeatherObs, build_context,  # noqa: E402
                                    ice_possible, primary_trust, road_temp_worst_c)
 
