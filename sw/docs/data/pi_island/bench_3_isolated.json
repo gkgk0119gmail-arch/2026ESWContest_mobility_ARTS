@@ -1,0 +1,1 @@
+{"samples": 6000, "deadline_miss": 0, "wake_us": {"mean": 17.7, "p99": 40, "p999": 50, "max": 59.7}, "compute_us": {"mean": 2.79, "p99": 10, "max": 9.5}, "fifo": 1, "wake_hist_10us": [1233,2466,2050,232,13,6]}

@@ -11,7 +11,8 @@ import subprocess
 
 LIB_DIR = pathlib.Path(__file__).resolve().parents[3] / "fw" / "npu_lib"
 FLAGS = {"": [], "mu": ["-DSLIP_MU_EST=1"], "gs": ["-DSLIP_MU_EST=1", "-DSLIP_GAIN_SCHED=1"],
-         "gsw": ["-DSLIP_MU_EST=1", "-DSLIP_GAIN_SCHED=1", "-DSLIP_WDT=1"]}
+         "gsw": ["-DSLIP_MU_EST=1", "-DSLIP_GAIN_SCHED=1", "-DSLIP_WDT=1"],
+         "mw": ["-DSLIP_MU_EST=1", "-DSLIP_WDT=1"]}          # 파이 격리 코어 안전 섬과 같은 구성 (sw/fw/pi_island)
 MODES = {0: "none", 1: "lane_keep", 2: "evade_left", 3: "evade_right", 4: "hard_stop", 5: "stopped"}
 TRIGS = {0: None, 1: "lat_acc", 2: "yaw_rate", 3: "low_mu", 4: "combo"}
 _F = ctypes.c_float
