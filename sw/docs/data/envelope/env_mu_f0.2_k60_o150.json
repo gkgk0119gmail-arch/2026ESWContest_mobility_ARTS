@@ -15,31 +15,31 @@
    "d_need": 4.0
   },
   {
-   "t": 16.1,
+   "t": 12.5,
    "mode": "PROBE",
-   "gap": 145.7,
+   "gap": 145.5,
    "kph": 58.3,
    "mu": 0.6725,
    "d_need": 35.7
   },
   {
-   "t": 16.7,
+   "t": 13.1,
    "mode": "CRUISE",
-   "gap": 136.2,
+   "gap": 136.0,
    "kph": 55.3,
    "mu": 0.1495,
    "d_need": 32.8
   },
   {
-   "t": 17.66,
+   "t": 14.06,
    "mode": "PREBRAKE",
-   "gap": 121.7,
+   "gap": 121.5,
    "kph": 55.4,
    "mu": 0.1495,
    "d_need": 98.9
   },
   {
-   "t": 33.26,
+   "t": 29.64,
    "mode": "BRAKE",
    "gap": 4.5,
    "kph": 2.8,
@@ -47,60 +47,62 @@
    "d_need": 4.5
   },
   {
-   "t": 33.32,
+   "t": 29.7,
    "mode": "PREBRAKE",
+   "gap": 4.4,
+   "kph": 2.6,
+   "mu": 0.1495,
+   "d_need": 4.4
+  },
+  {
+   "t": 29.74,
+   "mode": "BRAKE",
    "gap": 4.4,
    "kph": 2.5,
    "mu": 0.1495,
    "d_need": 4.4
   },
   {
-   "t": 33.38,
-   "mode": "BRAKE",
-   "gap": 4.4,
-   "kph": 2.4,
+   "t": 29.84,
+   "mode": "PREBRAKE",
+   "gap": 4.3,
+   "kph": 2.1,
    "mu": 0.1495,
-   "d_need": 4.4
+   "d_need": 4.3
   },
   {
-   "t": 33.5,
-   "mode": "PREBRAKE",
+   "t": 29.92,
+   "mode": "BRAKE",
    "gap": 4.3,
    "kph": 2.0,
    "mu": 0.1495,
    "d_need": 4.3
   },
   {
-   "t": 33.6,
-   "mode": "BRAKE",
-   "gap": 4.2,
-   "kph": 1.8,
-   "mu": 0.1495,
-   "d_need": 4.3
-  },
-  {
-   "t": 33.72,
+   "t": 30.06,
    "mode": "PREBRAKE",
    "gap": 4.2,
-   "kph": 1.4,
+   "kph": 1.5,
    "mu": 0.1495,
    "d_need": 4.2
   },
   {
-   "t": 33.78,
+   "t": 30.14,
    "mode": "HOLD",
    "gap": 4.2,
-   "kph": 1.1,
+   "kph": 1.0,
    "mu": 0.1495,
    "d_need": 4.1
   }
  ],
- "t_probe": 16.1,
+ "t_probe": 12.5,
  "v_probe_kph": 58.3,
  "mu_probe": 0.1495,
  "stopped": {
-  "t": 33.98,
-  "gap": 4.15
+  "t": 30.34,
+  "gap": 4.16
  },
- "result": "stopped"
+ "result": "stopped",
+ "start_accel": 5.25,
+ "patch_len_used": 147.5
 }

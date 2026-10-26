@@ -45,4 +45,30 @@ o = c.env_step(0.02, v, 0.0, 500.0, 0.0)
 ds = v * 0.3 + v * v / (2 * 0.9 * rows[5][2])
 check("정지 거리 식", abs(o["d_stop"] - ds) < 0.05 and abs(o["d_need"] - ds - 4.0) < 0.05, f"{o['d_stop']:.2f} m (식 {ds:.2f} m)")
 o = c.env_step(0.02, v, 0.0, ds + 3.0, 0.0); check("필요 거리 안 → 전력 제동", o["mode"] == "BRAKE" and o["brake"] == 1.0, f"모드 {o['mode']}")
+
+# 4. 탭 판단 (env_should_probe)
+def run_probe_logic(risk_fn, zone_fn, temp=-3.0, n=600, dec_fn=lambda i: 2.8):
+    c = SlipCoreC(variant="env"); c.env_reset(0.6725); taps = []; mode = "CRUISE"
+    for i in range(n):
+        why, blk = c.env_should_probe(0.02, risk_fn(i), temp, 16.7, 0.0, 0.0, 0.0, 500.0, zone_fn(i))
+        if why: taps.append((i, why))
+        o = c.env_step(0.02, 16.7, -dec_fn(i) if mode == "PROBE" else 0.0, 500.0, 0.0); mode = o["mode"]
+    return taps, o
+taps, _ = run_probe_logic(lambda i: 0.45 if i >= 10 else 0.1, lambda i: False)
+want = 10 + 10 + int(round(19.0 / 16.7 / 0.02))          # 회색 0.2 s + 카메라가 본 지점까지 19 m
+check("카메라 계기", bool(taps) and taps[0][1] == "camera" and abs(taps[0][0] - want) <= 2, f"첫 탭 {taps[:1]} (기대 약 {want})")
+taps, _ = run_probe_logic(lambda i: 0.45, lambda i: False, temp=8.0)
+check("따뜻하면 탭 없음", not taps, f"탭 {len(taps)}회")
+taps, o = run_probe_logic(lambda i: 0.05, lambda i: i >= 50, dec_fn=lambda i: 2.8 if i < 300 else 1.57)
+check("결빙 취약 구간 계기", [w for _, w in taps] == ["zone"] * 3 and abs(o["mu"] / 0.164 - 1) < 0.03,
+      f"탭 {taps}, 찾은 μ {o['mu']:.3f}")
+taps, o = run_probe_logic(lambda i: 0.05, lambda i: i >= 50)
+c = SlipCoreC(variant="env"); c.env_reset(0.6725); c.env_probe(); n_probe = 0
+for i in range(40):
+    o = c.env_step(0.02, 16.7, -2.8 if i >= 10 else -1.9, 500.0, 0.0); n_probe += o["mode"] == "PROBE"
+check("마른 노면 탭 일찍 끝내기", n_probe <= 14 and abs(o["mu"] - 0.6725) < 1e-6, f"탭 {n_probe * 20} ms (전체 600 ms)")
+check("구간이어도 마른 노면이면 μ 유지·최대 3번", len(taps) == 3 and abs(o["mu"] - 0.6725) < 1e-6, f"탭 {len(taps)}회, μ {o['mu']:.3f}")
+c = SlipCoreC(variant="env"); c.env_reset(0.6725)
+for i in range(5): c.env_should_probe(0.02, 0.7, -3.0, 16.7, 0.0, 0.0, 0.0, 500.0, False)
+check("카메라 확신 → 빙판 기본값", abs(c.env_step(0.02, 16.7, 0.0, 500.0, 0.0)["mu"] - 0.10) < 1e-6, "μ 0.10")
 sys.exit(0 if ok_all else 1)

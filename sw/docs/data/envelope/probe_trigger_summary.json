@@ -1,0 +1,284 @@
+[
+ {
+  "tag": "mu_f0.12_k60_o150_cam_ClearNoon_t-3",
+  "weather": "ClearNoon",
+  "temp": -3.0,
+  "ice": true,
+  "zone": true,
+  "kph": 60,
+  "mu": 0.098,
+  "risk_max": 0.036,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "stopped",
+  "stop_gap": 4.12,
+  "pre_kph": null,
+  "probes": [
+   {
+    "by": "zone",
+    "on_ice": false,
+    "mu": 0.6725,
+    "gap": 185.6
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.102,
+    "gap": 145.5
+   }
+  ]
+ },
+ {
+  "tag": "mu_f0.2_k40_o150_cam_ClearNoon_t-3",
+  "weather": "ClearNoon",
+  "temp": -3.0,
+  "ice": true,
+  "zone": true,
+  "kph": 40,
+  "mu": 0.164,
+  "risk_max": 0.033,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "stopped",
+  "stop_gap": 4.14,
+  "pre_kph": null,
+  "probes": [
+   {
+    "by": "zone",
+    "on_ice": false,
+    "mu": 0.6725,
+    "gap": 185.7
+   },
+   {
+    "by": "zone",
+    "on_ice": false,
+    "mu": 0.6725,
+    "gap": 158.8
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.1431,
+    "gap": 131.8
+   }
+  ]
+ },
+ {
+  "tag": "mu_f0.2_k60_o150_cam_ClearNight_t-3",
+  "weather": "ClearNight",
+  "temp": -3.0,
+  "ice": true,
+  "zone": true,
+  "kph": 60,
+  "mu": 0.164,
+  "risk_max": 0.026,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "stopped",
+  "stop_gap": 4.15,
+  "pre_kph": null,
+  "probes": [
+   {
+    "by": "zone",
+    "on_ice": false,
+    "mu": 0.6725,
+    "gap": 185.6
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.1495,
+    "gap": 145.5
+   }
+  ]
+ },
+ {
+  "tag": "mu_f0.2_k60_o150_cam_ClearNoon_t-3",
+  "weather": "ClearNoon",
+  "temp": -3.0,
+  "ice": true,
+  "zone": true,
+  "kph": 60,
+  "mu": 0.164,
+  "risk_max": 0.032,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "stopped",
+  "stop_gap": 4.14,
+  "pre_kph": null,
+  "probes": [
+   {
+    "by": "zone",
+    "on_ice": false,
+    "mu": 0.6725,
+    "gap": 185.6
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.1486,
+    "gap": 145.5
+   }
+  ]
+ },
+ {
+  "tag": "mu_f0.2_k60_o150_cam_ClearNoon_t-3_noice",
+  "weather": "ClearNoon",
+  "temp": -3.0,
+  "ice": false,
+  "zone": true,
+  "kph": 60,
+  "mu": null,
+  "risk_max": 0.032,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "stopped",
+  "stop_gap": 4.17,
+  "pre_kph": null,
+  "probes": [
+   {
+    "by": "zone",
+    "on_ice": false,
+    "mu": 0.6725,
+    "gap": 185.6
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.6725,
+    "gap": 145.5
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.6725,
+    "gap": 105.3
+   }
+  ]
+ },
+ {
+  "tag": "mu_f0.2_k60_o150_cam_ClearNoon_t-3_nozone",
+  "weather": "ClearNoon",
+  "temp": -3.0,
+  "ice": true,
+  "zone": false,
+  "kph": 60,
+  "mu": 0.164,
+  "risk_max": 0.033,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "crash",
+  "stop_gap": null,
+  "pre_kph": 30.2,
+  "probes": []
+ },
+ {
+  "tag": "mu_f0.2_k60_o150_cam_WetNoon_t+8_noice",
+  "weather": "WetNoon",
+  "temp": 8.0,
+  "ice": false,
+  "zone": true,
+  "kph": 60,
+  "mu": null,
+  "risk_max": 0.046,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "stopped",
+  "stop_gap": 4.15,
+  "pre_kph": null,
+  "probes": []
+ },
+ {
+  "tag": "mu_f0.2_k60_o150_cam_WetNoon_t-3",
+  "weather": "WetNoon",
+  "temp": -3.0,
+  "ice": true,
+  "zone": true,
+  "kph": 60,
+  "mu": 0.164,
+  "risk_max": 0.049,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "stopped",
+  "stop_gap": 4.14,
+  "pre_kph": null,
+  "probes": [
+   {
+    "by": "zone",
+    "on_ice": false,
+    "mu": 0.6725,
+    "gap": 185.6
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.1486,
+    "gap": 145.5
+   }
+  ]
+ },
+ {
+  "tag": "mu_f0.2_k60_o150_cam_WetNoon_t-3_noice",
+  "weather": "WetNoon",
+  "temp": -3.0,
+  "ice": false,
+  "zone": true,
+  "kph": 60,
+  "mu": null,
+  "risk_max": 0.05,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "stopped",
+  "stop_gap": 4.14,
+  "pre_kph": null,
+  "probes": [
+   {
+    "by": "zone",
+    "on_ice": false,
+    "mu": 0.6725,
+    "gap": 185.6
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.6725,
+    "gap": 145.5
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.6725,
+    "gap": 105.3
+   }
+  ]
+ },
+ {
+  "tag": "mu_f0.2_k80_o150_cam_ClearNoon_t-3",
+  "weather": "ClearNoon",
+  "temp": -3.0,
+  "ice": true,
+  "zone": true,
+  "kph": 80,
+  "mu": 0.164,
+  "risk_max": 0.035,
+  "gray": 0.0,
+  "alarm": 0.0,
+  "result": "crash",
+  "stop_gap": null,
+  "pre_kph": 23.0,
+  "probes": [
+   {
+    "by": "zone",
+    "on_ice": false,
+    "mu": 0.6725,
+    "gap": 185.4
+   },
+   {
+    "by": "zone",
+    "on_ice": true,
+    "mu": 0.1608,
+    "gap": 132.2
+   }
+  ]
+ }
+]

@@ -85,6 +85,14 @@ class SlipCoreC:
     def env_set_mu(self, mu: float):
         self.L.sc_env_set_mu(mu)
 
+    ENV_BLK = {1: "gray", 2: "temp", 4: "speed", 8: "unsteady", 16: "brake", 32: "gap", 64: "cooldown", 128: "mode", 256: "wait"}
+
+    def env_should_probe(self, dt, risk, temp_c, v, ax, ay, brake_cmd, gap, zone=False):
+        """탭 판단 (C env_should_probe). → (계기: None / "camera" / "zone", 막은 조건 이름 목록)"""
+        self.L.sc_env_should_probe.argtypes = [_F] * 8 + [ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
+        b = ctypes.c_int(0); r = self.L.sc_env_should_probe(dt, risk, temp_c, v, ax, ay, brake_cmd, gap, 1 if zone else 0, ctypes.byref(b))
+        return {0: None, 1: "camera", 2: "zone"}[r], [n for k, n in self.ENV_BLK.items() if b.value & k]
+
     def env_step(self, dt, v, ax, gap, v_lead):
         self.L.sc_env_step(dt, v, ax, gap, v_lead, self._env); o = self._env
         return dict(brake=o[0], thr_cap=o[1], mode=self.ENV_MODES[int(o[2])], mu=o[3], d_stop=o[4], d_need=o[5],

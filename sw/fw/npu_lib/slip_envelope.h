@@ -24,6 +24,21 @@
 #define ENV_PROBE_WIN_S  0.25f
 #define ENV_DRY_FRAC     0.92f   /* 탭 감속이 마른 노면 값의 92 % 이상이면 '이상 없음' */
 #define ENV_NO_GAP       900.f
+/* 탭을 할지 판단 (env_should_probe) — 모두 만족할 때만 */
+#define ENV_RISK_LO      0.30f   /*    1차 위험도 회색 구간 하한 (제안값) */
+#define ENV_RISK_HI      0.60f   /*    1차 경고 문턱 (fusion-threshold 결정과 같다) */
+#define ENV_GRAY_S       0.20f   /* s  회색 구간이 이만큼 이어져야 */
+#define ENV_CAM_DIST_M   19.0f   /* m  카메라가 보는 노면(8~30 m)의 가운데 — 그 지점에 도착했을 때 탭한다 */
+#define ENV_TEMP_MAX_C   3.0f    /* °C 이보다 따뜻하면 탭하지 않는다 */
+#define ENV_VMIN         8.33f   /* m/s 30 km/h */
+#define ENV_STEADY_A     1.0f    /* m/s² 종·횡가속이 이보다 크면 (조향·가속 중) 탭하지 않는다 */
+#define ENV_COOLDOWN_S   60.0f   /* s  한 번 탭하면 쉰다 */
+#define ENV_RECHECK_S    2.0f    /* s  탭이 '마른 노면'이라 했는데 의심이 계속되면 한 번 더 */
+#define ENV_ZONE_PERIOD_S 2.5f  /* s  결빙 취약 구간 안에서 탭 간격 */
+#define ENV_ZONE_MAX     3       /*    구간 하나에서 최대 탭 횟수 (빙판을 찾으면 멈춘다) */
+#define ENV_MU_PRIOR     0.10f   /*    1차가 확신(위험도 ≥ 문턱)하면 탭 전까지 쓰는 빙판 기본값 */
+enum { ENV_BLK_GRAY = 1, ENV_BLK_TEMP = 2, ENV_BLK_SPEED = 4, ENV_BLK_UNSTEADY = 8, ENV_BLK_BRAKE = 16,
+       ENV_BLK_GAP = 32, ENV_BLK_COOL = 64, ENV_BLK_MODE = 128, ENV_BLK_WAIT = 256 };
 #define ENV_PRE_KI       0.8f    /* 1/(m/s²·s)  예비 제동 적분 이득 */
 #define ENV_PRE_KP       0.25f   /* 1/(m/s²)    예비 제동 비례 이득 */
 #define ENV_PRE_THR      0.30f   /*             예비 제동 중 허용하는 최대 가속 페달 */
@@ -36,8 +51,11 @@ typedef struct {
   float probe_t, probe_sum; int probe_n;
   float mu_probe;           /* 마지막 탭 결과 (-1 = 아직 없음) */
   int   probe_retry;        /* 측정이 표 범위 밖이면 한 번 다시 잰다 */
+  int   probe_dry_n;        /* 제동 중 마른 노면 감속이 이어진 샘플 수 */
   float d_stop, d_need, v_max, a_used;
   float b_pre;              /* 예비 제동 세기 (실측 감속을 필요 감속에 맞춰 적분) */
+  float gray_t, wait_t, cool_t; int armed, n_probe_win, blocked;   /* 탭 판단 상태 */
+  float zone_t; int zone_n;   /* 결빙 취약 구간: 마지막 탭 뒤 시간, 이 구간에서 한 탭 수 */
 } env_t;
 
 static float env_interp(const float *x, const float *y, float q)
@@ -52,12 +70,50 @@ static inline float env_mu_from_probe(float dec) { return env_interp(env_dec_pro
 
 static void env_reset(env_t *e, float mu0)
 {
-  e->mu = mu0; e->mode = ENV_CRUISE; e->probe_t = 0.f; e->probe_sum = 0.f; e->probe_n = 0; e->mu_probe = -1.f; e->probe_retry = 0;
+  e->mu = mu0; e->mode = ENV_CRUISE; e->probe_t = 0.f; e->probe_sum = 0.f; e->probe_n = 0; e->mu_probe = -1.f; e->probe_retry = 0; e->probe_dry_n = 0;
   e->d_stop = e->d_need = 0.f; e->v_max = 99.f; e->a_used = 0.f; e->b_pre = 0.f;
+  e->gray_t = 0.f; e->wait_t = 0.f; e->cool_t = 0.f; e->armed = 0; e->n_probe_win = 0; e->blocked = 0;
+  e->zone_t = 0.f; e->zone_n = 0;
 }
-static void env_probe_start(env_t *e) { if (e->mode != ENV_PROBE) { e->mode = ENV_PROBE; e->probe_t = 0.f; e->probe_sum = 0.f; e->probe_n = 0; e->probe_retry = 0; } }
+static void env_probe_start(env_t *e) { if (e->mode != ENV_PROBE) { e->mode = ENV_PROBE; e->probe_t = 0.f; e->probe_sum = 0.f; e->probe_n = 0; e->probe_retry = 0; e->probe_dry_n = 0; } }
 /* 2차 방어의 다른 경로(미끄러짐 확정 후 마찰 추정기)가 더 낮은 μ 를 알면 받아 쓴다 */
 static void env_set_mu(env_t *e, float mu) { e->mu = mu; }
+
+/* 탭을 할지 판단한다. 20 ms 마다 env_step 앞에서 부른다. 1 이면 탭을 시작했다.
+   두 가지 계기 중 하나 + 안전 조건 전부:
+     ① 카메라: 1차 위험도가 회색 구간(0.3~0.6)에 0.2 s 이상 → 카메라가 본 지점에 도착했을 때
+     ② 지도: 영하 근처 날씨에 결빙 취약 구간(교량·터널 출입구·그늘 — 도로 관리 기관이 지정) 안 → 2.5 s 마다 최대 3번, 빙판을 찾으면 멈춤
+        (CARLA 실험에서 1차 모델이 빙판을 거의 못 봐 ①만으로는 탭이 나가지 않았다 — 20번 문서)
+   risk: 1차 방어 위험도 0~1 (없으면 -1), temp_c: 외기 온도, ax/ay: 가속 m/s², brake_cmd: 운전자 제동 0~1, gap: 앞 물체 간격,
+   zone: 결빙 취약 구간 안이면 1
+   e->blocked 에 이번에 막은 조건(ENV_BLK_*)을 남긴다 — 탭이 왜 안 나갔는지 기록하려고. */
+static int env_should_probe(env_t *e, float dt, float risk, float temp_c, float v, float ax, float ay, float brake_cmd, float gap, int zone)
+{
+  int blk = 0, by_zone = 0;
+  if (zone) e->zone_t += dt; else { e->zone_t = 0.f; e->zone_n = 0; }
+  if (zone && e->zone_n < ENV_ZONE_MAX && (e->zone_n == 0 || e->zone_t >= ENV_ZONE_PERIOD_S)
+      && !(e->mu_probe > 0.f && e->mu_probe < env_mu[ENV_NMU - 1])) by_zone = 1;   /* 이미 빙판을 찾았으면 더 안 한다 */
+  if (e->cool_t > 0.f) e->cool_t -= dt;
+  if (risk >= ENV_RISK_HI) { if (e->mu > ENV_MU_PRIOR && e->mu_probe < 0.f) e->mu = ENV_MU_PRIOR; }   /* 1차 확신: 탭 전까지 빙판 기본값 */
+  if (risk >= ENV_RISK_LO) e->gray_t += dt; else { e->gray_t = 0.f; if (!e->armed) e->wait_t = 0.f; }
+  if (e->gray_t >= ENV_GRAY_S && !e->armed) { e->armed = 1; e->wait_t = (v > 1.f ? ENV_CAM_DIST_M / v : 0.f); }  /* 본 지점까지 가는 시간 */
+  if (!e->armed) { if (!by_zone) blk |= ENV_BLK_GRAY; }
+  else if (e->wait_t > 0.f) { e->wait_t -= dt; if (!by_zone) blk |= ENV_BLK_WAIT; }
+  if (temp_c > ENV_TEMP_MAX_C) blk |= ENV_BLK_TEMP;
+  if (v < ENV_VMIN) blk |= ENV_BLK_SPEED;
+  if (fabsf(ay) > ENV_STEADY_A || ax > ENV_STEADY_A || ax < -2.f * ENV_STEADY_A) blk |= ENV_BLK_UNSTEADY;
+  if (brake_cmd > 0.05f) blk |= ENV_BLK_BRAKE;
+  { float ad = ENV_A_USE * env_dec_full[ENV_NMU - 1]; if (gap < 2.f * (v * ENV_T_REACT + v * v / (2.f * ad) + ENV_MARGIN_M)) blk |= ENV_BLK_GAP; }
+  if (e->cool_t > 0.f && !by_zone) blk |= ENV_BLK_COOL;
+  if (e->mode != ENV_CRUISE && e->mode != ENV_CAUTION) blk |= ENV_BLK_MODE;
+  e->blocked = blk;
+  if (blk) return 0;
+  env_probe_start(e);
+  if (by_zone) { e->zone_n++; e->zone_t = 0.f; return 2; }           /* 2 = 지도(결빙 취약 구간) 계기 */
+  e->armed = 0; e->n_probe_win++;
+  e->cool_t = (e->n_probe_win == 1) ? ENV_RECHECK_S : ENV_COOLDOWN_S;   /* 첫 탭 뒤 의심이 계속되면 2 s 뒤 한 번 더, 그다음은 60 s 쉰다 */
+  return 1;                                                            /* 1 = 카메라 계기 */
+}
 
 /* v: 속도 m/s, ax: 종가속 m/s² (가속 +), gap: 앞 물체 범퍼 간격 m (없으면 ≥ ENV_NO_GAP), v_lead: 앞 물체 속도 m/s
    → *brake 0..1, *thr_cap 0..1 (가속 페달 상한. 예비 제동 중에는 이 값이 곧 가속 페달 명령이다) */
@@ -76,16 +132,22 @@ static void env_step(env_t *e, float dt, float v, float ax, float gap, float v_l
   if (e->mode == ENV_PROBE) {
     e->probe_t += dt;
     if (e->probe_t > ENV_PROBE_S - ENV_PROBE_WIN_S) { e->probe_sum += -ax; e->probe_n++; }
-    if (e->probe_t >= ENV_PROBE_S) {
+    /* 일찍 끝내기: 제동을 건 뒤 3 샘플 연속 마른 노면만큼 감속하면 바로 '이상 없음' (마른 노면에서 운전자가 덜 느끼게) */
+    if (e->probe_t > ENV_PROBE_SETTLE) {
+      if (-ax >= ENV_DRY_FRAC * env_dec_probe[ENV_NMU - 1]) e->probe_dry_n++; else e->probe_dry_n = 0;
+      if (e->probe_dry_n >= 3) { e->mu_probe = env_mu[ENV_NMU - 1]; e->mu = e->mu_probe; e->mode = ENV_CRUISE; e->probe_dry_n = 0; }
+    }
+    if (e->mode == ENV_PROBE && e->probe_t >= ENV_PROBE_S) {
       float dec = e->probe_n ? e->probe_sum / (float)e->probe_n : env_dec_probe[ENV_NMU - 1];
       if (dec < 0.8f * env_dec_probe[0] && e->probe_retry == 0) {      /* 표의 최저 마찰보다도 덜 감속 = 측정 실패 (바퀴 헛돎 등) */
         e->probe_retry = 1; e->probe_t = 0.f; e->probe_sum = 0.f; e->probe_n = 0;
         *brake = 0.f; *thr_cap = 0.f; return;
       }
       if (dec >= ENV_DRY_FRAC * env_dec_probe[ENV_NMU - 1]) e->mu_probe = env_mu[ENV_NMU - 1];
-      else { e->mu_probe = env_mu_from_probe(dec); if (e->mu_probe < e->mu) e->mu = e->mu_probe; }
+      else e->mu_probe = env_mu_from_probe(dec);
+      e->mu = e->mu_probe;            /* 잰 값이 카메라 기본값·마른 노면 가정을 덮는다 (마른 노면이면 경고 취소) */
       e->mode = ENV_CRUISE;
-    } else { *brake = e->probe_t < ENV_PROBE_SETTLE ? 0.f : ENV_PROBE_BRAKE; *thr_cap = 0.f; return; }
+    } else if (e->mode == ENV_PROBE) { *brake = e->probe_t < ENV_PROBE_SETTLE ? 0.f : ENV_PROBE_BRAKE; *thr_cap = 0.f; return; }
   }
   if (e->mode == ENV_HOLD || (v < 0.3f && gap < 3.f * ENV_MARGIN_M)) { e->mode = ENV_HOLD; *brake = 1.f; *thr_cap = 0.f; return; }
   if (gap <= e->d_need) { e->mode = ENV_BRAKE; *brake = 1.f; *thr_cap = 0.f; return; }

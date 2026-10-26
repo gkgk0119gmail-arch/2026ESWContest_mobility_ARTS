@@ -101,6 +101,11 @@ static env_t g_env;
 void sc_env_reset(float mu0) { env_reset(&g_env, mu0); }
 void sc_env_probe(void) { env_probe_start(&g_env); }
 void sc_env_set_mu(float mu) { env_set_mu(&g_env, mu); }
+/* 탭 판단: 1 = 카메라 계기로 탭 시작, 2 = 결빙 취약 구간 계기. *blocked = 막은 조건 비트 (ENV_BLK_*) */
+int sc_env_should_probe(float dt, float risk, float temp_c, float v, float ax, float ay, float brake_cmd, float gap, int zone, int *blocked)
+{
+  int r = env_should_probe(&g_env, dt, risk, temp_c, v, ax, ay, brake_cmd, gap, zone); *blocked = g_env.blocked; return r;
+}
 /* out: brake, thr_cap, mode, mu, d_stop, d_need, v_max, mu_probe, a_used */
 void sc_env_step(float dt, float v, float ax, float gap, float v_lead, float *out)
 {

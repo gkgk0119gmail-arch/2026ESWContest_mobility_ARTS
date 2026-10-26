@@ -16,7 +16,7 @@ import numpy as np  # noqa: E402
 from matplotlib import font_manager  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-SW = ROOT / "logs/envelope/sweep"; OUT = ROOT / "sw/docs/data/envelope"; FIG = ROOT / "sw/docs/figures"
+SW = ROOT / "logs/envelope2/sweep"; OUT = ROOT / "sw/docs/data/envelope"; FIG = ROOT / "sw/docs/figures"
 OUT.mkdir(parents=True, exist_ok=True)
 for f in ("NanumGothic", "Noto Sans CJK KR"):
     if any(f in x.name for x in font_manager.fontManager.ttflist): plt.rcParams["font.family"] = f; break
@@ -90,3 +90,40 @@ if rows:
     ax.set_xticks(x); ax.set_xticklabels([f"μ {m:.2f}\n{k} km/h" for m, k in cells], fontsize=7.5, color=INK2)
     ax.grid(True, axis="y", color=GRID, lw=0.6); ax.set_ylabel("km/h", color=INK2, fontsize=9); ax.legend(fontsize=8, frameon=False, loc="upper left")
     fig.tight_layout(); fig.savefig(FIG / "env_sweep.png"); plt.close(fig)
+
+# ---- 3) 탭 판단 기준 시험 (카메라 위험도 + 결빙 취약 구간) ----
+CAM = ROOT / "logs/envelope2/cam"
+cam_rows = []
+for f in sorted(CAM.glob("env_*.json")):
+    d = json.loads(f.read_text())
+    if "risk_max" not in d: continue
+    pr = d.get("probes", [])
+    cam_rows.append(dict(tag=d["tag"], weather=d["weather"], temp=d["temp"], ice=not d["no_ice"], zone=d["zone"], kph=int(d["target_kph"]),
+                         mu=round(0.82 * d["friction"], 3) if not d["no_ice"] else None, risk_max=d["risk_max"],
+                         gray=d["risk_frac_gray"], alarm=d["risk_frac_alarm"], result=d["result"],
+                         stop_gap=d.get("stopped", {}).get("gap"), pre_kph=d.get("collision", {}).get("pre_kph"),
+                         probes=[dict(by=p["by"], on_ice=p["inside_ice"], mu=p.get("mu_probe"), gap=p["gap"]) for p in pr]))
+if cam_rows:
+    (OUT / "probe_trigger_summary.json").write_text(json.dumps(cam_rows, indent=1, ensure_ascii=False))
+    print("\n탭 판단 기준 시험:")
+    for r in cam_rows:
+        cond = f"{r['weather']:10s} {r['temp']:+.0f}°C {'빙판 μ%.2f' % r['mu'] if r['ice'] else '빙판 없음  '} {'구간O' if r['zone'] else '구간X'} {r['kph']}km/h"
+        pz = ", ".join(f"{p['by']}{'(빙판)' if p['on_ice'] else '(밖)'} μ{p['mu']:.2f}" if p['mu'] is not None else p['by'] for p in r["probes"]) or "탭 없음"
+        res = f"정지 {r['stop_gap']} m" if r["stop_gap"] is not None else f"충돌 {r['pre_kph']} km/h" if r["pre_kph"] is not None else r["result"]
+        print(f"  {cond} | 위험도 최대 {r['risk_max']:.2f} 애매 {r['gray']*100:.1f}% | {pz} | {res}")
+    # 대표 주행 시간 흐름
+    main = CAM / "env_mu_f0.2_k60_o150_cam_ClearNoon_t-3.csv"
+    if main.exists():
+        X = np.genfromtxt(main, delimiter=",", names=True, dtype=None, encoding=None)
+        t = X["t"].astype(float); v = X["v"].astype(float) * 3.6; rk = X["risk"].astype(float); md = X["mode"]; ins = X["inside"].astype(int)
+        d = json.loads((CAM / "env_mu_f0.2_k60_o150_cam_ClearNoon_t-3.json").read_text())
+        fig, ax = plt.subplots(figsize=(8.6, 3.4), dpi=150); style(ax, "결빙 취약 구간 계기 탭 — 대표 주행 (μ 0.16, 60 km/h, 1차 카메라는 빙판을 못 봄)")
+        ax.plot(t, v, color="#2a78d6", lw=1.6, label="속도 km/h")
+        ax.fill_between(t, 0, 70, where=ins > 0, color="#cfe3f7", alpha=0.6, step="mid", label="빙판 위")
+        ax.plot(t, rk * 100, color="#eb6834", lw=1.0, label="1차 위험도 ×100")
+        for p in d.get("probes", []):
+            ax.axvline(p["t"], color=INK, lw=0.8, ls="--")
+            ax.text(p["t"] + 0.2, 64, f"탭 → μ {p.get('mu_probe', 0):.2f}" if p.get("mu_probe") is not None else "탭", fontsize=7, color=INK, rotation=90, va="top")
+        ax.set_xlim(10, t.max()); ax.set_ylim(0, 70); ax.set_xlabel("초", color=INK2, fontsize=8.5); ax.grid(True, axis="y", color=GRID, lw=0.6)
+        ax.legend(fontsize=7.5, frameon=False, loc="upper right")
+        fig.tight_layout(); fig.savefig(FIG / "env_probe_timeline.png"); plt.close(fig)

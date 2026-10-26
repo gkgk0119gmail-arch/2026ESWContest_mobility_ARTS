@@ -17,10 +17,10 @@
   "mu": 0.098,
   "kph": 60,
   "result": "crash",
-  "pre_kph": 43.3,
+  "pre_kph": 43.4,
   "stop_gap": null,
   "mu_probe": null,
-  "brake_gap": 59.8,
+  "brake_gap": 59.7,
   "brake_kph": 58.3
  },
  {
@@ -29,11 +29,11 @@
   "mu": 0.098,
   "kph": 80,
   "result": "crash",
-  "pre_kph": 59.9,
+  "pre_kph": 60.8,
   "stop_gap": null,
   "mu_probe": null,
-  "brake_gap": 85.0,
-  "brake_kph": 74.6
+  "brake_gap": 90.8,
+  "brake_kph": 77.8
  },
  {
   "arm": "dry",
@@ -41,10 +41,10 @@
   "mu": 0.164,
   "kph": 40,
   "result": "crash",
-  "pre_kph": 7.9,
+  "pre_kph": 8.1,
   "stop_gap": null,
   "mu_probe": null,
-  "brake_gap": 35.4,
+  "brake_gap": 35.3,
   "brake_kph": 38.9
  },
  {
@@ -53,10 +53,10 @@
   "mu": 0.164,
   "kph": 60,
   "result": "crash",
-  "pre_kph": 30.0,
+  "pre_kph": 30.2,
   "stop_gap": null,
   "mu_probe": null,
-  "brake_gap": 59.9,
+  "brake_gap": 59.7,
   "brake_kph": 58.3
  },
  {
@@ -65,10 +65,10 @@
   "mu": 0.164,
   "kph": 80,
   "result": "crash",
-  "pre_kph": 47.2,
+  "pre_kph": 47.1,
   "stop_gap": null,
   "mu_probe": null,
-  "brake_gap": 90.7,
+  "brake_gap": 90.8,
   "brake_kph": 77.8
  },
  {
@@ -78,9 +78,9 @@
   "kph": 40,
   "result": "stopped",
   "pre_kph": null,
-  "stop_gap": 4.12,
+  "stop_gap": 4.08,
   "mu_probe": null,
-  "brake_gap": 35.3,
+  "brake_gap": 35.2,
   "brake_kph": 38.9
  },
  {
@@ -90,9 +90,9 @@
   "kph": 60,
   "result": "stopped",
   "pre_kph": null,
-  "stop_gap": 4.13,
+  "stop_gap": 3.81,
   "mu_probe": null,
-  "brake_gap": 60.0,
+  "brake_gap": 59.7,
   "brake_kph": 58.3
  },
  {
@@ -115,8 +115,8 @@
   "result": "stopped",
   "pre_kph": null,
   "stop_gap": 4.14,
-  "mu_probe": 0.1002,
-  "brake_gap": 90.0,
+  "mu_probe": 0.1,
+  "brake_gap": 90.1,
   "brake_kph": 38.9
  },
  {
@@ -126,10 +126,10 @@
   "kph": 60,
   "result": "stopped",
   "pre_kph": null,
-  "stop_gap": 4.13,
-  "mu_probe": 0.102,
-  "brake_gap": 135.7,
-  "brake_kph": 56.0
+  "stop_gap": 4.1,
+  "mu_probe": 0.1021,
+  "brake_gap": 135.6,
+  "brake_kph": 56.2
  },
  {
   "arm": "mu",
@@ -137,11 +137,11 @@
   "mu": 0.098,
   "kph": 80,
   "result": "crash",
-  "pre_kph": 26.3,
+  "pre_kph": 47.9,
   "stop_gap": null,
-  "mu_probe": 0.0592,
-  "brake_gap": 134.5,
-  "brake_kph": 64.2
+  "mu_probe": 0.1048,
+  "brake_gap": 132.5,
+  "brake_kph": 75.6
  },
  {
   "arm": "mu",
@@ -150,9 +150,9 @@
   "kph": 40,
   "result": "stopped",
   "pre_kph": null,
-  "stop_gap": 4.12,
-  "mu_probe": 0.1424,
-  "brake_gap": 70.1,
+  "stop_gap": 4.14,
+  "mu_probe": 0.142,
+  "brake_gap": 70.2,
   "brake_kph": 38.9
  },
  {
@@ -163,9 +163,9 @@
   "result": "stopped",
   "pre_kph": null,
   "stop_gap": 4.13,
-  "mu_probe": 0.1481,
-  "brake_gap": 122.0,
-  "brake_kph": 55.3
+  "mu_probe": 0.1499,
+  "brake_gap": 121.5,
+  "brake_kph": 55.4
  },
  {
   "arm": "mu",
@@ -174,9 +174,9 @@
   "kph": 80,
   "result": "stopped",
   "pre_kph": null,
-  "stop_gap": 0.55,
-  "mu_probe": 0.1566,
-  "brake_gap": 132.4,
+  "stop_gap": 0.81,
+  "mu_probe": 0.1605,
+  "brake_gap": 132.5,
   "brake_kph": 74.5
  },
  {
@@ -186,9 +186,9 @@
   "kph": 40,
   "result": "stopped",
   "pre_kph": null,
-  "stop_gap": 4.2,
-  "mu_probe": 0.2014,
-  "brake_gap": 56.3,
+  "stop_gap": 4.13,
+  "mu_probe": 0.2018,
+  "brake_gap": 56.2,
   "brake_kph": 38.9
  },
  {
@@ -199,9 +199,9 @@
   "result": "stopped",
   "pre_kph": null,
   "stop_gap": 4.17,
-  "mu_probe": 0.2031,
-  "brake_gap": 110.5,
-  "brake_kph": 59.6
+  "mu_probe": 0.203,
+  "brake_gap": 110.6,
+  "brake_kph": 59.7
  },
  {
   "arm": "mu",
@@ -210,8 +210,8 @@
   "kph": 80,
   "result": "stopped",
   "pre_kph": null,
-  "stop_gap": 4.12,
-  "mu_probe": 0.2103,
+  "stop_gap": 4.11,
+  "mu_probe": 0.2107,
   "brake_gap": 132.6,
   "brake_kph": 73.6
  }
