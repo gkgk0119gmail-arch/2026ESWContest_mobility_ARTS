@@ -1,0 +1,106 @@
+{
+ "tag": "mu_f0.2_k60_o150",
+ "arm": "mu",
+ "friction": 0.2,
+ "target_kph": 60.0,
+ "obstacle_in": 150.0,
+ "patch_ahead": 170.0,
+ "modes": [
+  {
+   "t": 0.02,
+   "mode": "CRUISE",
+   "gap": 315.9,
+   "kph": 0.0,
+   "mu": 0.6725,
+   "d_need": 4.0
+  },
+  {
+   "t": 16.1,
+   "mode": "PROBE",
+   "gap": 145.7,
+   "kph": 58.3,
+   "mu": 0.6725,
+   "d_need": 35.7
+  },
+  {
+   "t": 16.7,
+   "mode": "CRUISE",
+   "gap": 136.2,
+   "kph": 55.3,
+   "mu": 0.1495,
+   "d_need": 32.8
+  },
+  {
+   "t": 17.66,
+   "mode": "PREBRAKE",
+   "gap": 121.7,
+   "kph": 55.4,
+   "mu": 0.1495,
+   "d_need": 98.9
+  },
+  {
+   "t": 33.26,
+   "mode": "BRAKE",
+   "gap": 4.5,
+   "kph": 2.8,
+   "mu": 0.1495,
+   "d_need": 4.5
+  },
+  {
+   "t": 33.32,
+   "mode": "PREBRAKE",
+   "gap": 4.4,
+   "kph": 2.5,
+   "mu": 0.1495,
+   "d_need": 4.4
+  },
+  {
+   "t": 33.38,
+   "mode": "BRAKE",
+   "gap": 4.4,
+   "kph": 2.4,
+   "mu": 0.1495,
+   "d_need": 4.4
+  },
+  {
+   "t": 33.5,
+   "mode": "PREBRAKE",
+   "gap": 4.3,
+   "kph": 2.0,
+   "mu": 0.1495,
+   "d_need": 4.3
+  },
+  {
+   "t": 33.6,
+   "mode": "BRAKE",
+   "gap": 4.2,
+   "kph": 1.8,
+   "mu": 0.1495,
+   "d_need": 4.3
+  },
+  {
+   "t": 33.72,
+   "mode": "PREBRAKE",
+   "gap": 4.2,
+   "kph": 1.4,
+   "mu": 0.1495,
+   "d_need": 4.2
+  },
+  {
+   "t": 33.78,
+   "mode": "HOLD",
+   "gap": 4.2,
+   "kph": 1.1,
+   "mu": 0.1495,
+   "d_need": 4.1
+  }
+ ],
+ "t_probe": 16.1,
+ "v_probe_kph": 58.3,
+ "mu_probe": 0.1495,
+ "stopped": {
+  "t": 33.98,
+  "gap": 4.15
+ },
+ "result": "stopped"
+}

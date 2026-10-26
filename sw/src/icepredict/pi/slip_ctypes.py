@@ -12,7 +12,8 @@ import subprocess
 LIB_DIR = pathlib.Path(__file__).resolve().parents[3] / "fw" / "npu_lib"
 FLAGS = {"": [], "mu": ["-DSLIP_MU_EST=1"], "gs": ["-DSLIP_MU_EST=1", "-DSLIP_GAIN_SCHED=1"],
          "gsw": ["-DSLIP_MU_EST=1", "-DSLIP_GAIN_SCHED=1", "-DSLIP_WDT=1"],
-         "mw": ["-DSLIP_MU_EST=1", "-DSLIP_WDT=1"]}          # 파이 격리 코어 안전 섬과 같은 구성 (sw/fw/pi_island)
+         "mw": ["-DSLIP_MU_EST=1", "-DSLIP_WDT=1"],
+         "env": ["-DSLIP_MU_EST=1", "-DSLIP_WDT=1", "-DSLIP_ENVELOPE=1"]}   # + 마찰 인식 제동 시점          # 파이 격리 코어 안전 섬과 같은 구성 (sw/fw/pi_island)
 MODES = {0: "none", 1: "lane_keep", 2: "evade_left", 3: "evade_right", 4: "hard_stop", 5: "stopped"}
 TRIGS = {0: None, 1: "lat_acc", 2: "yaw_rate", 3: "low_mu", 4: "combo"}
 _F = ctypes.c_float
@@ -21,7 +22,8 @@ _F = ctypes.c_float
 def build(variant: str = "", extra: list[str] | None = None) -> pathlib.Path:
     name = "libslipcore" + (f"_{variant}" if variant else "") + ".so"
     out = LIB_DIR / "build" / "host" / name
-    deps = [LIB_DIR / "slip_core.h", LIB_DIR / "slip_core_shim.c"] + ([LIB_DIR / "slip_gain_lut.h"] if (LIB_DIR / "slip_gain_lut.h").exists() else [])
+    deps = [LIB_DIR / "slip_core.h", LIB_DIR / "slip_core_shim.c"] + [LIB_DIR / n for n in ("slip_gain_lut.h", "slip_envelope.h", "slip_env_table.h")
+                                                                      if (LIB_DIR / n).exists()]
     if not out.exists() or any(d.stat().st_mtime > out.stat().st_mtime for d in deps) or extra:
         out.parent.mkdir(parents=True, exist_ok=True)
         cmd = ["gcc", "-O2", "-fPIC", "-shared", "-I", str(LIB_DIR), *FLAGS[variant], *(extra or []),
@@ -68,6 +70,25 @@ class SlipCoreC:
         from icepredict.pi.gain_lut import PARAM_NAMES
         g = (_F * 10)(); self.L.sc_get_gains(self.buf, g)
         return dict(zip(PARAM_NAMES, list(g)))
+
+    # ---- SLIP_ENVELOPE (variant 'env'): 마찰 인식 제동 시점 ----
+    ENV_MODES = {0: "CRUISE", 1: "PROBE", 2: "CAUTION", 3: "PREBRAKE", 4: "BRAKE", 5: "HOLD"}
+
+    def env_reset(self, mu0: float):
+        self.L.sc_env_reset.argtypes = [_F]; self.L.sc_env_set_mu.argtypes = [_F]
+        self.L.sc_env_step.argtypes = [_F] * 5 + [ctypes.POINTER(_F)]
+        self._env = (_F * 9)(); self.L.sc_env_reset(mu0)
+
+    def env_probe(self):
+        self.L.sc_env_probe()
+
+    def env_set_mu(self, mu: float):
+        self.L.sc_env_set_mu(mu)
+
+    def env_step(self, dt, v, ax, gap, v_lead):
+        self.L.sc_env_step(dt, v, ax, gap, v_lead, self._env); o = self._env
+        return dict(brake=o[0], thr_cap=o[1], mode=self.ENV_MODES[int(o[2])], mu=o[3], d_stop=o[4], d_need=o[5],
+                    v_max=o[6], mu_probe=o[7], a_used=o[8])
 
     def board(self, ay, gz, speed, steer, ax, brake_cmd, lane_err, lat_off, gf, gl, gr, ice_off, front_rel_v):
         for i, v in enumerate((ay, gz, speed, steer, ax, brake_cmd, lane_err, lat_off, gf, gl, gr, ice_off, front_rel_v)):

@@ -23,6 +23,9 @@ int sc_flags(void)
 #if defined(SLIP_WDT) && SLIP_WDT
   f |= 8;
 #endif
+#if defined(SLIP_ENVELOPE) && SLIP_ENVELOPE
+  f |= 16;
+#endif
   return f;
 }
 
@@ -90,3 +93,20 @@ void sc_board(slipdet_t *d, const float *in, float *out)
 #endif
   out[11] = d->a_stop_used;
 }
+
+#if defined(SLIP_ENVELOPE) && SLIP_ENVELOPE
+/* 마찰 인식 제동 시점 (slip_envelope.h). 상태 하나 — 차량 한 대 기준 */
+#include "slip_envelope.h"
+static env_t g_env;
+void sc_env_reset(float mu0) { env_reset(&g_env, mu0); }
+void sc_env_probe(void) { env_probe_start(&g_env); }
+void sc_env_set_mu(float mu) { env_set_mu(&g_env, mu); }
+/* out: brake, thr_cap, mode, mu, d_stop, d_need, v_max, mu_probe, a_used */
+void sc_env_step(float dt, float v, float ax, float gap, float v_lead, float *out)
+{
+  float b = 0.f, th = 1.f;
+  env_step(&g_env, dt, v, ax, gap, v_lead, &b, &th);
+  out[0] = b; out[1] = th; out[2] = (float)g_env.mode; out[3] = g_env.mu; out[4] = g_env.d_stop; out[5] = g_env.d_need;
+  out[6] = g_env.v_max; out[7] = g_env.mu_probe; out[8] = g_env.a_used;
+}
+#endif

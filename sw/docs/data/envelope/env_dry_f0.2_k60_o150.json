@@ -1,0 +1,48 @@
+{
+ "tag": "dry_f0.2_k60_o150",
+ "arm": "dry",
+ "friction": 0.2,
+ "target_kph": 60.0,
+ "obstacle_in": 150.0,
+ "patch_ahead": 170.0,
+ "modes": [
+  {
+   "t": 0.02,
+   "mode": "CRUISE",
+   "gap": 315.9,
+   "kph": 0.0,
+   "mu": 0.6725,
+   "d_need": 4.0
+  },
+  {
+   "t": 21.4,
+   "mode": "PREBRAKE",
+   "gap": 59.9,
+   "kph": 58.3,
+   "mu": 0.6725,
+   "d_need": 35.7
+  },
+  {
+   "t": 24.12,
+   "mode": "BRAKE",
+   "gap": 21.8,
+   "kph": 42.6,
+   "mu": 0.6725,
+   "d_need": 21.9
+  },
+  {
+   "t": 26.96,
+   "mode": "HOLD",
+   "gap": 0.4,
+   "kph": 0.7,
+   "mu": 0.6725,
+   "d_need": 4.1
+  }
+ ],
+ "collision": {
+  "t": 26.3,
+  "with": "vehicle.audi.a2",
+  "pre_kph": 30.0
+ },
+ "result": "crash"
+}
