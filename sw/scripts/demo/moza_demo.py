@@ -61,6 +61,7 @@ ap.add_argument("--record", default=None, help="화면을 mp4 로 녹화"); ap.a
 ap.add_argument("--max-time", type=float, default=60.0, help="--auto 에서 장면 길이")
 ap.add_argument("--show-ice", action="store_true", help="처음부터 빙판 구역을 그린다 (I 키)")
 ap.add_argument("--view", choices=["driver", "chase"], default="driver")
+ap.add_argument("--no-pip", action="store_true", help="운전석 화면 구석의 작은 3인칭 창을 끈다 (T 키)")
 ap.add_argument("--log-dir", default=os.path.expanduser("~/icepredict_demo/logs"))
 a = ap.parse_args()
 W, H = (int(x) for x in a.size.split("x")); PANEL = 420; VW = W - PANEL
@@ -235,7 +236,7 @@ class Scene:
         co.listen(lambda e: self.hit.append(e.other_actor.type_id))
         self.frame = {}; self.cams = {}
         self.K = {n: camera_intrinsics(VW, H, 90 if n == "driver" else 85) for n in ("driver", "chase")}
-        self.use_view(state["view"])
+        self.use_view(state["view"]); self.pip_cam = None; self.set_pip(state["pip"])
         self.ice_poly = patch_road_polygon(cmap, self.patch, half_width_m=7.0)
         self.risk = -1.0; self.det = None
         if a.camera_risk and os.path.exists(a.model): self._init_camera_risk()
@@ -255,6 +256,19 @@ class Scene:
             loc, rot = self.CAM_TF[name]
             c = world.spawn_actor(cb, carla.Transform(loc, rot), attach_to=self.ego); self.actors.append(c); self.cams[name] = c
             c.listen(lambda img, n=name: self.frame.__setitem__(n, img))
+
+    PIP = (400, 225)
+
+    def set_pip(self, on):
+        """운전석 화면 구석의 작은 3인칭 창 (작은 해상도라 실시간을 덜 깎는다)."""
+        if on and self.pip_cam is None:
+            cb = bl.find("sensor.camera.rgb"); cb.set_attribute("image_size_x", str(self.PIP[0])); cb.set_attribute("image_size_y", str(self.PIP[1]))
+            cb.set_attribute("fov", "85"); loc, rot = self.CAM_TF["chase"]
+            self.pip_cam = world.spawn_actor(cb, carla.Transform(loc, rot), attach_to=self.ego); self.actors.append(self.pip_cam)
+            self.K["pip"] = camera_intrinsics(self.PIP[0], self.PIP[1], 85)
+            self.pip_cam.listen(lambda img: self.frame.__setitem__("pip", img))
+        elif not on and self.pip_cam is not None:
+            self.pip_cam.stop(); self.pip_cam.destroy(); self.actors.remove(self.pip_cam); self.pip_cam = None; self.frame.pop("pip", None)
 
     def _init_camera_risk(self):
         from icepredict.sim import camera as camcfg
@@ -320,7 +334,7 @@ if a.record:
 os.makedirs(a.log_dir, exist_ok=True)
 
 RT = [1.0]                  # 시뮬레이션 시간 / 실제 시간 (1 = 실시간)
-state = dict(defense=a.defense == "on", cruise=a.auto, view=a.view, show_ice=a.show_ice, center=0.0, killed=False)
+state = dict(defense=a.defense == "on", cruise=a.auto, view=a.view, show_ice=a.show_ice, center=0.0, killed=False, pip=not a.no_pip)
 
 
 def run_scene():
@@ -340,6 +354,7 @@ def run_scene():
                 if e.key == pygame.K_a: state["cruise"] = not state["cruise"]
                 if e.key == pygame.K_v: state["view"] = "chase" if state["view"] == "driver" else "driver"; sc.use_view(state["view"])
                 if e.key == pygame.K_i: state["show_ice"] = not state["show_ice"]
+                if e.key == pygame.K_t: state["pip"] = not state["pip"]; sc.set_pip(state["pip"])
                 if e.key == pygame.K_c and wheel: state["center"] = wheel.get_axis(0); print(f"[demo] 휠 영점 {state['center']:+.2f}")
                 if e.key == pygame.K_k:
                     ok = pimain.kill(); state["killed"] = True; ev["events"].append({"t": round(t, 2), "event": "pi_main_kill", "sent": ok})
@@ -418,6 +433,14 @@ def run_scene():
                 arr = draw_patch_overlay(arr.copy(), sc.ice_poly, sc.cams[state["view"]], sc.K[state["view"]], color=(255, 215, 150), alpha=0.35,
                                          label=f"BLACK ICE mu {0.82 * a.friction:.2f}")
             screen.blit(pygame.surfarray.make_surface(arr[:, :, ::-1].swapaxes(0, 1)), (0, 0))
+        pim = sc.frame.get("pip") if state["view"] == "driver" else None
+        if pim is not None:                               # 왼쪽 아래: 3인칭 작은 창
+            pa = np.frombuffer(pim.raw_data, np.uint8).reshape(pim.height, pim.width, 4)[:, :, :3]
+            if state["show_ice"]:
+                pa = draw_patch_overlay(pa.copy(), sc.ice_poly, sc.pip_cam, sc.K["pip"], color=(255, 215, 150), alpha=0.35)
+            px, py = 14, H - pim.height - 56
+            pygame.draw.rect(screen, (230, 230, 230), (px - 3, py - 3, pim.width + 6, pim.height + 6))
+            screen.blit(pygame.surfarray.make_surface(pa[:, :, ::-1].swapaxes(0, 1)), (px, py))
         draw_panel(o, v, gap, zone, inside, sc, island_name, result)
         if prim_on:
             s_ = f30.render(f"1차 방어 — 전방 블랙아이스 감지 (카메라)  ·  자동 감속 {a.primary_kph:.0f} km/h", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
@@ -478,7 +501,7 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
         pygame.draw.rect(screen, (255, 120, 0) if prim.risk >= prim.thr else (90, 90, 90), (px - 3, y - 3, ps.get_width() + 6, ps.get_height() + 6))
         screen.blit(ps, (px, y)); y += ps.get_height() + 10
     y = H - 120
-    for k in ("C 영점  D 2차 방어  A 크루즈  R 다시", "K 파이 메인 죽이기  V 시점  I 빙판 표시"):
+    for k in ("C 영점  D 2차 방어  A 크루즈  R 다시", "K 파이 메인 죽이기  V 시점  I 빙판  T 3인칭 창"):
         put(k, f14, (130, 130, 130), 22)
     put("크루즈 " + ("ON" if state["cruise"] else "OFF"), f18, (180, 180, 180), 24)
 
