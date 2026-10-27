@@ -38,7 +38,7 @@ sys.path.insert(0, str(ROOT / "sw/src"))
 os.environ.setdefault("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1")
 import carla  # noqa: E402
 import pygame  # noqa: E402
-from icepredict.sim.blackice import (spawn_ice_patch, follow_lane, patch_road_polygon, camera_intrinsics,  # noqa: E402
+from icepredict.sim.blackice import (spawn_ice_patch, follow_lane, patch_road_polygon, camera_intrinsics, world_to_image,  # noqa: E402
                                      draw_patch_overlay)
 
 ap = argparse.ArgumentParser()
@@ -230,6 +230,11 @@ class Scene:
         ot = follow_lane(self.entry, a.obstacle_in).transform
         self.obst = world.try_spawn_actor(bl.find("vehicle.audi.a2"), carla.Transform(ot.location + carla.Location(z=0.3), ot.rotation))
         self.actors.append(self.obst); world.tick(); self.obst.apply_control(carla.VehicleControl(brake=1.0, hand_brake=True))
+        self.cue = None                                                 # 운전자 브레이크 지점: 앞차 뒤범퍼에서 --brake-cue m 앞 도로를 가로지르는 선
+        if a.brake_cue > 0:
+            ct = follow_lane(self.entry, max(0.0, a.obstacle_in - self.obst.bounding_box.extent.x - a.brake_cue)).transform
+            yw = math.radians(ct.rotation.yaw); nx, ny = -math.sin(yw), math.cos(yw); L = ct.location
+            self.cue = [carla.Location(L.x + nx * k, L.y + ny * k, L.z + 0.08) for k in (7.0, -7.0)]
         self.imu = {"ax": 0.0, "ay": 0.0}
         im = world.spawn_actor(bl.find("sensor.other.imu"), carla.Transform(), attach_to=self.ego); self.actors.append(im)
         im.listen(lambda m: self.imu.update(ax=m.accelerometer.x, ay=m.accelerometer.y))
@@ -260,6 +265,25 @@ class Scene:
             c.listen(lambda img, n=name: self.frame.__setitem__(n, img))
 
     PIP = (400, 225)
+
+    def draw_cue(self, bgr, cam, K):
+        """브레이크 지점 선 (빨강) + 양끝 기둥 + 'BRAKE HERE' — OFF/ON 같은 곳에서 밟게."""
+        if self.cue is None: return bgr
+        import cv2
+        top = [carla.Location(p.x, p.y, p.z + 1.8) for p in self.cue]
+        pb = world_to_image(self.cue, cam, K); pt = world_to_image(top, cam, K)
+        if not (all(pb) and all(pt)): return bgr
+        bgr = bgr.copy(); h, w = bgr.shape[:2]; th = max(2, int(6 * w / 1180))
+        P = lambda q: (int(q[0]), int(q[1]))
+        cv2.line(bgr, P(pb[0]), P(pb[1]), (0, 0, 255), th + 2)
+        for b, t in zip(pb, pt): cv2.line(bgr, P(b), P(t), (0, 0, 255), th)
+        lab = f"BRAKE HERE  {a.brake_cue:.0f} m"; fs = 0.8 * w / 1180 + 0.2
+        (tw, tth), _ = cv2.getTextSize(lab, cv2.FONT_HERSHEY_SIMPLEX, fs, 2)
+        lx = int((pt[0][0] + pt[1][0]) / 2); ly = int(min(pt[0][1], pt[1][1])) - 8
+        if -tw < lx < w + tw and 0 < ly < h:
+            cv2.rectangle(bgr, (lx - tw // 2 - 6, ly - tth - 8), (lx + tw // 2 + 6, ly + 6), (0, 0, 200), -1)
+            cv2.putText(bgr, lab, (lx - tw // 2, ly), cv2.FONT_HERSHEY_SIMPLEX, fs, (255, 255, 255), 2)
+        return bgr
 
     def set_pip(self, on):
         """운전석 화면 구석의 작은 3인칭 창 (작은 해상도라 실시간을 덜 깎는다)."""
@@ -435,12 +459,14 @@ def run_scene():
             if state["show_ice"]:
                 arr = draw_patch_overlay(arr.copy(), sc.ice_poly, sc.cams[state["view"]], sc.K[state["view"]], color=(255, 215, 150), alpha=0.35,
                                          label=f"BLACK ICE mu {0.82 * a.friction:.2f}")
+            arr = sc.draw_cue(arr, sc.cams[state["view"]], sc.K[state["view"]])
             screen.blit(pygame.surfarray.make_surface(arr[:, :, ::-1].swapaxes(0, 1)), (0, 0))
         pim = sc.frame.get("pip") if state["view"] == "driver" else None
         if pim is not None:                               # 왼쪽 아래: 3인칭 작은 창
             pa = np.frombuffer(pim.raw_data, np.uint8).reshape(pim.height, pim.width, 4)[:, :, :3]
             if state["show_ice"]:
                 pa = draw_patch_overlay(pa.copy(), sc.ice_poly, sc.pip_cam, sc.K["pip"], color=(255, 215, 150), alpha=0.35)
+            pa = sc.draw_cue(pa, sc.pip_cam, sc.K["pip"])
             px, py = 14, H - pim.height - 56
             pygame.draw.rect(screen, (230, 230, 230), (px - 3, py - 3, pim.width + 6, pim.height + 6))
             screen.blit(pygame.surfarray.make_surface(pa[:, :, ::-1].swapaxes(0, 1)), (px, py))
