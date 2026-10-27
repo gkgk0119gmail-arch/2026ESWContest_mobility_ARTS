@@ -47,10 +47,11 @@ ap.add_argument("--island", default="listen:5700", help="2차 방어 코어 주�
 ap.add_argument("--pi-main", default="listen:5701", help="파이 메인 프로그램 대역의 인사 포트 (K 키로 죽인다). none 이면 안 씀")
 ap.add_argument("--auto", action="store_true", help="사람 입력 없이 크루즈 + 차선 유지 (영상 녹화용)")
 ap.add_argument("--defense", choices=["on", "off"], default="on")
-ap.add_argument("--friction", type=float, default=0.2); ap.add_argument("--target-kph", type=float, default=60.0)
+ap.add_argument("--friction", type=float, default=0.3); ap.add_argument("--target-kph", type=float, default=80.0)
 ap.add_argument("--temp", type=float, default=-3.0)
-ap.add_argument("--patch-ahead", type=float, default=170.0); ap.add_argument("--obstacle-in", type=float, default=150.0)
-ap.add_argument("--zone-before", type=float, default=40.0); ap.add_argument("--spawn-rank", type=int, default=0)
+ap.add_argument("--patch-ahead", type=float, default=100.0); ap.add_argument("--obstacle-in", type=float, default=145.0)
+ap.add_argument("--zone-before", type=float, default=5.0); ap.add_argument("--spawn-rank", type=int, default=0)
+ap.add_argument("--start-kph", type=float, default=None, help="이 속도로 달리며 시작 (--auto 기본은 --target-kph, 사람 운전은 0)")
 ap.add_argument("--camera-risk", action="store_true", help="1차 방어 모델로 위험도를 낸다 (onnx 모델 필요)")
 ap.add_argument("--model", default=os.path.expanduser("~/icepredict_demo/models/roadnet.onnx"))
 ap.add_argument("--primary", default="none", help="1차 방어 RealSense 판정 수신 listen:PORT (파이 realsense_primary.py --send). 경고가 확정되면 자동 감속")
@@ -61,11 +62,13 @@ ap.add_argument("--record", default=None, help="화면을 mp4 로 녹화"); ap.a
 ap.add_argument("--max-time", type=float, default=60.0, help="--auto 에서 장면 길이")
 ap.add_argument("--show-ice", action="store_true", help="처음부터 빙판 구역을 그린다 (I 키)")
 ap.add_argument("--view", choices=["driver", "chase"], default="driver")
-ap.add_argument("--brake-cue", type=float, default=60.0, help="앞차까지 이 거리(m)가 되면 '브레이크!' 안내 (OFF/ON 같은 지점에서 밟게). 0 이면 끔")
+ap.add_argument("--brake-cue", type=float, default=65.0, help="앞차까지 이 거리(m)가 되면 '브레이크!' 안내 (OFF/ON 같은 지점에서 밟게). 0 이면 끔")
 ap.add_argument("--abs-cap", type=float, default=0.4, help="빙판 위 브레이크 상한 (CARLA 차에는 ABS 가 없어 바퀴가 잠기면 돈다). 1 이면 끔")
-ap.add_argument("--esc", type=float, default=0.85, help="ESC 대역: 빙판 위 요 각속도를 틱마다 이 비율로 줄인다 (CARLA 차에는 ESC 가 없어 탭 뒤 회전이 커진다). 1 이면 끔")
+ap.add_argument("--esc", type=float, default=0.93, help="ESC 대역: 빙판 위 요 각속도를 틱마다 이 비율로 줄인다 (CARLA 차에는 ESC 가 없어 탭 뒤 회전이 커진다). 1 이면 끔")
+ap.add_argument("--auto-driver", choices=["none", "brake", "evade"], default="evade",
+                help="--auto 운전자: 브레이크 지점에서 아무것도 안 함 / 풀 브레이크 / 풀 브레이크 + 왼쪽으로 핸들 (사람처럼 피하려 함)")
 ap.add_argument("--auto-steer", choices=["lane", "none"], default="lane", help="--auto 조향: 차선 유지 / 핸들 고정(사람이 손 놓은 상황 시험)")
-ap.add_argument("--max-kph", type=float, default=65.0, help="최고 속도 제한")
+ap.add_argument("--max-kph", type=float, default=80.0, help="최고 속도 제한")
 ap.add_argument("--no-pip", action="store_true", help="운전석 화면 구석의 작은 3인칭 창을 끈다 (T 키)")
 ap.add_argument("--log-dir", default=os.path.expanduser("~/icepredict_demo/logs"))
 a = ap.parse_args()
@@ -251,6 +254,10 @@ class Scene:
         self.risk = -1.0; self.det = None
         if a.camera_risk and os.path.exists(a.model): self._init_camera_risk()
         for _ in range(5): world.tick()
+        sk = a.start_kph if a.start_kph is not None else (a.target_kph if a.auto else 0.0)
+        if sk > 0:                                                       # 빙판 전 구간이 짧아 달리며 시작한다
+            fw = self.ego.get_transform().get_forward_vector(); self.ego.set_target_velocity(carla.Vector3D(fw.x * sk / 3.6, fw.y * sk / 3.6, 0.0))
+            world.tick()
 
     CAM_TF = {"driver": (carla.Location(x=0.3, y=-0.35, z=1.25), carla.Rotation()),
               "chase": (carla.Location(x=-11.0, z=6.0), carla.Rotation(pitch=-15))}
@@ -333,8 +340,11 @@ try:
     pygame.mixer.init(22050, -16, 1)
     t_ = np.arange(int(22050 * 0.25)) / 22050
     BEEP = pygame.sndarray.make_sound((np.sin(2 * np.pi * 1200 * t_) * 12000).astype(np.int16))
+    t2 = np.arange(int(22050 * 0.5)) / 22050                       # 타이어 미끄러짐 소리 (흔들리는 고음 + 잡음, 0.5 s 반복)
+    sk = np.sin(2 * np.pi * (1750 + 120 * np.sin(2 * np.pi * 9 * t2)) * t2) * 0.6 + np.random.default_rng(0).normal(0, 0.35, t2.size)
+    SKID = pygame.sndarray.make_sound((np.clip(sk, -1, 1) * 9000).astype(np.int16))
 except Exception:
-    BEEP = None
+    BEEP = None; SKID = None
 
 wheel = None
 if not a.auto:
@@ -368,8 +378,9 @@ state = dict(defense=a.defense == "on", cruise=a.auto, view=a.view, show_ice=a.s
 
 def run_scene():
     sc = Scene(); env.reset()
+    if SKID: SKID.stop()
     t = 0.0; prev_v = 0.0; ev = {"defense": state["defense"], "auto": a.auto, "events": []}; banner = None; banner_t = 0.0
-    prim_on = False; mu_ice_alerted = False; result = None; t_end = None; last_mode = None; island_lost = 0; last_o = None
+    pb = None; t_cue = None; slip_t = 0.0; skid_on = False; dec_f = 0.0; last_rumble = -9.0; prim_on = False; mu_ice_alerted = False; result = None; t_end = None; last_mode = None; island_lost = 0; last_o = None
     tag = time.strftime("%m%d_%H%M%S") + ("_on" if state["defense"] else "_off") + ("_auto" if a.auto else "_live")
     logf = open(os.path.join(a.log_dir, f"demo_{tag}.csv"), "w"); logf.write("t,v,gap,steer,thr,brk_drv,brk_sys,mode,mu,d_need,risk,zone,inside,degraded\n")
     clock = time.perf_counter()
@@ -411,6 +422,12 @@ def run_scene():
         le = (math.atan2(tg.y - tf.location.y, tg.x - tf.location.x) - y + math.pi) % (2 * math.pi) - math.pi
         if a.auto or wheel is None:
             steer = 0.0 if a.auto_steer == "none" else max(-0.5, min(0.5, le / 0.61086524 / sc.steer_gain)); thr_d, brk_d = 0.0, 0.0
+            if a.auto and a.auto_driver != "none" and a.brake_cue > 0 and (t_cue is not None or 0 < gap <= a.brake_cue):
+                if t_cue is None:
+                    t_cue = t; state["cruise"] = False; ev["events"].append({"t": round(t, 2), "event": "driver_brake", "gap": round(gap, 1), "kph": round(v * 3.6, 1)})
+                brk_d = 1.0                                                     # 사람: 앞차가 보이면 풀 브레이크
+                if a.auto_driver == "evade":                                     # + 왼쪽으로 꺾어 피하려 한다 (1.2 s), 그 뒤 다시 펴기
+                    dtc = t - t_cue; steer = -0.35 * min(1.0, dtc / 0.3) if dtc < 1.2 else max(-0.35, min(0.0, -0.35 * (1.8 - dtc) / 0.6))
         else:
             r0 = wheel.get_axis(0) - state["center"]; steer = max(-1.0, min(1.0, math.tan(1.1 * r0) * 0.55))
             thr_d = pedals.axis(0) if pedals and pedals.ok else 0.0; brk_d = pedals.axis(1) if pedals and pedals.ok else 0.0
@@ -431,6 +448,8 @@ def run_scene():
         if o.get("probe_by"):
             ev["events"].append({"t": round(t, 2), "event": "probe", "by": o["probe_by"], "gap": round(gap, 1), "inside_ice": bool(inside)})
             if ffb: ffb.buzz(ms=150, mag=0x7000, period=30)                          # 탭 = 실차에서는 몸으로 느끼는 '툭'
+        if state["defense"] and pb is None and o["mode"] in ("PREBRAKE", "BRAKE") and o["mu"] < 0.6:   # 제동 시작 이유를 그 순간 값으로 고정해 보여 준다
+            pb = (t, o["d_need"], gap)
         if state["defense"] and not mu_ice_alerted and o["mu"] < 0.3 and o["mode"] != "PROBE":
             mu_ice_alerted = True; banner = True; banner_t = t
             ev["events"].append({"t": round(t, 2), "event": "ice_alert", "mu": round(o["mu"], 3), "gap": round(gap, 1)})
@@ -448,13 +467,21 @@ def run_scene():
             if v > vt + 0.3: brk = max(brk, min(0.45, 0.12 * (v - vt) + 0.15))
         if inside and brk > a.abs_cap: brk = a.abs_cap      # ABS 대역: 빙판에서 0.3~0.4 면 이미 마찰 한계 감속 (μ 0.16: 1.57 vs 1.60 m/s²), 더 밟으면 잠겨 돈다. OFF/ON 똑같이
         if sc.hit: thr, brk = 0.0, 1.0
+        # --- 미끄러짐 표시: 빙판 위에서 제동 중 (실제 감속이 마른 노면의 일부밖에 안 나온다)
+        dec_f = 0.85 * dec_f + 0.15 * max(0.0, -sc.imu["ax"])
+        slipping = inside and brk > 0.15 and v > 1.5 and not sc.hit
+        slip_t = slip_t + DT if slipping else 0.0
+        if SKID:
+            if slipping and not skid_on: SKID.play(loops=-1); skid_on = True
+            elif not slipping and skid_on: SKID.stop(); skid_on = False
+        if slipping and ffb and t - last_rumble > 0.6: ffb.buzz(ms=550, mag=0x4000, period=25); last_rumble = t
         ego.apply_control(carla.VehicleControl(throttle=float(thr), brake=float(brk), steer=float(steer)))
         if inside and a.esc < 1.0 and v > 1.0 and not sc.hit:    # ESC 대역 (OFF/ON 똑같이, 직선 빙판): 요 각속도를 틱마다 줄여 회전이 자라지 않게
             av = ego.get_angular_velocity(); ego.set_target_angular_velocity(carla.Vector3D(av.x, av.y, av.z * a.esc))
         logf.write(f"{t:.2f},{v:.3f},{gap:.2f},{steer:.3f},{thr:.3f},{brk_d:.3f},{o['brake']:.3f},{o['mode']},{o['mu']:.4f},{o['d_need']:.2f},"
                    f"{sc.risk:.3f},{int(zone)},{int(inside)},{int(o['degraded'])}\n")
         if sc.hit and result is None:
-            result = f"충돌  {prev_v * 3.6:.0f} km/h"; t_end = t + 3.0; ev["collision"] = {"t": round(t, 2), "pre_kph": round(prev_v * 3.6, 1), "with": sc.hit[0], "gap": round(gap, 1)}
+            result = (f"충돌 (앞차)  {prev_v * 3.6:.0f} km/h" if sc.hit[0].startswith("vehicle.") else f"벽 충돌  {prev_v * 3.6:.0f} km/h (장면 이탈)"); t_end = t + 3.0; ev["collision"] = {"t": round(t, 2), "pre_kph": round(prev_v * 3.6, 1), "with": sc.hit[0], "gap": round(gap, 1)}
         if result is None and v < 0.05 and gap < 40 and t > 5:
             result = f"정지  앞차까지 {gap:.1f} m"; t_end = t + 3.0; ev["stopped"] = {"t": round(t, 2), "gap": round(gap, 2)}
         prev_v = v
@@ -477,6 +504,12 @@ def run_scene():
             pygame.draw.rect(screen, (230, 230, 230), (px - 3, py - 3, pim.width + 6, pim.height + 6))
             screen.blit(pygame.surfarray.make_surface(pa[:, :, ::-1].swapaxes(0, 1)), (px, py))
         draw_panel(o, v, gap, zone, inside, sc, island_name, result)
+        if slip_t > 0.15 and int(t * 4) % 2 == 0:            # 깜빡이는 미끄러짐 경고
+            s_ = f30.render("바퀴 미끄러짐 — 밟아도 안 섭니다", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2; by = H - 250
+            pygame.draw.rect(screen, (210, 20, 20), (bx - 18, by - 8, s_.get_width() + 36, s_.get_height() + 16)); screen.blit(s_, (bx, by))
+        if slip_t > 0.15:
+            s_ = f22.render(f"감속 {dec_f / 9.81:.2f} g   (마른 노면이면 0.55 g)", True, (255, 230, 120)); bx = (VW - s_.get_width()) // 2
+            pygame.draw.rect(screen, (0, 0, 0), (bx - 10, H - 196, s_.get_width() + 20, 32)); screen.blit(s_, (bx, H - 193))
         if a.brake_cue > 0 and result is None and 0 < gap <= a.brake_cue and v > 1.0:   # 운전자 브레이크 지점 (OFF/ON 같은 곳)
             s_ = f44.render(f"브레이크!   앞차 {gap:.0f} m", True, (0, 0, 0)); bx = (VW - s_.get_width()) // 2; by = H // 2 - 140
             pygame.draw.rect(screen, (255, 220, 0), (bx - 24, by - 10, s_.get_width() + 48, s_.get_height() + 20)); screen.blit(s_, (bx, by))
@@ -487,6 +520,9 @@ def run_scene():
         if banner and t - banner_t < 6.0:              # 정지 거리는 매 틱 새 값 (탭이 끝난 틱의 값은 바뀌기 전 μ 로 계산돼 있다)
             s_ = f44.render(f"빙판 감지  μ {o['mu']:.2f}  —  정지에 {o['d_stop']:.0f} m 필요", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
             pygame.draw.rect(screen, (190, 30, 30), (bx - 18, 30, s_.get_width() + 36, s_.get_height() + 16)); screen.blit(s_, (bx, 38))
+        if pb is not None and t - pb[0] < 5.0:
+            s_ = f30.render(f"앞차 {pb[2]:.0f} m  ·  정지에 {pb[1]:.0f} m 필요   →   지금 제동", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
+            pygame.draw.rect(screen, (200, 110, 0), (bx - 16, 108, s_.get_width() + 32, s_.get_height() + 14)); screen.blit(s_, (bx, 115))
         if state["killed"] and o.get("degraded"):
             s_ = f22.render("파이 메인 프로그램 정지 — 2차 방어는 격리 코어에서 계속 동작", True, (255, 230, 120))
             pygame.draw.rect(screen, (0, 0, 0), (10, H - 44, s_.get_width() + 20, 36)); screen.blit(s_, (20, H - 40))
@@ -512,15 +548,19 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
     x0 = VW; pygame.draw.rect(screen, (22, 22, 24), (x0, 0, PANEL, H)); y = 18
     def put(txt, sz=f22, col=(235, 235, 235), dy=34):
         nonlocal y; screen.blit(sz.render(txt, True, col), (x0 + 20, y)); y += dy
-    put("2차 방어 " + ("ON — 마찰 인식" if state["defense"] else "OFF — 마른 노면 기준"), f22, (110, 190, 255) if state["defense"] else (170, 170, 170))
+    put("2차 방어 " + ("ON — 마찰 인식" if state["defense"] else "OFF — 기존 자동 긴급 제동만"), f22, (110, 190, 255) if state["defense"] else (170, 170, 170))
     put(f"판단 위치: {island_name}", f14, (150, 150, 150), 26)
     put(f"속도  {v * 3.6:5.1f} km/h", f30, dy=46)
-    mu = o["mu"]; put(f"노면 마찰 μ  {mu:.2f}" + ("  (가정)" if not state["defense"] else ("  (측정)" if mu < 0.6 else "")), f22)
+    mu = o["mu"]
+    if state["defense"]: put(f"노면 마찰 μ  {mu:.2f}" + ("  (측정)" if mu < 0.6 else ""), f22)
+    else: y += 34
     mode_k = {"CRUISE": "순항", "PROBE": "노면 확인 탭", "CAUTION": "가속 금지", "PREBRAKE": "예비 제동", "BRAKE": "전력 제동",
               "HOLD": "정지 유지", "NO-ISLAND": "2차 방어 코어 응답 없음"}.get(o["mode"], o["mode"])
+    if not state["defense"] and o["mode"] in ("PREBRAKE", "BRAKE", "HOLD", "CAUTION"):   # OFF = 지금 차의 자동 긴급 제동(AEB, 마른 노면 가정)
+        mode_k = {"CAUTION": "순항", "PREBRAKE": "자동 긴급 제동", "BRAKE": "자동 긴급 제동", "HOLD": "정지"}[o["mode"]]
     mc = {"PROBE": (255, 210, 0), "CAUTION": (255, 200, 0), "PREBRAKE": (255, 150, 0), "BRAKE": (255, 70, 70), "HOLD": (110, 220, 110),
           "NO-ISLAND": (255, 60, 60)}.get(o["mode"], (210, 210, 210))
-    put(mode_k, f44, mc, 60)
+    put(mode_k, f44 if len(mode_k) <= 8 else f30, mc, 60)
     sc_ = (PANEL - 40) / 200.0
     for label, val, col in (("앞 정지 차량까지", max(gap, 0), (200, 200, 200)),
                             ("시스템이 계산한 정지 거리", o["d_need"], (230, 80, 80) if o["d_need"] >= gap else (90, 200, 90))):
