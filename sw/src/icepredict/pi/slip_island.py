@@ -1,7 +1,7 @@
-"""파이 격리 코어 안전 섬(sw/fw/pi_island/safety_island.c)과 UDP 로 주고받는 클라이언트.
+"""파이 격리 코어(sw/fw/pi_island/safety_island.c)와 UDP 로 주고받는 클라이언트.
 
 SlipCoreC(ctypes) 와 같은 board() 인터페이스를 낸다 — 데모는 `--slip-island HOST:PORT` 로 바꿔 끼우기만 한다.
-CARLA(플랜트)가 IMU 를 보내는 쪽이다. 실차에서는 IMU 가 안전 섬에 직결된다.
+CARLA(플랜트)가 IMU 를 보내는 쪽이다. 실차에서는 IMU 가 안전 전용 RTOS에 직결된다.
 파이 메인 프로그램의 심장박동은 별도 프로세스(heartbeat())가 보낸다 — 그 프로세스를 멈추면(SIGSTOP) 진짜 고장 주입이다.
 섬이 timeout 안에 답하지 않으면 board() 는 None 을 돌려준다 (호출 쪽이 '2차 방어 응답 없음'으로 처리).
 """
@@ -61,7 +61,7 @@ class SlipCoreIsland:
 
 
 class EnvelopeIsland:
-    """안전 섬의 마찰 인식 제동 시점(SLIP_ENVELOPE)과 주고받는다. step() 이 None 이면 섬 무응답.
+    """안전 전용 RTOS의 마찰 인식 제동 시점(SLIP_ENVELOPE)과 주고받는다. step() 이 None 이면 섬 무응답.
     addr = "HOST:PORT" 면 그쪽으로 보낸다. addr = "listen:PORT" 면 이 포트에서 섬의 인사 패킷(HELO)을 기다렸다가
     그 출발 주소로 보낸다 — 캠퍼스 망처럼 이쪽→파이 방향이 막힌 곳용 (섬은 --hello 이쪽IP:PORT)."""
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""IcePredict 현장 시연 — Moza 휠·페달로 사람이 운전하고, 2차 방어(마찰 인식 제동 시점)가 라즈베리파이 안전 섬에서 돈다.
+"""IcePredict 현장 시연 — Moza 휠·페달로 사람이 운전하고, 2차 방어(마찰 인식 제동 시점)가 라즈베리파이 격리 코어에서 돈다.
 
 장면 (carla_envelope.py 와 같다): Town04 평탄 직선, 결빙 취약 구간(지도) → 블랙아이스(실효 μ ≈ 0.82 × friction) → 정지 차량.
 정지 차량은 마찰 트리거 밖에 둔다 (CARLA: 트리거 안에 다른 차가 있으면 자차가 어디서든 그 마찰을 받는다 — 20번 문서).
 
-두 모드를 D 키로 바꾼다 — 같은 섬, 같은 C 코드, 마찰 값만 다르다.
+두 모드를 D 키로 바꾼다 — 같은 격리 코어, 같은 C 코드, 마찰 값만 다르다.
   2차 방어 ON  : 결빙 취약 구간·카메라 애매 → 노면 확인 탭 → 잰 μ 로 정지 거리 → 경고·가속 제한·필요 시 자동 제동
   2차 방어 OFF : 마른 노면 μ 고정 (노면을 모르는 긴급제동의 가정)
 운전은 사람 몫이다. 시스템은 조향을 건드리지 않고 경고·가속 제한·제동만 돕는다 (브레이크 = 운전자와 시스템 중 센 쪽).
@@ -43,7 +43,7 @@ from icepredict.sim.blackice import (spawn_ice_patch, follow_lane, patch_road_po
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--host", default="localhost"); ap.add_argument("--port", type=int, default=2000)
-ap.add_argument("--island", default="listen:5700", help="안전 섬 주소 HOST:PORT, listen:PORT(섬의 인사 기다림), local(이 PC 의 ctypes — 시험용)")
+ap.add_argument("--island", default="listen:5700", help="2차 방어 코어 주소 HOST:PORT, listen:PORT(코어의 인사 기다림), local(이 PC 의 ctypes — 시험용)")
 ap.add_argument("--pi-main", default="listen:5701", help="파이 메인 프로그램 대역의 인사 포트 (K 키로 죽인다). none 이면 안 씀")
 ap.add_argument("--auto", action="store_true", help="사람 입력 없이 크루즈 + 차선 유지 (영상 녹화용)")
 ap.add_argument("--defense", choices=["on", "off"], default="on")
@@ -117,7 +117,7 @@ class WheelFFB:
         except Exception: pass
 
 
-# ---------------------------------------------------------------- 2차 방어: 파이 안전 섬 (또는 시험용 로컬)
+# ---------------------------------------------------------------- 2차 방어: 파이 격리 코어 (또는 시험용 로컬)
 class LocalEnv:
     """시험용: 이 PC 에서 같은 C 코드를 ctypes 로. 화면에 'local' 로 표시한다 (시연에서는 쓰지 않는다)."""
     def __init__(self):
@@ -277,9 +277,9 @@ if a.island == "local":
     env = LocalEnv(); island_name = "local (시험용 — 이 PC)"
 else:
     from icepredict.pi.slip_island import EnvelopeIsland
-    print(f"[demo] 안전 섬 연결 대기 {a.island} ...", flush=True)
-    env = EnvelopeIsland(a.island, timeout_s=0.04, wait_hello_s=60.0); island_name = "Raspberry Pi 안전 섬 (격리 코어 3, 실시간)"
-    print(f"[demo] 안전 섬 연결: {env.dst}", flush=True)
+    print(f"[demo] 2차 방어 코어 연결 대기 {a.island} ...", flush=True)
+    env = EnvelopeIsland(a.island, timeout_s=0.04, wait_hello_s=60.0); island_name = "Raspberry Pi 격리 코어 3 (실시간 · 안전 전용 RTOS 대체)"
+    print(f"[demo] 2차 방어 코어 연결: {env.dst}", flush=True)
 pimain = PiMainLink(a.pi_main)
 rec = None
 if a.record:
@@ -334,7 +334,7 @@ def run_scene():
             thr_d = pedals.axis(0) if pedals and pedals.ok else 0.0; brk_d = pedals.axis(1) if pedals and pedals.ok else 0.0
         thr_acc = max(0.0, min(0.8, 0.6 * (a.target_kph / 3.6 - v) + 0.25)) if state["cruise"] else 0.0
         if state["cruise"] and brk_d > 0.05: state["cruise"] = False                  # 운전자가 밟으면 크루즈 해제
-        # --- 2차 방어 (파이 안전 섬)
+        # --- 2차 방어 (파이 격리 코어)
         o = env.step(v, sc.imu["ax"], sc.imu["ay"], gap, 0.0, sc.risk, a.temp, brk_d, zone, not state["defense"])
         if o is None:                                  # 무응답: 0.2 s 까지는 마지막 명령 유지 (와이파이 지연), 넘으면 '응답 없음'
             island_lost += 1; ev["island_miss"] = ev.get("island_miss", 0) + 1
@@ -382,7 +382,7 @@ def run_scene():
             s_ = f44.render(f"빙판 감지  μ {o['mu']:.2f}  —  정지에 {o['d_stop']:.0f} m 필요", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
             pygame.draw.rect(screen, (190, 30, 30), (bx - 18, 30, s_.get_width() + 36, s_.get_height() + 16)); screen.blit(s_, (bx, 38))
         if state["killed"] and o.get("degraded"):
-            s_ = f22.render("파이 메인 프로그램 정지 — 2차 방어는 안전 섬에서 계속 동작", True, (255, 230, 120))
+            s_ = f22.render("파이 메인 프로그램 정지 — 2차 방어는 격리 코어에서 계속 동작", True, (255, 230, 120))
             pygame.draw.rect(screen, (0, 0, 0), (10, H - 44, s_.get_width() + 20, 36)); screen.blit(s_, (20, H - 40))
         if result:
             s_ = f44.render(result, True, (255, 90, 90) if "충돌" in result else (110, 230, 110))
@@ -411,7 +411,7 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
     put(f"속도  {v * 3.6:5.1f} km/h", f30, dy=46)
     mu = o["mu"]; put(f"노면 마찰 μ  {mu:.2f}" + ("  (가정)" if not state["defense"] else ("  (측정)" if mu < 0.6 else "")), f22)
     mode_k = {"CRUISE": "순항", "PROBE": "노면 확인 탭", "CAUTION": "가속 금지", "PREBRAKE": "예비 제동", "BRAKE": "전력 제동",
-              "HOLD": "정지 유지", "NO-ISLAND": "안전 섬 응답 없음"}.get(o["mode"], o["mode"])
+              "HOLD": "정지 유지", "NO-ISLAND": "2차 방어 코어 응답 없음"}.get(o["mode"], o["mode"])
     mc = {"PROBE": (255, 210, 0), "CAUTION": (255, 200, 0), "PREBRAKE": (255, 150, 0), "BRAKE": (255, 70, 70), "HOLD": (110, 220, 110),
           "NO-ISLAND": (255, 60, 60)}.get(o["mode"], (210, 210, 210))
     put(mode_k, f44, mc, 60)
@@ -423,7 +423,7 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
     put(("결빙 취약 구간 (지도)" if zone else "") + ("  ·  빙판 위" if inside and state["show_ice"] else ""), f18, (255, 220, 120), 30)
     if sc.det is not None: put(f"1차 카메라 위험도  {sc.risk:.2f}", f18, (230, 140, 80), 30)
     rtt = env.rtt_ms[-1] if getattr(env, "rtt_ms", None) else 0.0
-    put(f"섬 왕복 {rtt:4.1f} ms   무응답 {getattr(env, 'n_timeout', 0)}" + ("" if rec is not None else f"   실시간 {RT[0]:.2f}×"), f14, (150, 150, 150), 22)
+    put(f"2차 방어 코어 왕복 {rtt:4.1f} ms   무응답 {getattr(env, 'n_timeout', 0)}" + ("" if rec is not None else f"   실시간 {RT[0]:.2f}×"), f14, (150, 150, 150), 22)
     put(f"파이 메인 프로그램: {'정지' if o.get('degraded') else '동작'}", f18, (255, 120, 120) if o.get("degraded") else (150, 220, 150), 30)
     y = H - 120
     for k in ("C 영점  D 2차 방어  A 크루즈  R 다시", "K 파이 메인 죽이기  V 시점  I 빙판 표시"):

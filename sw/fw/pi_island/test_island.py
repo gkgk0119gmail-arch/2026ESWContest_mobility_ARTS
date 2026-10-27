@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""안전 섬 = ctypes C 코어 (같은 입력 → 같은 출력) + 심장박동이 끊기면 축소 모드로 들어가는지.
+"""안전 전용 RTOS = ctypes C 코어 (같은 입력 → 같은 출력) + 심장박동이 끊기면 축소 모드로 들어가는지.
 
 입력: 기록된 CARLA 주행의 코어 로그(core_*.csv, 곡선 빙판 s12 고정 게인) — 확정·비상 제어 경로를 모두 지난다.
 사용: python3 sw/fw/pi_island/test_island.py   (섬을 직접 띄우고 끈다, 실시간 권한 없이)

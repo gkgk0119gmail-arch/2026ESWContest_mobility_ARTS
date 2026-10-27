@@ -651,7 +651,7 @@ ap.add_argument("--log-state", default=None,
 ap.add_argument("--pi-hang", default=None,
                 help="고장 주입 'START:DUR' — 빙판 진입 START s 뒤부터 DUR s 동안 호스트(라즈베리파이) 프로세스가 멈춘다 (DUR=inf 면 죽는다)."
                      " 2차 방어가 파이에서 돌면(--defense-host pi) 그동안 판정·명령이 끊겨 마지막 명령이 그대로 걸린다."
-                     " STM32 안전 섬에서 돌면(stm32) IMU 는 계속 들어오고(직결 가정) 차선·간격 입력만 마지막 값으로 굳는다")
+                     " STM32 안전 전용 RTOS에서 돌면(stm32) IMU 는 계속 들어오고(직결 가정) 차선·간격 입력만 마지막 값으로 굳는다")
 ap.add_argument("--assist", action="store_true",
                 help="운전자 보조 모드: 비상 제어 중 조향은 운전자 모델(반응 0.25 s, 조향 속도 제한)이 하고 보드는 제동만 낸다."
                      " 보드의 회피 판단은 '빈 차로' 안내로 운전자에게 전달되고 운전자 모델이 그쪽으로 차로를 옮긴다")

@@ -2,7 +2,7 @@
 """마찰 인식 제동 시점 표(slip_env_table.h) 생성기 — 2차 방어 확장 'SLIP_ENVELOPE'.
 
 입력: sw/docs/data/gain_sched/mu_table.json (2단계 CARLA 보정: friction 9종 × 일정 제동 0.3/0.5/0.7/1.0 의 평탄 직선 평균 감속)
-출력: sw/fw/npu_lib/slip_env_table.h — 보드·파이 안전 섬이 그대로 포함하는 고정 크기 표
+출력: sw/fw/npu_lib/slip_env_table.h — 보드(안전 전용 RTOS)·파이 격리 코어가 그대로 포함하는 고정 크기 표
   · env_mu[]        실효 마찰 μ_eff (합가속/g 포화값)
   · env_dec_full[]  제동 1.0 평균 감속 (m/s²) — 정지 거리 계산에 쓴다
   · env_dec_probe[] 제동 0.3 평균 감속 (m/s²) — '노면 확인 탭'의 측정값을 μ 로 되돌릴 때 쓴다

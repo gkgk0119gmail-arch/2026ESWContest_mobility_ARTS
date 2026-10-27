@@ -111,7 +111,7 @@ def main():
         for k, host in enumerate(("stm32", "pi")):
             ys = [float(np.mean([r["pre_kph"] or 0.0 for r in fl if r["host"] == host and r["dur"] == d])) if any(r["host"] == host and r["dur"] == d for r in fl) else np.nan for d in durs]
             ax.bar(np.arange(4) + (k - 0.5) * 0.36, ys, width=0.34, color=C[0] if host == "stm32" else C[1],
-                   label="2차 방어가 STM32 (안전 섬)" if host == "stm32" else "2차 방어가 파이 (리눅스)")
+                   label="2차 방어가 STM32 (안전 전용 RTOS)" if host == "stm32" else "2차 방어가 파이 (리눅스)")
         ax.set_xticks(range(4)); ax.set_xticklabels(["0.3 s", "0.6 s", "1.2 s", "죽음"], fontsize=9, color=INK2)
         ax.set_ylabel("km/h", color=INK2, fontsize=9); ax.legend(fontsize=8, frameon=False)
         fig.tight_layout(); fig.savefig(FIG / "si_fault_s9.png"); plt.close(fig)
