@@ -58,6 +58,7 @@ ap.add_argument("--primary", default="none", help="1차 방어 RealSense 판정 
 ap.add_argument("--primary-after", type=float, default=0.0, help="장면 시작 후 이 시간(s)이 지나야 1차 방어 경고를 받는다 (녹화용)")
 ap.add_argument("--primary-label", default="RealSense", help="1차 카메라 입력 이름 (사진 파일을 넣으면 '노면 사진 입력')")
 ap.add_argument("--title", default=None, help="화면 왼쪽 위 장면 제목 (녹화용)")
+ap.add_argument("--primary-stop", action="store_true", help="1차 방어 경고가 확정되면 빙판 앞에서 정지 (1차 방어 시연 장면)")
 ap.add_argument("--primary-kph", type=float, default=30.0, help="1차 방어 경고 때 낮추는 속도")
 ap.add_argument("--size", default="1600x900"); ap.add_argument("--fullscreen", action="store_true")
 ap.add_argument("--record", default=None, help="화면을 mp4 로 녹화"); ap.add_argument("--kill-at", type=float, default=None,
@@ -467,7 +468,11 @@ def run_scene():
         else: thr = min(thr_cmd, o["thr_cap"])
         thr = min(thr, max(0.0, 0.5 * (a.max_kph / 3.6 - v)))   # 최고 속도 제한
         brk = max(brk_d, o["brake"])
-        if prim_on:                                      # 목표 속도까지 부드럽게 (마른 노면에서 ~0.25 g)
+        if prim_on and a.primary_stop:                   # 빙판 5 m 앞에 서도록 필요한 감속을 매 틱 다시 계산 (마른 노면 제동 1.0 ≈ 5.4 m/s²)
+            d_ice = a.patch_ahead - s_prog - 5.0; thr = 0.0
+            if v > 0.05: brk = max(brk, min(1.0, 0.08 + (v * v / (2 * max(d_ice, 1.0))) / 5.4))
+            else: brk = max(brk, 1.0)
+        elif prim_on:                                    # 목표 속도까지 부드럽게 (마른 노면에서 ~0.25 g)
             vt = a.primary_kph / 3.6; thr = min(thr, max(0.0, 0.5 * (vt - v)))
             if v > vt + 0.3: brk = max(brk, min(0.45, 0.12 * (v - vt) + 0.15))
         if inside and brk > a.abs_cap: brk = a.abs_cap      # ABS 대역: 빙판에서 0.3~0.4 면 이미 마찰 한계 감속 (μ 0.16: 1.57 vs 1.60 m/s²), 더 밟으면 잠겨 돈다. OFF/ON 똑같이
@@ -487,6 +492,8 @@ def run_scene():
                    f"{sc.risk:.3f},{int(zone)},{int(inside)},{int(o['degraded'])}\n")
         if sc.hit and result is None:
             result = (f"충돌 (앞차)  {prev_v * 3.6:.0f} km/h" if sc.hit[0].startswith("vehicle.") else f"벽 충돌  {prev_v * 3.6:.0f} km/h (장면 이탈)"); t_end = t + 3.0; ev["collision"] = {"t": round(t, 2), "pre_kph": round(prev_v * 3.6, 1), "with": sc.hit[0], "gap": round(gap, 1)}
+        if result is None and prim_on and a.primary_stop and v < 0.05 and t > 3:
+            result = f"빙판 앞 정지  (빙판까지 {max(0.0, a.patch_ahead - s_prog):.0f} m)"; t_end = t + 3.0; ev["stopped"] = {"t": round(t, 2), "gap": round(gap, 2), "to_ice": round(a.patch_ahead - s_prog, 1)}
         if result is None and v < 0.05 and gap < 80 and t > 5:
             result = f"정지  앞차까지 {gap:.1f} m"; t_end = t + 3.0; ev["stopped"] = {"t": round(t, 2), "gap": round(gap, 2)}
         prev_v = v
@@ -521,7 +528,7 @@ def run_scene():
             s_ = f44.render(f"브레이크!   앞차 {gap:.0f} m", True, (0, 0, 0)); bx = (VW - s_.get_width()) // 2; by = H // 2 - 140
             pygame.draw.rect(screen, (255, 220, 0), (bx - 24, by - 10, s_.get_width() + 48, s_.get_height() + 20)); screen.blit(s_, (bx, by))
         if prim_on:
-            s_ = f30.render(f"1차 방어 — 전방 블랙아이스 감지 (카메라)  ·  자동 감속 {a.primary_kph:.0f} km/h", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
+            s_ = f30.render(("1차 방어 — 전방 블랙아이스 감지 (카메라)  ·  빙판 앞 정지" if a.primary_stop else f"1차 방어 — 전방 블랙아이스 감지 (카메라)  ·  자동 감속 {a.primary_kph:.0f} km/h"), True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
             by = 110 if banner and t - banner_t < 6.0 else 30
             pygame.draw.rect(screen, (200, 110, 0), (bx - 16, by, s_.get_width() + 32, s_.get_height() + 14)); screen.blit(s_, (bx, by + 7))
         if banner and t - banner_t < 6.0:              # 정지 거리는 매 틱 새 값 (탭이 끝난 틱의 값은 바뀌기 전 μ 로 계산돼 있다)
@@ -555,7 +562,7 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
     x0 = VW; pygame.draw.rect(screen, (22, 22, 24), (x0, 0, PANEL, H)); y = 18
     def put(txt, sz=f22, col=(235, 235, 235), dy=34):
         nonlocal y; screen.blit(sz.render(txt, True, col), (x0 + 20, y)); y += dy
-    put("2차 방어 " + ("ON — 마찰 인식" if state["defense"] else "OFF — 기존 자동 긴급 제동만"), f22, (110, 190, 255) if state["defense"] else (170, 170, 170))
+    put("1차 방어 시연 (카메라)" if a.primary_stop else "2차 방어 " + ("ON — 마찰 인식" if state["defense"] else "OFF — 기존 자동 긴급 제동만"), f22, (110, 190, 255) if state["defense"] else (170, 170, 170))
     put(f"판단 위치: {island_name}", f14, (150, 150, 150), 26)
     put(f"속도  {v * 3.6:5.1f} km/h", f30, dy=46)
     mu = o["mu"]
