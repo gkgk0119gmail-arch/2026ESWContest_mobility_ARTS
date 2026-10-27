@@ -2,17 +2,14 @@
 
 | 파일 | 쓰임 |
 |---|---|
-| **`2026ESWContest_모빌리티_ARTS_개발완료보고서.pptx`** | 원본. 16:9 · 25쪽. 글·표·사진이 전부 PowerPoint 개체이고, 주행·시연 영상 9편이 **임베드**되어 있다 |
-| `2026ESWContest_모빌리티_ARTS_개발완료보고서.pdf` | 제출용. 위 pptx 에서 변환한 것. 영상 자리에는 포스터 프레임이 들어간다 |
-| **`2026ESWContest_모빌리티_ARTS_결선발표.pptx`** | 결선 발표용 8쪽 (시연·발표 10분). 쪽마다 메시지 하나, 시연 세 장면 신호, 발표자 노트에 쪽별 시간·요지. 영상 2편 자동 재생 |
-| `2026ESWContest_모빌리티_ARTS_결선발표.pdf` | 위 발표 자료의 PDF |
-| `build_present.py` | 결선 발표 8쪽 생성기 (같은 디자인 시스템) |
-| `build_pptx.py` | 25쪽의 내용과 좌표가 전부 들어 있는 생성기 |
-| `pptx_kit.py` | 디자인 시스템(색·글꼴·표·사진·영상 자동 재생) |
-| `make_media.sh` | `logs/carla_demo/정리/` 의 주행 영상을 PowerPoint 용 H.264 로 줄이고 포스터 프레임·정지 화면을 뽑는다 |
-| `pdf_prep.py` | PDF 변환 전에 영상을 포스터 그림으로 바꾼 임시 사본을 만든다 (`to_pdf.sh` 가 부른다) |
-| `assets/` | 주행 장면 사진, `assets/video/` 에 임베드용 영상(mp4)과 포스터(jpg) |
-| `fonts/` | Pretendard 4종(OFL). 발표 PC 에 설치하면 PDF 와 똑같이 보인다 |
+| **`2026ESWContest_모빌리티_ARTS_개발완료보고서.pdf`** | **제출용** 개발완료보고서 — 아래 Word 문서를 PDF 로 변환 (A4 · 15쪽, 20쪽 이내). 영상 장면은 시간 순서 4컷으로 넣었다 |
+| `2026ESWContest_모빌리티_ARTS_개발완료보고서.docx` | 위 PDF 의 Word 원본 (`build_report_docx.py` 가 만든다) |
+| `2026ESWContest_모빌리티_ARTS_개발완료보고서_슬라이드.pptx` / `.pdf` | 같은 내용의 슬라이드 판 20쪽 (참고용). pptx 에는 주행·시연 영상이 임베드되어 발표 모드에서 자동 재생된다 |
+| `2026ESWContest_모빌리티_ARTS_작품소개서.docx` | 작품소개서 (대회 양식, 2쪽 이내) — `build_intro_doc.py` |
+| **`2026ESWContest_모빌리티_ARTS_결선발표.pptx`** / `.pdf` | 결선 발표용 8쪽 (시연·발표 10분) — `build_present.py` |
+| `build_report_docx.py` · `build_pptx.py` · `build_present.py` · `build_intro_doc.py` | 생성기. `pptx_kit.py` 는 슬라이드 디자인 시스템 |
+| `to_pdf.sh` | 슬라이드 판 → PDF (영상 자리는 장면 캡처 4컷) |
+| `assets/` · `fonts/` | 사진·영상(임베드용 mp4·포스터)·Word 용 장면 캡처(`assets/word/`) · Pretendard 글꼴 |
 
 ## 다시 만들기
 

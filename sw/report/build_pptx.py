@@ -26,7 +26,7 @@ V = A / "video"
 FIG = ROOT / "sw/docs/figures"
 DS = ROOT / "sw/docs/images"
 HW = ROOT / "hw/images"
-OUT = HERE / "2026ESWContest_모빌리티_ARTS_개발완료보고서.pptx"
+OUT = HERE / "2026ESWContest_모빌리티_ARTS_개발완료보고서_슬라이드.pptx"
 
 # ── PDF 용 빌드 (REPORT_PDF=1): PDF 에서는 영상이 재생되지 않으므로 영상 자리에 시간 순서의 장면 캡처 4컷을 넣는다 ──
 import os as _os, subprocess as _sp, tempfile as _tf
@@ -850,5 +850,20 @@ for i, sl in enumerate(prs.slides, 1):
     sl.notes_slide.notes_text_frame.text = NOTES[i]
 
 assert _n[0] == N_PAGES, _n[0]
+# ── 제출 분량 20쪽 이내: 다른 쪽과 겹치는 5쪽을 뺀다 (8 보조 데이터셋 → 7쪽 표, 14 2차 동작·16 기준선 → 17쪽 비교·2쪽 요약,
+#    22 시연 구성 → 결선 발표 자료, 23 센서 시각화) — 쪽 번호를 다시 매긴다
+import re as _re
+REMOVE = {8, 14, 16, 22, 23}
+sldIdLst = prs.slides._sldIdLst
+for i in sorted(REMOVE, reverse=True):
+    sid = sldIdLst[i - 1]
+    prs.part.drop_rel(sid.rId); sldIdLst.remove(sid)
+N_FINAL = len(prs.slides)
+for k, sl in enumerate(prs.slides, 1):
+    for shp in sl.shapes:
+        if shp.has_text_frame and _re.fullmatch(r"\d\d / \d\d", shp.text_frame.text.strip()):
+            r = shp.text_frame.paragraphs[0].runs
+            if r: r[0].text = f"{k:02d} / {N_FINAL:02d}"
+            for extra in r[1:]: extra.text = ""
 prs.save(OUT)
-print(f"저장: {OUT}  ({OUT.stat().st_size / 1e6:.1f} MB, {N_PAGES}쪽)")
+print(f"저장: {OUT}  ({OUT.stat().st_size / 1e6:.1f} MB, {N_FINAL}쪽)")
