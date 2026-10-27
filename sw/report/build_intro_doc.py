@@ -121,8 +121,6 @@ def main():
         rels = rels.replace("</Relationships>", f'<Relationship Id="{rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/{fname}"/></Relationships>')
         w, h = Image.open(src).size; s = min(max_w_twips / w, max_h_twips / h)
         return drawing(rid, int(w * s * 635), int(h * s * 635), pid, fname)    # 1 twip = 635 EMU
-    put(9, 0, [add_image(WORK_PHOTO, "rIdImg1", "work_photos.png", 8700, 3000, 101)])
-    rows[9] = re.sub(r'<w:trHeight w:val="\d+"/>', '<w:trHeight w:val="2700"/>', rows[9], count=1)   # 사진 높이에 맞춘다
     if a.team_photo:
         ext = pathlib.Path(a.team_photo).suffix.lower().lstrip(".")
         put(3, 0, [add_image(a.team_photo, "rIdImg2", f"team_photo.{ext}", 2400, 2600, 102)])
@@ -130,7 +128,7 @@ def main():
     put(11, 1, [para([run(t)], jc="left") for t in ENV])
     put(12, 1, [para([run(h, bold=True), run(b)]) for h, b in DESC])
     put(13, 1, [para([run(h, bold=True), run(b)]) for h, b in FEAT])
-    rows = rows[:7] + rows[9:]                                    # 빈 팀원 행 2개 삭제 (세로 병합은 그대로 이어진다)
+    rows = rows[:7] + rows[10:]                                   # 빈 팀원 행 2개 + 작품 사진 행 삭제 (사용자 결정: 팀원 사진만 남긴다)
     x = x[:t0] + head + "".join(rows) + tail + x[t1:]
     # 표 뒤 파란 안내 문구 3줄 삭제 (빈 문단 하나는 남긴다 — 표로 끝나는 문서는 Word 가 문단을 요구한다)
     after = x[x.index("</w:tbl>") + len("</w:tbl>"):x.index("<w:sectPr")]
