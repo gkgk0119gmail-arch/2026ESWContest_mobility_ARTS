@@ -28,6 +28,60 @@ DS = ROOT / "sw/docs/images"
 HW = ROOT / "hw/images"
 OUT = HERE / "2026ESWContest_모빌리티_ARTS_개발완료보고서.pptx"
 
+# ── PDF 용 빌드 (REPORT_PDF=1): PDF 에서는 영상이 재생되지 않으므로 영상 자리에 시간 순서의 장면 캡처 4컷을 넣는다 ──
+import os as _os, subprocess as _sp, tempfile as _tf
+PDF_MODE = _os.environ.get("REPORT_PDF") == "1"
+if PDF_MODE:
+    OUT = pathlib.Path(_tf.gettempdir()) / "IcePredict_report_pdfbuild.pptx"
+    _CAP_DIR = pathlib.Path(_tf.mkdtemp(prefix="filmstrip_"))
+    _video_real, _text_real = video, text
+
+    def _filmstrip(mp4, w, h, k=4):
+        """영상에서 k 장면을 뽑아 상자 비율에 가장 크게 들어가는 격자로 붙이고, 장면마다 번호·시각을 단다."""
+        from PIL import Image, ImageDraw, ImageFont
+        dur = float(_sp.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(mp4)],
+                            capture_output=True, text=True).stdout.strip())
+        ts = [dur * f for f in (0.12, 0.40, 0.68, 0.94)][:k]
+        frames = []
+        for i, t_ in enumerate(ts):
+            f = _CAP_DIR / f"{pathlib.Path(mp4).stem}_{i}.jpg"
+            _sp.run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", f"{t_:.2f}", "-i", str(mp4), "-frames:v", "1", str(f)], check=True)
+            frames.append(Image.open(f).convert("RGB"))
+        fw, fh = frames[0].size; S = 3                                      # 해상도 배율
+        best = max(((r, k // r) for r in (1, 2, 4) if k % r == 0),
+                   key=lambda rc: min(w / rc[1] / fw, h / rc[0] / fh))
+        rows, cols = best; gap = 4
+        cw_, ch_ = (w * S - gap * S * (cols - 1)) / cols, (h * S - gap * S * (rows - 1)) / rows
+        sc = min(cw_ / fw, ch_ / fh); tw_, th_ = int(fw * sc), int(fh * sc)
+        canvas = Image.new("RGB", (int(w * S), int(h * S)), (16, 20, 24)); d = ImageDraw.Draw(canvas)
+        fnt = ImageFont.truetype(str(HERE / "fonts/Pretendard-Bold.otf"), int(13 * S)) if (HERE / "fonts/Pretendard-Bold.otf").exists() else None
+        for i, im in enumerate(frames):
+            r_, c_ = divmod(i, cols)
+            x0 = int(c_ * (cw_ + gap * S) + (cw_ - tw_) / 2); y0 = int(r_ * (ch_ + gap * S) + (ch_ - th_) / 2)
+            canvas.paste(im.resize((tw_, th_), Image.LANCZOS), (x0, y0))
+            lab = f"{i + 1}  {ts[i]:.1f} s"
+            d.rectangle((x0, y0, x0 + int(70 * S), y0 + int(20 * S)), fill=(0, 44, 95))
+            d.text((x0 + int(6 * S), y0 + int(2 * S)), lab, font=fnt, fill=(255, 255, 255))
+        out = _CAP_DIR / f"{pathlib.Path(mp4).stem}_strip.jpg"; canvas.save(out, quality=90)
+        return str(out)
+
+    def video(sh_tree, mp4, poster, x, y, w, h):
+        return sh_tree.add_picture(_filmstrip(mp4, w, h), px(x), px(y), px(w), px(h))
+
+    def _pdfcap(b):
+        if isinstance(b, list): return [_pdfcap(z) for z in b]
+        if not isinstance(b, str): return b
+        if b.strip() == "▶ 발표 모드에서 자동 재생": return "■ 장면 캡처 4컷"
+        b = b.replace("▶ 발표 모드에서 자동 재생", "■ 주요 장면 캡처 4컷 (영상은 저장소에서 재생)").replace("▶ 발표 모드 자동 재생", "■ 주요 장면 캡처 4컷")
+        b = b.replace(". 발표 모드에서 자동 재생", ". 주요 장면 캡처 4컷").replace("▶ ", "■ ")
+        return b
+
+    def text(sh_tree, x, y, w, h, body, *a, **kw):
+        return _text_real(sh_tree, x, y, w, h, _pdfcap(body), *a, **kw)
+
+    def autoplay(slide, movies, loop=False):
+        return None
+
 W, H = 1280, 720
 PAD = 56
 CW = W - 2 * PAD                      # 1168
