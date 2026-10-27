@@ -8,7 +8,7 @@
    한계: 리눅스 커널 자체가 멈추면 같이 멈춘다. 실차 설계는 별도 MCU 다 (19번 문서).
 
    모드
-     safety_island --udp PORT [--bind 0.0.0.0] [--cpu 3] [--prio 80]
+     safety_island --udp PORT [--bind 0.0.0.0] [--hello 상대IP:포트] [--cpu 3] [--prio 80]
          IMU 패킷(ISL1)마다 판정하고 보낸 곳으로 답한다. 심장박동(HB01)이 직전 IMU 이후에 왔으면 host_fresh=1.
      safety_island --selftest SEC [--cpu 3] [--prio 80] [--json out.json]
          20 ms 절대 주기 타이머로 깨어나 합성 IMU 로 같은 코어를 돌리고, 깨어남 지연과 계산 시간을 잰다.
@@ -34,11 +34,17 @@
 #define MAGIC_IMU  0x314C5349u   /* "ISL1" */
 #define MAGIC_HB   0x31304248u   /* "HB01" */
 #define MAGIC_OUT  0x314F5349u   /* "ISO1" */
+#define MAGIC_ENV  0x31564E45u   /* "ENV1" 마찰 인식 제동 시점 (SLIP_ENVELOPE) */
+#define MAGIC_EOUT 0x314F4E45u   /* "ENO1" */
 #define PERIOD_NS  20000000L
 #define NHIST      2000           /* 10 µs 칸 × 2000 = 20 ms */
 
 typedef struct { uint32_t magic, seq; float in[13]; } imu_pkt_t;
 typedef struct { uint32_t magic, seq; float out[12]; float compute_us; uint32_t degraded; } out_pkt_t;
+/* ENV1: v, ax, ay, gap, v_lead, risk, temp_c, driver_brake + zone, mode(0 = 마찰 인식, 1 = 마른 노면 고정 — 비교용), reset */
+typedef struct { uint32_t magic, seq; float v, ax, ay, gap, v_lead, risk, temp_c, driver_brake; uint32_t zone, dry_only, reset; } env_pkt_t;
+/* ENO1: brake, thr_cap, mode, mu, d_stop, d_need, v_max, mu_probe, a_used + 탭 계기(0 없음 1 카메라 2 구간), 심장박동 끊김(축소), 처리 시간 */
+typedef struct { uint32_t magic, seq; float out[9]; uint32_t probe_by, degraded; float compute_us; } env_out_t;
 
 static int64_t now_ns(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (int64_t)t.tv_sec * 1000000000LL + t.tv_nsec; }
 
@@ -113,6 +119,11 @@ static int selftest(double sec, const char *json)
   return 0;
 }
 
+/* hello: 섬이 먼저 상대(데스크톱)에게 0.5 s 마다 인사 패킷을 보낸다. 캠퍼스 망처럼 상대→파이 방향을 막는 곳에서도
+   방화벽이 '파이가 연 연결의 답'으로 보고 상대의 요청을 통과시킨다. NULL 이면 보내지 않는다. */
+static const char *g_hello = NULL;
+#define MAGIC_HELLO 0x4F4C4548u   /* "HELO" */
+
 static int udp_loop(int port, const char *bind_ip)
 {
   int s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -121,8 +132,20 @@ static int udp_loop(int port, const char *bind_ip)
   static slipdet_t d; float min_speed = 25.f / 3.6f; sc_reset(&d, 0.02f, 3, min_speed);   /* 데모 기본 --min-detect-kph 25 */
   int hb_since = 1; uint64_t n_imu = 0, n_hb = 0; double max_c = 0; int64_t t_rep = now_ns();
   fprintf(stderr, "[island] UDP %s:%d 대기 — IMU(ISL1)마다 판정, 심장박동(HB01) 감시\n", bind_ip, port);
+  struct sockaddr_in hello_to; int64_t t_hello = 0;
+  if (g_hello) {
+    char h[64]; strncpy(h, g_hello, sizeof h - 1); h[sizeof h - 1] = 0; char *c = strrchr(h, ':');
+    if (c) { *c = 0; hello_to = (struct sockaddr_in){ .sin_family = AF_INET, .sin_port = htons((uint16_t)atoi(c + 1)), .sin_addr.s_addr = inet_addr(h) }; }
+    else g_hello = NULL;
+    if (g_hello) fprintf(stderr, "[island] 인사 패킷 → %s (0.5 s 마다)\n", g_hello);
+  }
   for (;;) {
     unsigned char buf[256]; struct sockaddr_in from; socklen_t fl = sizeof from;
+    if (g_hello && now_ns() - t_hello > 500000000LL) {
+      uint32_t hm[2] = { MAGIC_HELLO, (uint32_t)port }; sendto(s, hm, sizeof hm, 0, (struct sockaddr *)&hello_to, sizeof hello_to); t_hello = now_ns();
+    }
+    struct pollfd pf = { .fd = s, .events = POLLIN };
+    if (poll(&pf, 1, g_hello ? 100 : -1) <= 0) continue;
     ssize_t r = recvfrom(s, buf, sizeof buf, 0, (struct sockaddr *)&from, &fl);
     if (r < 8) continue;
     int64_t t0 = now_ns();
@@ -132,6 +155,24 @@ static int udp_loop(int port, const char *bind_ip)
       if (r >= 12) memcpy(&min_speed, buf + 8, 4);
       sc_reset(&d, 0.02f, 3, min_speed); hb_since = 1; continue;
     }
+#if defined(SLIP_ENVELOPE) && SLIP_ENVELOPE
+    if (mg == MAGIC_ENV && r >= (ssize_t)sizeof(env_pkt_t)) {
+      env_pkt_t q; memcpy(&q, buf, sizeof q);
+      if (q.reset) sc_env_reset(env_mu[ENV_NMU - 1]);
+      /* 심장박동 감시: 파이 메인 프로그램이 100 ms 넘게 조용하면 축소 모드 — 메인이 주던 카메라 위험도·지도(결빙 취약 구간)
+         입력은 믿지 않는다. IMU 로 잰 μ 와 제동 시점 판단은 섬 안에서 계속된다. */
+      static int64_t t_hb_env = 0; if (hb_since || q.reset) t_hb_env = t0;
+      int deg = (t0 - t_hb_env) > 100000000LL; hb_since = 0;
+      int by = 0;
+      if (!q.dry_only) { int blk; by = sc_env_should_probe(0.02f, deg ? -1.f : q.risk, q.temp_c, q.v, q.ax, q.ay, q.driver_brake, q.gap, deg ? 0 : (int)q.zone, &blk); }
+      env_out_t eo = { .magic = MAGIC_EOUT, .seq = q.seq, .probe_by = (uint32_t)by };
+      sc_env_step(0.02f, q.v, q.ax, q.gap, q.v_lead, eo.out);
+      eo.degraded = (uint32_t)deg;
+      eo.compute_us = (float)((now_ns() - t0) / 1000.0);
+      sendto(s, &eo, sizeof eo, 0, (struct sockaddr *)&from, fl);
+      continue;
+    }
+#endif
     if (mg != MAGIC_IMU || r < (ssize_t)sizeof(imu_pkt_t)) continue;
     imu_pkt_t p; memcpy(&p, buf, sizeof p);
     out_pkt_t o = { .magic = MAGIC_OUT, .seq = p.seq };
@@ -159,6 +200,7 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[i], "--selftest") && i + 1 < argc) st = atof(argv[++i]);
     else if (!strcmp(argv[i], "--json") && i + 1 < argc) json = argv[++i];
     else if (!strcmp(argv[i], "--bind") && i + 1 < argc) bind_ip = argv[++i];
+    else if (!strcmp(argv[i], "--hello") && i + 1 < argc) g_hello = argv[++i];
     else { fprintf(stderr, "사용: %s (--udp PORT | --selftest SEC [--json F]) [--cpu N] [--prio P (0=기본 스케줄러)]\n", argv[0]); return 2; }
   }
   fprintf(stderr, "[island] 코어 플래그 %d (1 타원, 2 마찰 추정, 8 감시)\n", sc_flags());

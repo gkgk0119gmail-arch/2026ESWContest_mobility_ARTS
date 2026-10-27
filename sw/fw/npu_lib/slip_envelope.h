@@ -156,15 +156,18 @@ static void env_step(env_t *e, float dt, float v, float ax, float gap, float v_l
   if (latched || gap <= e->d_need + v * ENV_PRE_S) {
     /* 남은 거리에 딱 맞춰 서는 감속 a_req 를 따라간다. 빙판에서는 작은 제동으로도 감속이 포화되므로
        세기를 계산값으로 바로 넣지 않고, 실측 감속(−ax)과의 차이로 적분한다 (너무 일찍 서지 않게). */
-    float room = gap - ENV_MARGIN_M - v * ENV_T_REACT; if (room < 1.f) room = 1.f;
+    float room = gap - ENV_MARGIN_M - v * ENV_T_REACT;
+    if (room < 1.f) room = 1.f;
     float a_req = (v * v - v_lead * v_lead) / (2.f * room);
     if (e->mode != ENV_PREBRAKE) e->b_pre = 0.f;
     float err = a_req - (-ax);
     e->b_pre += ENV_PRE_KI * dt * err;
     /* 음수 = 가속 페달: 발을 떼기만 해도 엔진 브레이크(빙판에서도 약 1.2 m/s²)가 필요 감속보다 크면 너무 일찍 선다 */
-    if (e->b_pre < -ENV_PRE_THR) e->b_pre = -ENV_PRE_THR; if (e->b_pre > 1.f) e->b_pre = 1.f;
+    if (e->b_pre < -ENV_PRE_THR) e->b_pre = -ENV_PRE_THR;
+    if (e->b_pre > 1.f) e->b_pre = 1.f;
     float u = e->b_pre + ENV_PRE_KP * err;
-    if (u > 1.f) u = 1.f; if (u < -ENV_PRE_THR) u = -ENV_PRE_THR;
+    if (u > 1.f) u = 1.f;
+    if (u < -ENV_PRE_THR) u = -ENV_PRE_THR;
     e->mode = ENV_PREBRAKE; *brake = u > 0.f ? u : 0.f; *thr_cap = u < 0.f ? -u : 0.f; return;
   }
   if (v > e->v_max) { e->mode = ENV_CAUTION; *brake = 0.f; *thr_cap = 0.f; return; }

@@ -55,7 +55,22 @@ def main():
         ok2 = k_deg is not None and k_deg <= 6
         print(f"[{'OK ' if ok2 else 'FAIL'}] 심장박동 끊김 → 축소 모드: {k_deg} 샘플 뒤")
         rtt = sorted(isl.rtt_ms); print(f"[INFO] 왕복 지연(같은 파이) 중앙 {rtt[len(rtt)//2]:.3f} ms, 99 % {rtt[int(len(rtt)*0.99)]:.3f} ms")
-        return 0 if ok1 and ok2 else 1
+        # 마찰 인식 제동 시점: 섬 = ctypes (결빙 취약 구간 탭 → 빙판 → 예비 제동까지)
+        from icepredict.pi.slip_island import EnvelopeIsland
+        ei = EnvelopeIsland(f"127.0.0.1:{PORT}", timeout_s=0.5); er = SlipCoreC(0.02, 3, 25 / 3.6, variant="env"); er.env_reset(0.6725)
+        worst = 0.0; n_env = 0; modes = set(); mode_r = "CRUISE"
+        for i in range(900):
+            v = 16.7 - 0.01 * max(0, i - 400); gap = 300.0 - 0.33 * i; zone = i >= 50
+            ax = (-2.8 if i < 300 else -1.5) if mode_r == "PROBE" else 0.0
+            hb.sendto(struct.pack("<II", MAGIC_HB, i), isl.dst)
+            a = ei.step(v, ax, 0.0, gap, 0.0, 0.05, -3.0, 0.0, zone)
+            why, _ = er.env_should_probe(0.02, 0.05, -3.0, v, ax, 0.0, 0.0, gap, zone); b = er.env_step(0.02, v, ax, gap, 0.0); mode_r = b["mode"]
+            if a is None: worst = 9e9; break
+            d = max(abs(a[k] - b[k]) for k in ("brake", "thr_cap", "mu", "d_need")); worst = max(worst, d); modes.add(b["mode"]); n_env += 1
+            if a["mode"] != b["mode"]: worst = 9e9; break
+        ok3 = worst < 1e-5 and {"PROBE", "PREBRAKE"} <= modes
+        print(f"[{'OK ' if ok3 else 'FAIL'}] 섬 제동 시점 = ctypes: 샘플 {n_env}개, 모드 {sorted(modes)}, 최대 차이 {worst:.2e}")
+        return 0 if ok1 and ok2 and ok3 else 1
     finally:
         p.terminate(); p.wait()
 
