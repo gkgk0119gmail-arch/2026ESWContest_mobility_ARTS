@@ -467,9 +467,8 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
         pygame.draw.rect(screen, col, (x0 + 20, y, int(min(val, 200) * sc_), 18)); y += 32
     put(("결빙 취약 구간 (지도)" if zone else "") + ("  ·  빙판 위" if inside and state["show_ice"] else ""), f18, (255, 220, 120), 30)
     if sc.det is not None: put(f"1차 카메라 위험도  {sc.risk:.2f}", f18, (230, 140, 80), 30)
-    if prim.s is not None:
-        put(f"1차 카메라(RealSense) 위험도  {prim.risk:.2f}" if prim.live else "1차 카메라(RealSense) 수신 없음", f18,
-            (255, 150, 60) if prim.live and prim.risk >= prim.thr else ((230, 200, 140) if prim.live else (140, 140, 140)), 30)
+    if prim.live:                                     # RealSense 를 끄면(2차 방어 장면) 줄째 사라진다
+        put(f"1차 카메라(RealSense) 위험도  {prim.risk:.2f}", f18, (255, 150, 60) if prim.risk >= prim.thr else (230, 200, 140), 30)
     rtt = env.rtt_ms[-1] if getattr(env, "rtt_ms", None) else 0.0
     put(f"2차 방어 코어 왕복 {rtt:4.1f} ms   무응답 {getattr(env, 'n_timeout', 0)}" + ("" if rec is not None else f"   실시간 {RT[0]:.2f}×"), f14, (150, 150, 150), 22)
     put(f"파이 메인 프로그램: {'정지' if o.get('degraded') else '동작'}", f18, (255, 120, 120) if o.get("degraded") else (150, 220, 150), 30)
