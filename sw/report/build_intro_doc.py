@@ -19,9 +19,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "sw/report/2026ESWContest_모빌리티_ARTS_작품소개서.docx"
 WORK_PHOTO = ROOT / "sw/report/assets/intro_work_photos.png"
 
-TEAM = [("팀장", "남윤상", "", "HW·SW 개발"),
-        ("팀원", "김진찬", "", "HW·SW 개발"),
-        ("팀원", "이지성", "", "HW·SW 개발")]
+TEAM = [("팀장", "남윤상", "연세대학교", "HW·SW 개발"),
+        ("팀원", "김진찬", "연세대학교", "HW·SW 개발"),
+        ("팀원", "이지성", "연세대학교", "HW·SW 개발")]
 
 OVERVIEW = ["블랙아이스 사고를 줄이는 운전자 보조 장치다. 카메라 AI 가 빙판을 미리 보고 경고·감속하는 1차 방어와, "
             "카메라가 놓쳤을 때 노면 마찰을 직접 재서 제동 시점을 다시 계산하는 2차 방어로 이중 안전망을 만든다. "
