@@ -61,6 +61,8 @@ ap.add_argument("--record", default=None, help="화면을 mp4 로 녹화"); ap.a
 ap.add_argument("--max-time", type=float, default=60.0, help="--auto 에서 장면 길이")
 ap.add_argument("--show-ice", action="store_true", help="처음부터 빙판 구역을 그린다 (I 키)")
 ap.add_argument("--view", choices=["driver", "chase"], default="driver")
+ap.add_argument("--brake-cue", type=float, default=60.0, help="앞차까지 이 거리(m)가 되면 '브레이크!' 안내 (OFF/ON 같은 지점에서 밟게). 0 이면 끔")
+ap.add_argument("--max-kph", type=float, default=80.0, help="최고 속도 제한")
 ap.add_argument("--no-pip", action="store_true", help="운전석 화면 구석의 작은 3인칭 창을 끈다 (T 키)")
 ap.add_argument("--log-dir", default=os.path.expanduser("~/icepredict_demo/logs"))
 a = ap.parse_args()
@@ -412,6 +414,7 @@ def run_scene():
         if o["mode"] == "PREBRAKE" and state["cruise"]: thr = o["thr_cap"]
         elif o["mode"] in ("PREBRAKE", "BRAKE", "HOLD", "PROBE"): thr = 0.0
         else: thr = min(thr_cmd, o["thr_cap"])
+        thr = min(thr, max(0.0, 0.5 * (a.max_kph / 3.6 - v)))   # 최고 속도 제한
         brk = max(brk_d, o["brake"])
         if prim_on:                                      # 목표 속도까지 부드럽게 (마른 노면에서 ~0.25 g)
             vt = a.primary_kph / 3.6; thr = min(thr, max(0.0, 0.5 * (vt - v)))
@@ -442,6 +445,9 @@ def run_scene():
             pygame.draw.rect(screen, (230, 230, 230), (px - 3, py - 3, pim.width + 6, pim.height + 6))
             screen.blit(pygame.surfarray.make_surface(pa[:, :, ::-1].swapaxes(0, 1)), (px, py))
         draw_panel(o, v, gap, zone, inside, sc, island_name, result)
+        if a.brake_cue > 0 and result is None and 0 < gap <= a.brake_cue and v > 1.0:   # 운전자 브레이크 지점 (OFF/ON 같은 곳)
+            s_ = f44.render(f"브레이크!   앞차 {gap:.0f} m", True, (0, 0, 0)); bx = (VW - s_.get_width()) // 2; by = H // 2 - 140
+            pygame.draw.rect(screen, (255, 220, 0), (bx - 24, by - 10, s_.get_width() + 48, s_.get_height() + 20)); screen.blit(s_, (bx, by))
         if prim_on:
             s_ = f30.render(f"1차 방어 — 전방 블랙아이스 감지 (카메라)  ·  자동 감속 {a.primary_kph:.0f} km/h", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
             by = 110 if banner and t - banner_t < 6.0 else 30
