@@ -17,6 +17,17 @@
   <a href="sw/docs/evidence"><b>📊 근거 문서 19건</b></a>
 </p>
 
+**제출물** — 개발완료보고서 [PDF](sw/report/2026ESWContest_모빌리티_ARTS_개발완료보고서.pdf) (19쪽) · 작품소개서 [docx](sw/report/2026ESWContest_모빌리티_ARTS_작품소개서.docx) / [PDF](sw/report/2026ESWContest_모빌리티_ARTS_작품소개서_미리보기.pdf) · 시연 영상 [mp4](sw/media/submission/IcePredict_시연영상_최종.mp4) (1분 50초)
+
+| 시연 영상 | 내용 | 결과 |
+|---|---|---|
+| ① RealSense 노면 판정 | 실제 노면 사진을 RealSense D435i 로 비춰 마른·젖은 노면, 블랙아이스 판정 | 블랙아이스에서 '감지 — 감속하세요' |
+| ② 1차 방어 | 자동 주행 중 RealSense 가 빙판 사진을 보자 경고·제동 | 빙판 7.9 m 앞 정지 |
+| ③ 2차 방어 OFF | 지금 차(자동 긴급 제동만), 브레이크 지점에서 밟고 핸들을 꺾어도 | 앞차와 20 km/h 충돌 |
+| ④ 2차 방어 ON | 빙판 시작점에서 탭으로 μ 0.21 측정 → 미리 제동 | 앞차 28 m 앞 정지 |
+
+<sub>③·④ 는 자동 운전자가 몰고 화면 오른쪽에 같은 순간 Moza 를 조작하는 운전자 영상을 붙였다. CARLA 차량에 없는 ABS·ESC 는 대역으로 넣어 OFF/ON 에 똑같이 적용했다.</sub>
+
 ---
 
 ## 왜 이중 방어인가
@@ -293,7 +304,7 @@ CARLA 실측 감속 표로 정지 거리를 다시 계산해 20 ms 마다 제동
 자세한 기록과 한계(탭을 운전자가 느낀다, 실측은 파이 격리 코어 대체)는 [20_마찰인식_제동시점](sw/docs/evidence/20_마찰인식_제동시점.md).
 
 **시연** — Moza 휠·페달로 사람이 직접 운전하고, 2차 방어 판단은 라즈베리파이 격리 코어(안전 전용 RTOS 대체)에서 돈다. 2차 방어를 끄면 평소 감각대로 밟아도 미끄러져 충돌하고, 켜면 탭 → 경고 → 필요한 순간 자동 제동으로 선다.
-주행 중 파이 메인 프로그램을 실제로 죽여도 격리 코어의 2차 방어는 계속 판단한다. 자동 주행으로 녹화한 시연 영상: [`demo_2nd_defense.mp4`](sw/media/clips/demo_2nd_defense.mp4) · 절차: [21_시연_절차](sw/docs/evidence/21_시연_절차.md).
+주행 중 파이 메인 프로그램을 실제로 죽여도 격리 코어의 2차 방어는 계속 판단한다. 제출 시연 영상: [`IcePredict_시연영상_최종.mp4`](sw/media/submission/IcePredict_시연영상_최종.mp4) (이전 자동 녹화본 [`demo_2nd_defense.mp4`](sw/media/clips/demo_2nd_defense.mp4)) · 절차: [21_시연_절차](sw/docs/evidence/21_시연_절차.md).
 
 ---
 
