@@ -53,6 +53,8 @@ ap.add_argument("--patch-ahead", type=float, default=170.0); ap.add_argument("--
 ap.add_argument("--zone-before", type=float, default=40.0); ap.add_argument("--spawn-rank", type=int, default=0)
 ap.add_argument("--camera-risk", action="store_true", help="1차 방어 모델로 위험도를 낸다 (onnx 모델 필요)")
 ap.add_argument("--model", default=os.path.expanduser("~/icepredict_demo/models/roadnet.onnx"))
+ap.add_argument("--primary", default="none", help="1차 방어 RealSense 판정 수신 listen:PORT (파이 realsense_primary.py --send). 경고가 확정되면 자동 감속")
+ap.add_argument("--primary-kph", type=float, default=30.0, help="1차 방어 경고 때 낮추는 속도")
 ap.add_argument("--size", default="1600x900"); ap.add_argument("--fullscreen", action="store_true")
 ap.add_argument("--record", default=None, help="화면을 mp4 로 녹화"); ap.add_argument("--kill-at", type=float, default=None,
                                                                          help="--auto 에서 이 시각(초)에 파이 메인 프로그램을 죽인다")
@@ -148,6 +150,27 @@ class PiMainLink:
     def kill(self):
         if self.s and self.dst: self.s.sendto(b"KILL", self.dst); return True
         return False
+
+
+class PrimaryLink:
+    """파이 RealSense 1차 방어(realsense_primary.py --send)의 판정 PRI1 을 받는다. 경고 3 연속이면 확정."""
+    def __init__(self, addr):
+        self.s = None; self.risk = -1.0; self.alarm_n = 0; self.t_rx = 0.0; self.thr = 0.6
+        if addr == "none": return
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); self.s.bind(("0.0.0.0", int(addr.rsplit(":", 1)[1]))); self.s.setblocking(False)
+    def poll(self):
+        if not self.s: return
+        try:
+            while True:
+                b, _ = self.s.recvfrom(64)
+                if b[:4] != b"PRI1" or len(b) < 17: continue
+                self.risk, _pice, self.thr, al = struct.unpack("<fffB", b[4:17]); self.t_rx = time.time()
+                self.alarm_n = self.alarm_n + 1 if al else 0
+        except (BlockingIOError, OSError): pass
+    @property
+    def live(self): return self.s is not None and time.time() - self.t_rx < 1.0
+    @property
+    def confirmed(self): return self.live and self.alarm_n >= 3
 
 
 # ---------------------------------------------------------------- CARLA 장면
@@ -281,6 +304,7 @@ else:
     env = EnvelopeIsland(a.island, timeout_s=0.04, wait_hello_s=60.0); island_name = "Raspberry Pi 격리 코어 3 (실시간 · 안전 전용 RTOS 대체)"
     print(f"[demo] 2차 방어 코어 연결: {env.dst}", flush=True)
 pimain = PiMainLink(a.pi_main)
+prim = PrimaryLink(a.primary)
 rec = None
 if a.record:
     import cv2
@@ -294,7 +318,7 @@ state = dict(defense=a.defense == "on", cruise=a.auto, view=a.view, show_ice=a.s
 def run_scene():
     sc = Scene(); env.reset()
     t = 0.0; prev_v = 0.0; ev = {"defense": state["defense"], "auto": a.auto, "events": []}; banner = None; banner_t = 0.0
-    mu_ice_alerted = False; result = None; t_end = None; last_mode = None; island_lost = 0; last_o = None
+    prim_on = False; mu_ice_alerted = False; result = None; t_end = None; last_mode = None; island_lost = 0; last_o = None
     tag = time.strftime("%m%d_%H%M%S") + ("_on" if state["defense"] else "_off") + ("_auto" if a.auto else "_live")
     logf = open(os.path.join(a.log_dir, f"demo_{tag}.csv"), "w"); logf.write("t,v,gap,steer,thr,brk_drv,brk_sys,mode,mu,d_need,risk,zone,inside,degraded\n")
     clock = time.perf_counter()
@@ -324,6 +348,12 @@ def run_scene():
         zone = a.patch_ahead - a.zone_before <= s_prog <= a.patch_ahead + a.obstacle_in
         inside = sc.patch.contains(tf.location)
         if sc.det is not None and int(t / DT) % 2 == 0: sc.risk = sc.camera_risk()
+        prim.poll()
+        if prim.confirmed and not prim_on:                # 1차 방어: 카메라가 앞 빙판을 확정 → 경고 + 자동 감속 (장면 끝까지 유지)
+            prim_on = True; ev["events"].append({"t": round(t, 2), "event": "primary_alarm", "risk": round(prim.risk, 3), "kph": round(v * 3.6, 1), "gap": round(gap, 1)})
+            print(f"[{t:6.2f}s] 1차 방어 경고 위험도 {prim.risk:.2f} → {a.primary_kph:.0f} km/h 로 감속", flush=True)
+            if ffb: ffb.buzz(ms=700, mag=0x6000, period=70)
+            if BEEP: BEEP.play(loops=2)
         # --- 운전자 입력
         wp = cmap.get_waypoint(tf.location, project_to_road=True); nx = wp.next(6.0); tg = (nx[0] if nx else wp).transform.location
         le = (math.atan2(tg.y - tf.location.y, tg.x - tf.location.x) - y + math.pi) % (2 * math.pi) - math.pi
@@ -360,6 +390,9 @@ def run_scene():
         elif o["mode"] in ("PREBRAKE", "BRAKE", "HOLD", "PROBE"): thr = 0.0
         else: thr = min(thr_cmd, o["thr_cap"])
         brk = max(brk_d, o["brake"])
+        if prim_on:                                      # 목표 속도까지 부드럽게 (마른 노면에서 ~0.25 g)
+            vt = a.primary_kph / 3.6; thr = min(thr, max(0.0, 0.5 * (vt - v)))
+            if v > vt + 0.3: brk = max(brk, min(0.45, 0.12 * (v - vt) + 0.15))
         if sc.hit: thr, brk = 0.0, 1.0
         ego.apply_control(carla.VehicleControl(throttle=float(thr), brake=float(brk), steer=float(steer)))
         logf.write(f"{t:.2f},{v:.3f},{gap:.2f},{steer:.3f},{thr:.3f},{brk_d:.3f},{o['brake']:.3f},{o['mode']},{o['mu']:.4f},{o['d_need']:.2f},"
@@ -378,6 +411,10 @@ def run_scene():
                                          label=f"BLACK ICE mu {0.82 * a.friction:.2f}")
             screen.blit(pygame.surfarray.make_surface(arr[:, :, ::-1].swapaxes(0, 1)), (0, 0))
         draw_panel(o, v, gap, zone, inside, sc, island_name, result)
+        if prim_on:
+            s_ = f30.render(f"1차 방어 — 전방 블랙아이스 감지 (카메라)  ·  자동 감속 {a.primary_kph:.0f} km/h", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
+            by = 110 if banner and t - banner_t < 6.0 else 30
+            pygame.draw.rect(screen, (200, 110, 0), (bx - 16, by, s_.get_width() + 32, s_.get_height() + 14)); screen.blit(s_, (bx, by + 7))
         if banner and t - banner_t < 6.0:              # 정지 거리는 매 틱 새 값 (탭이 끝난 틱의 값은 바뀌기 전 μ 로 계산돼 있다)
             s_ = f44.render(f"빙판 감지  μ {o['mu']:.2f}  —  정지에 {o['d_stop']:.0f} m 필요", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
             pygame.draw.rect(screen, (190, 30, 30), (bx - 18, 30, s_.get_width() + 36, s_.get_height() + 16)); screen.blit(s_, (bx, 38))
@@ -422,6 +459,9 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
         pygame.draw.rect(screen, col, (x0 + 20, y, int(min(val, 200) * sc_), 18)); y += 32
     put(("결빙 취약 구간 (지도)" if zone else "") + ("  ·  빙판 위" if inside and state["show_ice"] else ""), f18, (255, 220, 120), 30)
     if sc.det is not None: put(f"1차 카메라 위험도  {sc.risk:.2f}", f18, (230, 140, 80), 30)
+    if prim.s is not None:
+        put(f"1차 카메라(RealSense) 위험도  {prim.risk:.2f}" if prim.live else "1차 카메라(RealSense) 수신 없음", f18,
+            (255, 150, 60) if prim.live and prim.risk >= prim.thr else ((230, 200, 140) if prim.live else (140, 140, 140)), 30)
     rtt = env.rtt_ms[-1] if getattr(env, "rtt_ms", None) else 0.0
     put(f"2차 방어 코어 왕복 {rtt:4.1f} ms   무응답 {getattr(env, 'n_timeout', 0)}" + ("" if rec is not None else f"   실시간 {RT[0]:.2f}×"), f14, (150, 150, 150), 22)
     put(f"파이 메인 프로그램: {'정지' if o.get('degraded') else '동작'}", f18, (255, 120, 120) if o.get("degraded") else (150, 220, 150), 30)

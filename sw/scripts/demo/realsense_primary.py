@@ -15,6 +15,8 @@ import glob
 import os
 import pathlib
 import sys
+import socket
+import struct
 import time
 
 import cv2
@@ -34,6 +36,7 @@ ap.add_argument("--crop", type=float, default=0.6, help="화면 가운데 정사
 ap.add_argument("--record", default=None); ap.add_argument("--headless", action="store_true")
 ap.add_argument("--seconds", type=float, default=0, help="이 시간만 돌고 끝 (0 = 계속)")
 ap.add_argument("--per-image", type=float, default=2.0, help="사진 폴더 입력일 때 장당 초")
+ap.add_argument("--send", default=None, help="판정을 CARLA 시연(moza_demo --primary listen:PORT)으로 보낸다: HOST:PORT")
 a = ap.parse_args()
 
 KOR = {"normal": "마른 노면", "wet": "젖은 노면", "black_ice": "블랙아이스", "pothole": "포트홀"}
@@ -57,7 +60,9 @@ class Source:
                 if "RealSense" not in name: continue
                 idx = int(dev.rsplit("video", 1)[1]); cap = cv2.VideoCapture(f"/dev/video{idx}", cv2.CAP_V4L2)   # 번호로는 못 여는 경우가 있다
                 cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"YUYV")); cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280); cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-                ok, fr = cap.read()
+                for _ in range(15):                                    # 켜자마자는 검은 프레임이 나온다
+                    ok, fr = cap.read()
+                    if ok and fr is not None and fr.ndim == 3 and fr[..., 0].std() > 1: break
                 if ok and fr is not None and fr.ndim == 3 and fr[..., 0].std() > 1 and not np.allclose(fr[..., 0], fr[..., 1]):
                     self.cap = cap; self.kind = f"UVC /dev/video{idx} ({name})"; return
                 cap.release()
@@ -139,12 +144,18 @@ def render(bgr, p, risk, alarm, box, fps):
 
 src = Source(a.source)
 print(f"[primary] 입력 {src.kind}, 모델 {a.model}, 경고 문턱 {fuser.threshold:.3f}", flush=True)
+sendq = None
+if a.send:                                                   # 파이 → 데스크톱 방향 (캠퍼스망은 반대 방향을 막는다)
+    h_, p_ = a.send.rsplit(":", 1); sendq = (socket.socket(socket.AF_INET, socket.SOCK_DGRAM), (h_, int(p_)))
 rec = None; t_start = time.time(); n = 0; fps = 0.0; t_fps = time.time(); n_alarm = 0
 try:
     while True:
         fr = src.read()
         if fr is None: break
         p, risk, alarm, box = infer(fr)                         # 판정은 원래 해상도로
+        if sendq:
+            try: sendq[0].sendto(b"PRI1" + struct.pack("<fffB", risk, float(p[ICE]), fuser.threshold, int(bool(alarm))), sendq[1])
+            except OSError: pass
         h0 = fr.shape[0]; k_ = 720 / h0 if h0 < 600 else 1.0      # 화면만 키운다 (작은 사진에서 글자가 겹치지 않게)
         disp = cv2.resize(fr, None, fx=k_, fy=k_, interpolation=cv2.INTER_NEAREST) if k_ != 1.0 else fr
         out = render(disp, p, risk, alarm, tuple(int(v * k_) for v in box), fps); n += 1; n_alarm += alarm
