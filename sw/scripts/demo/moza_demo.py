@@ -55,6 +55,9 @@ ap.add_argument("--start-kph", type=float, default=None, help="이 속도로 달
 ap.add_argument("--camera-risk", action="store_true", help="1차 방어 모델로 위험도를 낸다 (onnx 모델 필요)")
 ap.add_argument("--model", default=os.path.expanduser("~/icepredict_demo/models/roadnet.onnx"))
 ap.add_argument("--primary", default="none", help="1차 방어 RealSense 판정 수신 listen:PORT (파이 realsense_primary.py --send). 경고가 확정되면 자동 감속")
+ap.add_argument("--primary-after", type=float, default=0.0, help="장면 시작 후 이 시간(s)이 지나야 1차 방어 경고를 받는다 (녹화용)")
+ap.add_argument("--primary-label", default="RealSense", help="1차 카메라 입력 이름 (사진 파일을 넣으면 '노면 사진 입력')")
+ap.add_argument("--title", default=None, help="화면 왼쪽 위 장면 제목 (녹화용)")
 ap.add_argument("--primary-kph", type=float, default=30.0, help="1차 방어 경고 때 낮추는 속도")
 ap.add_argument("--size", default="1600x900"); ap.add_argument("--fullscreen", action="store_true")
 ap.add_argument("--record", default=None, help="화면을 mp4 로 녹화"); ap.add_argument("--kill-at", type=float, default=None,
@@ -67,6 +70,7 @@ ap.add_argument("--abs-cap", type=float, default=0.4, help="빙판 위 브레이
 ap.add_argument("--esc", type=float, default=0.93, help="ESC 대역: 빙판 위 요 각속도를 틱마다 이 비율로 줄인다 (CARLA 차에는 ESC 가 없어 탭 뒤 회전이 커진다). 1 이면 끔")
 ap.add_argument("--auto-driver", choices=["none", "brake", "evade"], default="evade",
                 help="--auto 운전자: 브레이크 지점에서 아무것도 안 함 / 풀 브레이크 / 풀 브레이크 + 왼쪽으로 핸들 (사람처럼 피하려 함)")
+ap.add_argument("--assist-steer", action="store_true", help="조향은 차선 유지(자동), 페달은 사람 — 시연 영상 촬영용 (발만 찍는다)")
 ap.add_argument("--auto-steer", choices=["lane", "none"], default="lane", help="--auto 조향: 차선 유지 / 핸들 고정(사람이 손 놓은 상황 시험)")
 ap.add_argument("--max-kph", type=float, default=80.0, help="최고 속도 제한")
 ap.add_argument("--no-pip", action="store_true", help="운전석 화면 구석의 작은 3인칭 창을 끈다 (T 키)")
@@ -412,7 +416,7 @@ def run_scene():
         inside = sc.patch.contains(tf.location)
         if sc.det is not None and int(t / DT) % 2 == 0: sc.risk = sc.camera_risk()
         prim.poll()
-        if prim.confirmed and not prim_on and v > 3.0:     # 1차 방어: 카메라가 앞 빙판을 확정 → 경고 + 자동 감속 (달리는 중에만, 장면 끝까지 유지)
+        if prim.confirmed and not prim_on and v > 3.0 and t >= a.primary_after:     # 1차 방어: 카메라가 앞 빙판을 확정 → 경고 + 자동 감속 (달리는 중에만, 장면 끝까지 유지)
             prim_on = True; ev["events"].append({"t": round(t, 2), "event": "primary_alarm", "risk": round(prim.risk, 3), "kph": round(v * 3.6, 1), "gap": round(gap, 1)})
             print(f"[{t:6.2f}s] 1차 방어 경고 위험도 {prim.risk:.2f} → {a.primary_kph:.0f} km/h 로 감속", flush=True)
             if ffb: ffb.buzz(ms=700, mag=0x6000, period=70)
@@ -430,6 +434,7 @@ def run_scene():
                     dtc = t - t_cue; steer = -0.35 * min(1.0, dtc / 0.3) if dtc < 1.2 else max(-0.35, min(0.0, -0.35 * (1.8 - dtc) / 0.6))
         else:
             r0 = wheel.get_axis(0) - state["center"]; steer = max(-1.0, min(1.0, math.tan(1.1 * r0) * 0.55))
+            if a.assist_steer: steer = max(-0.5, min(0.5, le / 0.61086524 / sc.steer_gain))
             thr_d = pedals.axis(0) if pedals and pedals.ok else 0.0; brk_d = pedals.axis(1) if pedals and pedals.ok else 0.0
         thr_acc = max(0.0, min(0.8, 0.6 * (a.target_kph / 3.6 - v) + 0.25)) if state["cruise"] else 0.0
         if state["cruise"] and brk_d > 0.05: state["cruise"] = False                  # 운전자가 밟으면 크루즈 해제
@@ -482,7 +487,7 @@ def run_scene():
                    f"{sc.risk:.3f},{int(zone)},{int(inside)},{int(o['degraded'])}\n")
         if sc.hit and result is None:
             result = (f"충돌 (앞차)  {prev_v * 3.6:.0f} km/h" if sc.hit[0].startswith("vehicle.") else f"벽 충돌  {prev_v * 3.6:.0f} km/h (장면 이탈)"); t_end = t + 3.0; ev["collision"] = {"t": round(t, 2), "pre_kph": round(prev_v * 3.6, 1), "with": sc.hit[0], "gap": round(gap, 1)}
-        if result is None and v < 0.05 and gap < 40 and t > 5:
+        if result is None and v < 0.05 and gap < 80 and t > 5:
             result = f"정지  앞차까지 {gap:.1f} m"; t_end = t + 3.0; ev["stopped"] = {"t": round(t, 2), "gap": round(gap, 2)}
         prev_v = v
         # --- 그리기
@@ -503,6 +508,8 @@ def run_scene():
             px, py = 14, H - pim.height - 56
             pygame.draw.rect(screen, (230, 230, 230), (px - 3, py - 3, pim.width + 6, pim.height + 6))
             screen.blit(pygame.surfarray.make_surface(pa[:, :, ::-1].swapaxes(0, 1)), (px, py))
+        if a.title:
+            s_ = f22.render(a.title, True, (255, 255, 255)); pygame.draw.rect(screen, (0, 0, 0), (10, H - 40, s_.get_width() + 20, 32)); screen.blit(s_, (20, H - 37))
         draw_panel(o, v, gap, zone, inside, sc, island_name, result)
         if slip_t > 0.15 and int(t * 4) % 2 == 0:            # 깜빡이는 미끄러짐 경고
             s_ = f30.render("바퀴 미끄러짐 — 밟아도 안 섭니다", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2; by = H - 250
@@ -569,13 +576,15 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
     put(("결빙 취약 구간 (지도)" if zone else "") + ("  ·  빙판 위" if inside and state["show_ice"] else ""), f18, (255, 220, 120), 30)
     if sc.det is not None: put(f"1차 카메라 위험도  {sc.risk:.2f}", f18, (230, 140, 80), 30)
     if prim.live:                                     # RealSense 를 끄면(2차 방어 장면) 줄째 사라진다
-        put(f"1차 카메라(RealSense) 위험도  {prim.risk:.2f}", f18, (255, 150, 60) if prim.risk >= prim.thr else (230, 200, 140), 30)
+        put(f"1차 카메라({a.primary_label}) 위험도  {prim.risk:.2f}", f18, (255, 150, 60) if prim.risk >= prim.thr else (230, 200, 140), 30)
     rtt = env.rtt_ms[-1] if getattr(env, "rtt_ms", None) else 0.0
     put(f"2차 방어 코어 왕복 {rtt:4.1f} ms   무응답 {getattr(env, 'n_timeout', 0)}" + ("" if rec is not None else f"   실시간 {RT[0]:.2f}×"), f14, (150, 150, 150), 22)
     put(f"파이 메인 프로그램: {'정지' if o.get('degraded') else '동작'}", f18, (255, 120, 120) if o.get("degraded") else (150, 220, 150), 30)
     ps = prim.surface() if prim.s is not None else None
-    if ps is not None and y + ps.get_height() + 40 < H - 120:      # 1차 방어 카메라(RealSense) 화면
-        y += 6; put(f"1차 카메라 (RealSense) 화면", f14, (200, 200, 200), 22); px = x0 + (PANEL - ps.get_width()) // 2
+    if ps is not None and y + ps.get_height() + 40 >= H - 120:     # 자리가 모자라면 줄인다
+        k_ = max(0.2, (H - 160 - y) / ps.get_height()); ps = pygame.transform.smoothscale(ps, (int(ps.get_width() * k_), int(ps.get_height() * k_)))
+    if ps is not None:                                              # 1차 방어 카메라(RealSense) 화면
+        y += 6; put(f"1차 카메라 ({a.primary_label}) 화면", f14, (200, 200, 200), 22); px = x0 + (PANEL - ps.get_width()) // 2
         pygame.draw.rect(screen, (255, 120, 0) if prim.risk >= prim.thr else (90, 90, 90), (px - 3, y - 3, ps.get_width() + 6, ps.get_height() + 6))
         screen.blit(ps, (px, y)); y += ps.get_height() + 10
     y = H - 120

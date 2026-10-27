@@ -158,7 +158,8 @@ try:
             except OSError: pass
             if n % 2 == 0:                                       # 카메라 화면도 작게 (CARLA 화면 왼쪽 아래에 띄운다)
                 x0_, y0_, s_ = box; th = fr.copy(); cv2.rectangle(th, (x0_, y0_), (x0_ + s_, y0_ + s_), (0, 0, 255) if alarm else (255, 255, 255), 6)
-                th = cv2.resize(th, (320, int(320 * fr.shape[0] / fr.shape[1])), interpolation=cv2.INTER_AREA)
+                k_th = min(320 / fr.shape[1], 200 / fr.shape[0])                     # 320×200 안에 (세로 사진도)
+                th = cv2.resize(th, (int(fr.shape[1] * k_th), int(fr.shape[0] * k_th)), interpolation=cv2.INTER_AREA)
                 ok_, jp = cv2.imencode(".jpg", th, [cv2.IMWRITE_JPEG_QUALITY, 70])
                 if ok_ and jp.nbytes < 60000:
                     try: sendq[0].sendto(b"PIM1" + jp.tobytes(), sendq[1])
