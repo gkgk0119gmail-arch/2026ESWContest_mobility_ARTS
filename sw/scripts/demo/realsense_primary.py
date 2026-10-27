@@ -55,7 +55,7 @@ class Source:
             for dev in sorted(glob.glob("/sys/class/video4linux/video*")):
                 name = open(os.path.join(dev, "name")).read().strip()
                 if "RealSense" not in name: continue
-                idx = int(dev.rsplit("video", 1)[1]); cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+                idx = int(dev.rsplit("video", 1)[1]); cap = cv2.VideoCapture(f"/dev/video{idx}", cv2.CAP_V4L2)   # 번호로는 못 여는 경우가 있다
                 cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"YUYV")); cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280); cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
                 ok, fr = cap.read()
                 if ok and fr is not None and fr.ndim == 3 and fr[..., 0].std() > 1 and not np.allclose(fr[..., 0], fr[..., 1]):
@@ -63,7 +63,7 @@ class Source:
                 cap.release()
             raise SystemExit("RealSense RGB 장치를 찾지 못했다. USB 3 포트에 꽂았는지, --source cam:N 으로 직접 주기")
         if spec.startswith("cam:"):
-            self.cap = cv2.VideoCapture(int(spec[4:]), cv2.CAP_V4L2); self.kind = spec; return
+            self.cap = cv2.VideoCapture(f"/dev/video{int(spec[4:])}", cv2.CAP_V4L2); self.kind = spec; return
         p = pathlib.Path(spec)
         if p.is_dir():
             self.imgs = sorted(str(x) for x in p.iterdir() if x.suffix.lower() in (".jpg", ".png", ".jpeg")); self.kind = f"사진 폴더 {len(self.imgs)}장"
