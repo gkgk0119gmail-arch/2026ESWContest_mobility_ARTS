@@ -62,7 +62,7 @@ ap.add_argument("--max-time", type=float, default=60.0, help="--auto 에서 장�
 ap.add_argument("--show-ice", action="store_true", help="처음부터 빙판 구역을 그린다 (I 키)")
 ap.add_argument("--view", choices=["driver", "chase"], default="driver")
 ap.add_argument("--brake-cue", type=float, default=60.0, help="앞차까지 이 거리(m)가 되면 '브레이크!' 안내 (OFF/ON 같은 지점에서 밟게). 0 이면 끔")
-ap.add_argument("--max-kph", type=float, default=80.0, help="최고 속도 제한")
+ap.add_argument("--max-kph", type=float, default=100.0, help="최고 속도 제한")
 ap.add_argument("--no-pip", action="store_true", help="운전석 화면 구석의 작은 3인칭 창을 끈다 (T 키)")
 ap.add_argument("--log-dir", default=os.path.expanduser("~/icepredict_demo/logs"))
 a = ap.parse_args()
