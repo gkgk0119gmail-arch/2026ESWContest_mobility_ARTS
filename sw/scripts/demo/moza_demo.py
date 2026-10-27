@@ -62,6 +62,9 @@ ap.add_argument("--max-time", type=float, default=60.0, help="--auto 에서 장�
 ap.add_argument("--show-ice", action="store_true", help="처음부터 빙판 구역을 그린다 (I 키)")
 ap.add_argument("--view", choices=["driver", "chase"], default="driver")
 ap.add_argument("--brake-cue", type=float, default=60.0, help="앞차까지 이 거리(m)가 되면 '브레이크!' 안내 (OFF/ON 같은 지점에서 밟게). 0 이면 끔")
+ap.add_argument("--abs-cap", type=float, default=0.4, help="빙판 위 브레이크 상한 (CARLA 차에는 ABS 가 없어 바퀴가 잠기면 돈다). 1 이면 끔")
+ap.add_argument("--esc", type=float, default=0.85, help="ESC 대역: 빙판 위 요 각속도를 틱마다 이 비율로 줄인다 (CARLA 차에는 ESC 가 없어 탭 뒤 회전이 커진다). 1 이면 끔")
+ap.add_argument("--auto-steer", choices=["lane", "none"], default="lane", help="--auto 조향: 차선 유지 / 핸들 고정(사람이 손 놓은 상황 시험)")
 ap.add_argument("--max-kph", type=float, default=65.0, help="최고 속도 제한")
 ap.add_argument("--no-pip", action="store_true", help="운전석 화면 구석의 작은 3인칭 창을 끈다 (T 키)")
 ap.add_argument("--log-dir", default=os.path.expanduser("~/icepredict_demo/logs"))
@@ -407,7 +410,7 @@ def run_scene():
         wp = cmap.get_waypoint(tf.location, project_to_road=True); nx = wp.next(6.0); tg = (nx[0] if nx else wp).transform.location
         le = (math.atan2(tg.y - tf.location.y, tg.x - tf.location.x) - y + math.pi) % (2 * math.pi) - math.pi
         if a.auto or wheel is None:
-            steer = max(-0.5, min(0.5, le / 0.61086524 / sc.steer_gain)); thr_d, brk_d = 0.0, 0.0
+            steer = 0.0 if a.auto_steer == "none" else max(-0.5, min(0.5, le / 0.61086524 / sc.steer_gain)); thr_d, brk_d = 0.0, 0.0
         else:
             r0 = wheel.get_axis(0) - state["center"]; steer = max(-1.0, min(1.0, math.tan(1.1 * r0) * 0.55))
             thr_d = pedals.axis(0) if pedals and pedals.ok else 0.0; brk_d = pedals.axis(1) if pedals and pedals.ok else 0.0
@@ -443,8 +446,11 @@ def run_scene():
         if prim_on:                                      # 목표 속도까지 부드럽게 (마른 노면에서 ~0.25 g)
             vt = a.primary_kph / 3.6; thr = min(thr, max(0.0, 0.5 * (vt - v)))
             if v > vt + 0.3: brk = max(brk, min(0.45, 0.12 * (v - vt) + 0.15))
+        if inside and brk > a.abs_cap: brk = a.abs_cap      # ABS 대역: 빙판에서 0.3~0.4 면 이미 마찰 한계 감속 (μ 0.16: 1.57 vs 1.60 m/s²), 더 밟으면 잠겨 돈다. OFF/ON 똑같이
         if sc.hit: thr, brk = 0.0, 1.0
         ego.apply_control(carla.VehicleControl(throttle=float(thr), brake=float(brk), steer=float(steer)))
+        if inside and a.esc < 1.0 and v > 1.0 and not sc.hit:    # ESC 대역 (OFF/ON 똑같이, 직선 빙판): 요 각속도를 틱마다 줄여 회전이 자라지 않게
+            av = ego.get_angular_velocity(); ego.set_target_angular_velocity(carla.Vector3D(av.x, av.y, av.z * a.esc))
         logf.write(f"{t:.2f},{v:.3f},{gap:.2f},{steer:.3f},{thr:.3f},{brk_d:.3f},{o['brake']:.3f},{o['mode']},{o['mu']:.4f},{o['d_need']:.2f},"
                    f"{sc.risk:.3f},{int(zone)},{int(inside)},{int(o['degraded'])}\n")
         if sc.hit and result is None:
