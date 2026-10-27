@@ -155,20 +155,28 @@ class PiMainLink:
 class PrimaryLink:
     """파이 RealSense 1차 방어(realsense_primary.py --send)의 판정 PRI1 을 받는다. 경고 3 연속이면 확정."""
     def __init__(self, addr):
-        self.s = None; self.risk = -1.0; self.alarm_n = 0; self.t_rx = 0.0; self.thr = 0.6
+        self.s = None; self.risk = -1.0; self.alarm_n = 0; self.t_rx = 0.0; self.thr = 0.6; self.jpg = None; self.surf = None; self._jpg_used = None
         if addr == "none": return
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); self.s.bind(("0.0.0.0", int(addr.rsplit(":", 1)[1]))); self.s.setblocking(False)
     def poll(self):
         if not self.s: return
         try:
             while True:
-                b, _ = self.s.recvfrom(64)
+                b, _ = self.s.recvfrom(65535)
+                if b[:4] == b"PIM1": self.jpg = b[4:]; continue                 # 카메라 화면 (작은 JPEG)
                 if b[:4] != b"PRI1" or len(b) < 17: continue
                 self.risk, _pice, self.thr, al = struct.unpack("<fffB", b[4:17]); self.t_rx = time.time()
                 self.alarm_n = self.alarm_n + 1 if al else 0
         except (BlockingIOError, OSError): pass
     @property
     def live(self): return self.s is not None and time.time() - self.t_rx < 1.0
+    def surface(self):
+        """마지막 카메라 화면을 pygame 그림으로 (새 JPEG 이 왔을 때만 다시 푼다)."""
+        if self.jpg is not None and self.jpg is not self._jpg_used:
+            import cv2
+            im = cv2.imdecode(np.frombuffer(self.jpg, np.uint8), cv2.IMREAD_COLOR); self._jpg_used = self.jpg
+            if im is not None: self.surf = pygame.surfarray.make_surface(im[:, :, ::-1].swapaxes(0, 1))
+        return self.surf if self.live else None
     @property
     def confirmed(self): return self.live and self.alarm_n >= 3
 
@@ -349,7 +357,7 @@ def run_scene():
         inside = sc.patch.contains(tf.location)
         if sc.det is not None and int(t / DT) % 2 == 0: sc.risk = sc.camera_risk()
         prim.poll()
-        if prim.confirmed and not prim_on:                # 1차 방어: 카메라가 앞 빙판을 확정 → 경고 + 자동 감속 (장면 끝까지 유지)
+        if prim.confirmed and not prim_on and v > 3.0:     # 1차 방어: 카메라가 앞 빙판을 확정 → 경고 + 자동 감속 (달리는 중에만, 장면 끝까지 유지)
             prim_on = True; ev["events"].append({"t": round(t, 2), "event": "primary_alarm", "risk": round(prim.risk, 3), "kph": round(v * 3.6, 1), "gap": round(gap, 1)})
             print(f"[{t:6.2f}s] 1차 방어 경고 위험도 {prim.risk:.2f} → {a.primary_kph:.0f} km/h 로 감속", flush=True)
             if ffb: ffb.buzz(ms=700, mag=0x6000, period=70)
@@ -398,7 +406,7 @@ def run_scene():
         logf.write(f"{t:.2f},{v:.3f},{gap:.2f},{steer:.3f},{thr:.3f},{brk_d:.3f},{o['brake']:.3f},{o['mode']},{o['mu']:.4f},{o['d_need']:.2f},"
                    f"{sc.risk:.3f},{int(zone)},{int(inside)},{int(o['degraded'])}\n")
         if sc.hit and result is None:
-            result = f"충돌  {prev_v * 3.6:.0f} km/h"; t_end = t + 3.0; ev["collision"] = {"t": round(t, 2), "pre_kph": round(prev_v * 3.6, 1)}
+            result = f"충돌  {prev_v * 3.6:.0f} km/h"; t_end = t + 3.0; ev["collision"] = {"t": round(t, 2), "pre_kph": round(prev_v * 3.6, 1), "with": sc.hit[0], "gap": round(gap, 1)}
         if result is None and v < 0.05 and gap < 40 and t > 5:
             result = f"정지  앞차까지 {gap:.1f} m"; t_end = t + 3.0; ev["stopped"] = {"t": round(t, 2), "gap": round(gap, 2)}
         prev_v = v
@@ -465,6 +473,11 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
     rtt = env.rtt_ms[-1] if getattr(env, "rtt_ms", None) else 0.0
     put(f"2차 방어 코어 왕복 {rtt:4.1f} ms   무응답 {getattr(env, 'n_timeout', 0)}" + ("" if rec is not None else f"   실시간 {RT[0]:.2f}×"), f14, (150, 150, 150), 22)
     put(f"파이 메인 프로그램: {'정지' if o.get('degraded') else '동작'}", f18, (255, 120, 120) if o.get("degraded") else (150, 220, 150), 30)
+    ps = prim.surface() if prim.s is not None else None
+    if ps is not None and y + ps.get_height() + 40 < H - 120:      # 1차 방어 카메라(RealSense) 화면
+        y += 6; put(f"1차 카메라 (RealSense) 화면", f14, (200, 200, 200), 22); px = x0 + (PANEL - ps.get_width()) // 2
+        pygame.draw.rect(screen, (255, 120, 0) if prim.risk >= prim.thr else (90, 90, 90), (px - 3, y - 3, ps.get_width() + 6, ps.get_height() + 6))
+        screen.blit(ps, (px, y)); y += ps.get_height() + 10
     y = H - 120
     for k in ("C 영점  D 2차 방어  A 크루즈  R 다시", "K 파이 메인 죽이기  V 시점  I 빙판 표시"):
         put(k, f14, (130, 130, 130), 22)

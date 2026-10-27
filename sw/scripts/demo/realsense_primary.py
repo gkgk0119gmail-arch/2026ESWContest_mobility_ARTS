@@ -156,6 +156,13 @@ try:
         if sendq:
             try: sendq[0].sendto(b"PRI1" + struct.pack("<fffB", risk, float(p[ICE]), fuser.threshold, int(bool(alarm))), sendq[1])
             except OSError: pass
+            if n % 2 == 0:                                       # 카메라 화면도 작게 (CARLA 화면 왼쪽 아래에 띄운다)
+                x0_, y0_, s_ = box; th = fr.copy(); cv2.rectangle(th, (x0_, y0_), (x0_ + s_, y0_ + s_), (0, 0, 255) if alarm else (255, 255, 255), 6)
+                th = cv2.resize(th, (320, int(320 * fr.shape[0] / fr.shape[1])), interpolation=cv2.INTER_AREA)
+                ok_, jp = cv2.imencode(".jpg", th, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                if ok_ and jp.nbytes < 60000:
+                    try: sendq[0].sendto(b"PIM1" + jp.tobytes(), sendq[1])
+                    except OSError: pass
         h0 = fr.shape[0]; k_ = 720 / h0 if h0 < 600 else 1.0      # 화면만 키운다 (작은 사진에서 글자가 겹치지 않게)
         disp = cv2.resize(fr, None, fx=k_, fy=k_, interpolation=cv2.INTER_NEAREST) if k_ != 1.0 else fr
         out = render(disp, p, risk, alarm, tuple(int(v * k_) for v in box), fps); n += 1; n_alarm += alarm
