@@ -12,3 +12,4 @@ hailort.log
 *.bak
 sw/fw/npu_lib/build/
 sw/src/icepredict.egg-info/
+sw/scripts/demo/venue.env
