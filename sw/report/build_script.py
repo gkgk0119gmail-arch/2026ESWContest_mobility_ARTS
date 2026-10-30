@@ -36,7 +36,7 @@ for k in sorted(SCRIPT):
     tm, act, say = SCRIPT[k]; row = t.add_row().cells
     vals = [f"{k}. {TITLES[k]}", tm, act or "—", say]
     for i, (c, v) in enumerate(zip(row, vals)):
-        c.text = ""; r = c.paragraphs[0].add_run(v); r.font.size = Pt(10 if i == 3 else 9.5)
+        c.text = ""; r = c.paragraphs[0].add_run(v); r.font.size = Pt(9.5 if i == 3 else 9)
         if i == 0: r.bold = True
         if i == 2 and act: r.font.color.rgb = RGBColor(190, 30, 30); r.bold = True
     if act: shade(row[0], "FDECEC")
