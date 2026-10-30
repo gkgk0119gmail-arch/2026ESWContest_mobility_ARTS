@@ -385,7 +385,7 @@ def run_scene():
     sc = Scene(); env.reset()
     if SKID: SKID.stop()
     t = 0.0; prev_v = 0.0; ev = {"defense": state["defense"], "auto": a.auto, "events": []}; banner = None; banner_t = 0.0
-    state["evade_lane"] = None; pb = None; t_cue = None; slip_t = 0.0; skid_on = False; dec_f = 0.0; last_rumble = -9.0; prim_on = False; mu_ice_alerted = False; result = None; t_end = None; last_mode = None; island_lost = 0; last_o = None
+    k_hint = -9.0; state["evade_lane"] = None; pb = None; t_cue = None; slip_t = 0.0; skid_on = False; dec_f = 0.0; last_rumble = -9.0; prim_on = False; mu_ice_alerted = False; result = None; t_end = None; last_mode = None; island_lost = 0; last_o = None
     tag = time.strftime("%m%d_%H%M%S") + ("_on" if state["defense"] else "_off") + ("_auto" if a.auto else "_live")
     logf = open(os.path.join(a.log_dir, f"demo_{tag}.csv"), "w"); logf.write("t,v,gap,steer,thr,brk_drv,brk_sys,mode,mu,d_need,risk,zone,inside,degraded\n")
     clock = time.perf_counter()
@@ -401,7 +401,9 @@ def run_scene():
                 if e.key == pygame.K_i: state["show_ice"] = not state["show_ice"]
                 if e.key == pygame.K_t: state["pip"] = not state["pip"]; sc.set_pip(state["pip"])
                 if e.key == pygame.K_c and wheel: state["center"] = wheel.get_axis(0); print(f"[demo] 휠 영점 {state['center']:+.2f}")
-                if e.key == pygame.K_k:
+                if e.key == pygame.K_k and state["defense"] and not mu_ice_alerted:   # 마찰을 재기 전에 죽이면 지도 정보가 끊겨 탭을 못 한다 — 시연 실수 방지
+                    k_hint = t
+                elif e.key == pygame.K_k:
                     ok = pimain.kill(); state["killed"] = True; ev["events"].append({"t": round(t, 2), "event": "pi_main_kill", "sent": ok})
                     print(f"[{t:6.2f}s] 파이 메인 프로그램 KILL {'보냄' if ok else '(연결 없음)'}", flush=True)
         pimain.poll()
@@ -559,6 +561,9 @@ def run_scene():
         if pb is not None and t - pb[0] < 5.0:
             s_ = f30.render(f"앞차 {pb[2]:.0f} m  ·  정지에 {pb[1]:.0f} m 필요   →   지금 제동", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
             pygame.draw.rect(screen, (200, 110, 0), (bx - 16, 108, s_.get_width() + 32, s_.get_height() + 14)); screen.blit(s_, (bx, 115))
+        if t - k_hint < 2.5:
+            s_ = f30.render("K 는 '빙판 감지' 뒤에 누르세요 — 마찰을 잰 다음 메인 프로그램을 죽입니다", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
+            pygame.draw.rect(screen, (120, 60, 0), (bx - 16, H - 360, s_.get_width() + 32, s_.get_height() + 14)); screen.blit(s_, (bx, H - 353))
         if state["killed"] and o.get("degraded"):
             s_ = f22.render("파이 메인 프로그램 정지 — 2차 방어는 격리 코어에서 계속 동작", True, (255, 230, 120))
             pygame.draw.rect(screen, (0, 0, 0), (10, H - 44, s_.get_width() + 20, 36)); screen.blit(s_, (20, H - 40))
