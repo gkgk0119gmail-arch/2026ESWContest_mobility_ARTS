@@ -59,6 +59,7 @@ ap.add_argument("--primary-after", type=float, default=0.0, help="장면 시작 
 ap.add_argument("--primary-label", default="RealSense", help="1차 카메라 입력 이름 (사진 파일을 넣으면 '노면 사진 입력')")
 ap.add_argument("--title", default=None, help="화면 왼쪽 위 장면 제목 (녹화용)")
 ap.add_argument("--primary-stop", action="store_true", help="1차 방어 경고가 확정되면 빙판 앞에서 정지 (1차 방어 시연 장면)")
+ap.add_argument("--scenes", action="store_true", help="결선 시연: 1 키 = 1차 방어 장면(자동 직진, RealSense 로 제동 결정), 2 키 = 2차 방어 장면(페달 사람·조향 자동). 장면이 끝나도 종료하지 않는다")
 ap.add_argument("--primary-kph", type=float, default=30.0, help="1차 방어 경고 때 낮추는 속도")
 ap.add_argument("--size", default="1600x900"); ap.add_argument("--fullscreen", action="store_true")
 ap.add_argument("--record", default=None, help="화면을 mp4 로 녹화"); ap.add_argument("--kill-at", type=float, default=None,
@@ -378,7 +379,19 @@ if a.record:
 os.makedirs(a.log_dir, exist_ok=True)
 
 RT = [1.0]                  # 시뮬레이션 시간 / 실제 시간 (1 = 실시간)
-state = dict(defense=a.defense == "on", cruise=a.auto, view=a.view, show_ice=a.show_ice, center=0.0, killed=False, pip=not a.no_pip)
+def set_scene(name):
+    """결선 시연 장면 전환 — 프로그램을 다시 켜지 않고 1/2 키로 바꾼다."""
+    state["scene"] = name; state["evade_lane"] = None
+    if name == "first":                         # 1차 방어: 자동 직진 80 km/h, 2차 방어 끔, 제동 여부는 RealSense 판정만
+        a.auto = True; a.assist_steer = False; a.primary_stop = True; a.patch_ahead = 250.0; state["defense"] = False; state["prim_enabled"] = True
+        a.title = "1차 방어 — 카메라(RealSense)가 앞 빙판을 보면 미리 선다"
+    else:                                       # 2차 방어: 페달 사람, 조향 자동(브레이크 지점에서 회피), RealSense 안 받음
+        a.auto = False; a.assist_steer = True; a.primary_stop = False; a.patch_ahead = 100.0; state["defense"] = True; state["prim_enabled"] = False
+        a.title = None
+    state["cruise"] = a.auto
+
+
+state = dict(defense=a.defense == "on", cruise=a.auto, view=a.view, show_ice=a.show_ice, center=0.0, killed=False, pip=not a.no_pip, prim_enabled=a.primary != "none", scene=None)
 
 
 def run_scene():
@@ -395,6 +408,8 @@ def run_scene():
             if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE): return "quit", sc, ev, logf
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_r: return "restart", sc, ev, logf
+                if a.scenes and e.key in (pygame.K_1, pygame.K_KP1): set_scene("first"); return "restart", sc, ev, logf
+                if a.scenes and e.key in (pygame.K_2, pygame.K_KP2): set_scene("second"); return "restart", sc, ev, logf
                 if e.key == pygame.K_d: state["defense"] = not state["defense"]; return "restart", sc, ev, logf
                 if e.key == pygame.K_a: state["cruise"] = not state["cruise"]
                 if e.key == pygame.K_v: state["view"] = "chase" if state["view"] == "driver" else "driver"; sc.use_view(state["view"])
@@ -419,7 +434,7 @@ def run_scene():
         inside = sc.patch.contains(tf.location)
         if sc.det is not None and int(t / DT) % 2 == 0: sc.risk = sc.camera_risk()
         prim.poll()
-        if prim.confirmed and not prim_on and v > 3.0 and t >= a.primary_after:     # 1차 방어: 카메라가 앞 빙판을 확정 → 경고 + 자동 감속 (달리는 중에만, 장면 끝까지 유지)
+        if state["prim_enabled"] and prim.confirmed and not prim_on and v > 3.0 and t >= a.primary_after:     # 1차 방어: 카메라가 앞 빙판을 확정 → 경고 + 자동 감속 (달리는 중에만, 장면 끝까지 유지)
             prim_on = True; ev["events"].append({"t": round(t, 2), "event": "primary_alarm", "risk": round(prim.risk, 3), "kph": round(v * 3.6, 1), "gap": round(gap, 1)})
             print(f"[{t:6.2f}s] 1차 방어 경고 위험도 {prim.risk:.2f} → {a.primary_kph:.0f} km/h 로 감속", flush=True)
             if ffb: ffb.buzz(ms=700, mag=0x6000, period=70)
@@ -574,8 +589,8 @@ def run_scene():
         pygame.display.flip()
         if rec is not None and int(t / DT) % 2 == 0:
             rec.write(pygame.surfarray.array3d(screen).swapaxes(0, 1)[:, :, ::-1].copy())
-        if a.auto and t > a.max_time: return "quit", sc, ev, logf
-        if t_end is not None and t >= t_end: return ("quit" if a.auto else "hold"), sc, ev, logf
+        if a.auto and t > a.max_time: return ("hold" if a.scenes else "quit"), sc, ev, logf
+        if t_end is not None and t >= t_end: return ("quit" if a.auto and not a.scenes else "hold"), sc, ev, logf
         # 실시간 맞추기 (동기 모드 50 Hz)
         if int(t / DT) % 50 == 0:
             now_ = time.perf_counter(); RT[0] = 1.0 / max(1e-3, (now_ - getattr(run_scene, "_t50", now_ - 1.0))); run_scene._t50 = now_
@@ -609,12 +624,12 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
         pygame.draw.rect(screen, col, (x0 + 20, y, int(min(val, 200) * sc_), 18)); y += 32
     put(("결빙 취약 구간 (지도)" if zone else "") + ("  ·  빙판 위" if inside and state["show_ice"] else ""), f18, (255, 220, 120), 30)
     if sc.det is not None: put(f"1차 카메라 위험도  {sc.risk:.2f}", f18, (230, 140, 80), 30)
-    if prim.live:                                     # RealSense 를 끄면(2차 방어 장면) 줄째 사라진다
+    if prim.live and state["prim_enabled"]:           # RealSense 를 끄면(2차 방어 장면) 줄째 사라진다
         put(f"1차 카메라({a.primary_label}) 위험도  {prim.risk:.2f}", f18, (255, 150, 60) if prim.risk >= prim.thr else (230, 200, 140), 30)
     rtt = env.rtt_ms[-1] if getattr(env, "rtt_ms", None) else 0.0
     put(f"2차 방어 코어 왕복 {rtt:4.1f} ms   무응답 {getattr(env, 'n_timeout', 0)}" + ("" if rec is not None else f"   실시간 {RT[0]:.2f}×"), f14, (150, 150, 150), 22)
     put(f"파이 메인 프로그램: {'정지' if o.get('degraded') else '동작'}", f18, (255, 120, 120) if o.get("degraded") else (150, 220, 150), 30)
-    ps = prim.surface() if prim.s is not None else None
+    ps = prim.surface() if prim.s is not None and state["prim_enabled"] else None
     if ps is not None and y + ps.get_height() + 40 >= H - 120:     # 자리가 모자라면 줄인다
         k_ = max(0.2, (H - 160 - y) / ps.get_height()); ps = pygame.transform.smoothscale(ps, (int(ps.get_width() * k_), int(ps.get_height() * k_)))
     if ps is not None:                                              # 1차 방어 카메라(RealSense) 화면
@@ -622,13 +637,31 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
         pygame.draw.rect(screen, (255, 120, 0) if prim.risk >= prim.thr else (90, 90, 90), (px - 3, y - 3, ps.get_width() + 6, ps.get_height() + 6))
         screen.blit(ps, (px, y)); y += ps.get_height() + 10
     y = H - 120
-    for k in ("C 영점  D 2차 방어  A 크루즈  R 다시", "K 파이 메인 죽이기  V 시점  I 빙판  T 3인칭 창"):
+    for k in ("C 영점  D 2차 방어  A 크루즈  R 다시", ("1 1차 장면  2 2차 장면  K 파이 메인 죽이기" if a.scenes else "K 파이 메인 죽이기  V 시점  I 빙판  T 3인칭 창")):
         put(k, f14, (130, 130, 130), 22)
     put("크루즈 " + ("ON" if state["cruise"] else "OFF"), f18, (180, 180, 180), 24)
 
 
+def wait_scene_key():
+    """결선 시연 대기 화면 — 1/2 를 누를 때까지 아무것도 출발하지 않는다."""
+    while True:
+        screen.fill((14, 18, 28))
+        for k_, (txt_, f_, col_) in enumerate([("IcePredict 시연", f44, (240, 240, 240)),
+                                              ("1  —  1차 방어: 카메라(RealSense)가 빙판을 보면 미리 선다", f30, (110, 190, 255)),
+                                              ("2  —  2차 방어: 노면 확인 탭으로 마찰을 재서 제때 선다 (D 로 OFF/ON, K 고장 격리)", f30, (255, 150, 120)),
+                                              ("ESC 끝", f22, (150, 150, 150))]):
+            s_ = f_.render(txt_, True, col_); screen.blit(s_, ((W - s_.get_width()) // 2, H // 2 - 150 + k_ * 80))
+        pygame.display.flip()
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE): return False
+            if e.type == pygame.KEYDOWN and e.key in (pygame.K_1, pygame.K_KP1): set_scene("first"); return True
+            if e.type == pygame.KEYDOWN and e.key in (pygame.K_2, pygame.K_KP2): set_scene("second"); return True
+        world.tick(); time.sleep(0.02)
+
+
 try:
     while True:
+        if a.scenes and state["scene"] is None and not wait_scene_key(): break
         what, sc, ev, logf = run_scene()
         logf.close(); ev["result"] = "crash" if "collision" in ev else ("stopped" if "stopped" in ev else "none")
         (pathlib.Path(a.log_dir) / f"demo_{time.strftime('%m%d_%H%M%S')}.json").write_text(json.dumps(ev, indent=1, ensure_ascii=False))
@@ -640,6 +673,8 @@ try:
                     if e.type == pygame.KEYDOWN and e.key in (pygame.K_r, pygame.K_d):
                         if e.key == pygame.K_d: state["defense"] = not state["defense"]
                         what = "restart"; waiting = False
+                    if a.scenes and e.type == pygame.KEYDOWN and e.key in (pygame.K_1, pygame.K_KP1, pygame.K_2, pygame.K_KP2):
+                        set_scene("first" if e.key in (pygame.K_1, pygame.K_KP1) else "second"); what = "restart"; waiting = False
                 world.tick(); time.sleep(0.02)
         sc.destroy(); state["killed"] = False; state["cruise"] = a.auto
         if what == "quit": break
