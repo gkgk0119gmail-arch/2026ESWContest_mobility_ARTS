@@ -422,6 +422,18 @@ def run_scene():
             print(f"[{t:6.2f}s] 1차 방어 경고 위험도 {prim.risk:.2f} → {a.primary_kph:.0f} km/h 로 감속", flush=True)
             if ffb: ffb.buzz(ms=700, mag=0x6000, period=70)
             if BEEP: BEEP.play(loops=2)
+        def evade_steer():
+            if state.get("evade_lane") is None:
+                L_ = wp.get_left_lane(); R_ = wp.get_right_lane(); ok_ = lambda w_: w_ is not None and w_.lane_type == carla.LaneType.Driving and w_.lane_id * wp.lane_id > 0
+                state["evade_lane"] = (L_.lane_id if ok_(L_) else (R_.lane_id if ok_(R_) else wp.lane_id))
+                ev["events"].append({"t": round(t, 2), "event": "evade", "to_lane": state["evade_lane"], "from_lane": wp.lane_id, "gap": round(gap, 1), "kph": round(v * 3.6, 1)})
+            tw_ = wp
+            if wp.lane_id != state["evade_lane"]:
+                for side_ in (wp.get_left_lane(), wp.get_right_lane()):
+                    if side_ is not None and side_.lane_id == state["evade_lane"]: tw_ = side_
+            nx_ = tw_.next(10.0); tg_ = (nx_[0] if nx_ else tw_).transform.location
+            le_ = (math.atan2(tg_.y - tf.location.y, tg_.x - tf.location.x) - y + math.pi) % (2 * math.pi) - math.pi
+            return max(-0.5, min(0.5, 1.6 * le_ / 0.61086524 / sc.steer_gain))
         # --- 운전자 입력
         wp = cmap.get_waypoint(tf.location, project_to_road=True); nx = wp.next(6.0); tg = (nx[0] if nx else wp).transform.location
         le = (math.atan2(tg.y - tf.location.y, tg.x - tf.location.x) - y + math.pi) % (2 * math.pi) - math.pi
@@ -431,22 +443,13 @@ def run_scene():
                 if t_cue is None:
                     t_cue = t; state["cruise"] = False; ev["events"].append({"t": round(t, 2), "event": "driver_brake", "gap": round(gap, 1), "kph": round(v * 3.6, 1)})
                 brk_d = 1.0                                                     # 사람: 앞차가 보이면 풀 브레이크
-                if a.auto_driver == "evade":                                     # + 옆 차선으로 피하려 한다 (차선 변경 — 벽까지 꺾지 않는다)
-                    if state.get("evade_lane") is None:
-                        L_ = wp.get_left_lane(); R_ = wp.get_right_lane(); ok_ = lambda w_: w_ is not None and w_.lane_type == carla.LaneType.Driving and w_.lane_id * wp.lane_id > 0
-                        state["evade_lane"] = (L_.lane_id if ok_(L_) else (R_.lane_id if ok_(R_) else wp.lane_id))
-                        ev["events"].append({"t": round(t, 2), "event": "evade", "to_lane": state["evade_lane"], "from_lane": wp.lane_id})
-                    tw_ = wp
-                    if wp.lane_id != state["evade_lane"]:
-                        for side_ in (wp.get_left_lane(), wp.get_right_lane()):
-                            if side_ is not None and side_.lane_id == state["evade_lane"]: tw_ = side_
-                    nx_ = tw_.next(10.0); tg_ = (nx_[0] if nx_ else tw_).transform.location
-                    le_ = (math.atan2(tg_.y - tf.location.y, tg_.x - tf.location.x) - y + math.pi) % (2 * math.pi) - math.pi
-                    steer = max(-0.5, min(0.5, 1.6 * le_ / 0.61086524 / sc.steer_gain))
+                if a.auto_driver == "evade": steer = evade_steer()           # + 옆 차선으로 피하려 한다 (차선 변경 — 벽까지 꺾지 않는다)
         else:
             r0 = wheel.get_axis(0) - state["center"]; steer = max(-1.0, min(1.0, math.tan(1.1 * r0) * 0.55))
-            if a.assist_steer: steer = max(-0.5, min(0.5, le / 0.61086524 / sc.steer_gain))
             thr_d = pedals.axis(0) if pedals and pedals.ok else 0.0; brk_d = pedals.axis(1) if pedals and pedals.ok else 0.0
+            if a.assist_steer:                                              # 조향 자동: 차선 유지, 사람이 브레이크 지점에서 밟으면 옆 차선으로 피한다
+                steer = max(-0.5, min(0.5, le / 0.61086524 / sc.steer_gain))
+                if a.brake_cue > 0 and (state.get("evade_lane") is not None or (0 < gap <= a.brake_cue and brk_d > 0.2)): steer = evade_steer()
         thr_acc = max(0.0, min(0.8, 0.6 * (a.target_kph / 3.6 - v) + 0.25)) if state["cruise"] else 0.0
         if state["cruise"] and brk_d > 0.05: state["cruise"] = False                  # 운전자가 밟으면 크루즈 해제
         # --- 2차 방어 (파이 격리 코어)
