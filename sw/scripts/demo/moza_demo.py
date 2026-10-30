@@ -232,7 +232,7 @@ class Scene:
         world.set_weather(carla.WeatherParameters.ClearNoon)
         self.sp = straight_spawn(a.patch_ahead + a.obstacle_in + 40, a.spawn_rank)
         self.ego = world.try_spawn_actor(bl.find("vehicle.tesla.model3"), self.sp); self.actors.append(self.ego); world.tick()
-        self.steer_gain = float(self.ego.get_physics_control().wheels[0].max_steer_angle) / 35.0
+        self.max_steer = float(self.ego.get_physics_control().wheels[0].max_steer_angle); self.steer_gain = self.max_steer / 35.0
         wp0 = cmap.get_waypoint(self.ego.get_location(), project_to_road=True)
         self.entry = follow_lane(wp0, a.patch_ahead)
         plen = a.obstacle_in - 2.5                                     # 정지 차량은 트리거 밖
@@ -385,7 +385,7 @@ def run_scene():
     sc = Scene(); env.reset()
     if SKID: SKID.stop()
     t = 0.0; prev_v = 0.0; ev = {"defense": state["defense"], "auto": a.auto, "events": []}; banner = None; banner_t = 0.0
-    pb = None; t_cue = None; slip_t = 0.0; skid_on = False; dec_f = 0.0; last_rumble = -9.0; prim_on = False; mu_ice_alerted = False; result = None; t_end = None; last_mode = None; island_lost = 0; last_o = None
+    state["evade_lane"] = None; pb = None; t_cue = None; slip_t = 0.0; skid_on = False; dec_f = 0.0; last_rumble = -9.0; prim_on = False; mu_ice_alerted = False; result = None; t_end = None; last_mode = None; island_lost = 0; last_o = None
     tag = time.strftime("%m%d_%H%M%S") + ("_on" if state["defense"] else "_off") + ("_auto" if a.auto else "_live")
     logf = open(os.path.join(a.log_dir, f"demo_{tag}.csv"), "w"); logf.write("t,v,gap,steer,thr,brk_drv,brk_sys,mode,mu,d_need,risk,zone,inside,degraded\n")
     clock = time.perf_counter()
@@ -431,8 +431,18 @@ def run_scene():
                 if t_cue is None:
                     t_cue = t; state["cruise"] = False; ev["events"].append({"t": round(t, 2), "event": "driver_brake", "gap": round(gap, 1), "kph": round(v * 3.6, 1)})
                 brk_d = 1.0                                                     # 사람: 앞차가 보이면 풀 브레이크
-                if a.auto_driver == "evade":                                     # + 왼쪽으로 꺾어 피하려 한다 (1.2 s), 그 뒤 다시 펴기
-                    dtc = t - t_cue; steer = -0.35 * min(1.0, dtc / 0.3) if dtc < 1.2 else max(-0.35, min(0.0, -0.35 * (1.8 - dtc) / 0.6))
+                if a.auto_driver == "evade":                                     # + 옆 차선으로 피하려 한다 (차선 변경 — 벽까지 꺾지 않는다)
+                    if state.get("evade_lane") is None:
+                        L_ = wp.get_left_lane(); R_ = wp.get_right_lane(); ok_ = lambda w_: w_ is not None and w_.lane_type == carla.LaneType.Driving and w_.lane_id * wp.lane_id > 0
+                        state["evade_lane"] = (L_.lane_id if ok_(L_) else (R_.lane_id if ok_(R_) else wp.lane_id))
+                        ev["events"].append({"t": round(t, 2), "event": "evade", "to_lane": state["evade_lane"], "from_lane": wp.lane_id})
+                    tw_ = wp
+                    if wp.lane_id != state["evade_lane"]:
+                        for side_ in (wp.get_left_lane(), wp.get_right_lane()):
+                            if side_ is not None and side_.lane_id == state["evade_lane"]: tw_ = side_
+                    nx_ = tw_.next(10.0); tg_ = (nx_[0] if nx_ else tw_).transform.location
+                    le_ = (math.atan2(tg_.y - tf.location.y, tg_.x - tf.location.x) - y + math.pi) % (2 * math.pi) - math.pi
+                    steer = max(-0.5, min(0.5, 1.6 * le_ / 0.61086524 / sc.steer_gain))
         else:
             r0 = wheel.get_axis(0) - state["center"]; steer = max(-1.0, min(1.0, math.tan(1.1 * r0) * 0.55))
             if a.assist_steer: steer = max(-0.5, min(0.5, le / 0.61086524 / sc.steer_gain))
@@ -486,8 +496,13 @@ def run_scene():
             elif not slipping and skid_on: SKID.stop(); skid_on = False
         if slipping and ffb and t - last_rumble > 0.6: ffb.buzz(ms=550, mag=0x4000, period=25); last_rumble = t
         ego.apply_control(carla.VehicleControl(throttle=float(thr), brake=float(brk), steer=float(steer)))
-        if inside and a.esc < 1.0 and v > 1.0 and not sc.hit:    # ESC 대역 (OFF/ON 똑같이, 직선 빙판): 요 각속도를 틱마다 줄여 회전이 자라지 않게
-            av = ego.get_angular_velocity(); ego.set_target_angular_velocity(carla.Vector3D(av.x, av.y, av.z * a.esc))
+        if inside and a.esc < 1.0 and v > 1.0 and not sc.hit:    # ESC 대역 (OFF/ON 똑같이): 운전자가 꺾은 만큼의 요 각속도(마찰 한계 안)는 두고, 넘는 회전(스핀)만 줄인다
+            av = ego.get_angular_velocity()
+            r_des = math.degrees(v * math.tan(math.radians(steer * sc.max_steer)) / 2.875)          # 자전거 모델, 축거 2.875 m
+            r_lim = math.degrees(0.82 * a.friction * 9.81 / v)                                       # 빙판 마찰로 낼 수 있는 최대 요 각속도
+            r_des = max(-r_lim, min(r_lim, r_des))
+            if abs(av.z) > abs(r_des) or av.z * r_des < 0:
+                ego.set_target_angular_velocity(carla.Vector3D(av.x, av.y, r_des + (av.z - r_des) * a.esc))
         logf.write(f"{t:.2f},{v:.3f},{gap:.2f},{steer:.3f},{thr:.3f},{brk_d:.3f},{o['brake']:.3f},{o['mode']},{o['mu']:.4f},{o['d_need']:.2f},"
                    f"{sc.risk:.3f},{int(zone)},{int(inside)},{int(o['degraded'])}\n")
         if sc.hit and result is None:
