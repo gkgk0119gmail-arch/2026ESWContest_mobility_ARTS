@@ -493,7 +493,8 @@ def run_scene():
         if sc.hit and result is None:
             result = (f"충돌 (앞차)  {prev_v * 3.6:.0f} km/h" if sc.hit[0].startswith("vehicle.") else f"벽 충돌  {prev_v * 3.6:.0f} km/h (장면 이탈)"); t_end = t + 3.0; ev["collision"] = {"t": round(t, 2), "pre_kph": round(prev_v * 3.6, 1), "with": sc.hit[0], "gap": round(gap, 1)}
         if result is None and prim_on and a.primary_stop and v < 0.05 and t > 3:
-            result = f"빙판 앞 정지  (빙판까지 {max(0.0, a.patch_ahead - s_prog):.0f} m)"; t_end = t + 3.0; ev["stopped"] = {"t": round(t, 2), "gap": round(gap, 2), "to_ice": round(a.patch_ahead - s_prog, 1)}
+            d_ice_ = a.patch_ahead - s_prog
+            result = (f"빙판 앞 정지  (빙판까지 {d_ice_:.0f} m)" if d_ice_ >= 0 else f"빙판 위 정지  (감지 늦음 — 빙판 안 {-d_ice_:.0f} m)"); t_end = t + 3.0; ev["stopped"] = {"t": round(t, 2), "gap": round(gap, 2), "to_ice": round(a.patch_ahead - s_prog, 1)}
         if result is None and v < 0.05 and gap < 80 and t > 5:
             result = f"정지  앞차까지 {gap:.1f} m"; t_end = t + 3.0; ev["stopped"] = {"t": round(t, 2), "gap": round(gap, 2)}
         prev_v = v
@@ -515,6 +516,9 @@ def run_scene():
             px, py = 14, H - pim.height - 56
             pygame.draw.rect(screen, (230, 230, 230), (px - 3, py - 3, pim.width + 6, pim.height + 6))
             screen.blit(pygame.surfarray.make_surface(pa[:, :, ::-1].swapaxes(0, 1)), (px, py))
+        if a.primary_stop and not prim_on and result is None and a.patch_ahead - s_prog > 0:   # 1차 방어 시연: 언제 비추는지 발표자·관객에게
+            s_ = f30.render(f"카메라에 앞 노면을 비추세요  —  빙판까지 {a.patch_ahead - s_prog:.0f} m", True, (255, 255, 255)); bx = (VW - s_.get_width()) // 2
+            pygame.draw.rect(screen, (30, 90, 160), (bx - 16, H - 300, s_.get_width() + 32, s_.get_height() + 14)); screen.blit(s_, (bx, H - 293))
         if a.title:
             s_ = f22.render(a.title, True, (255, 255, 255)); pygame.draw.rect(screen, (0, 0, 0), (10, H - 40, s_.get_width() + 20, 32)); screen.blit(s_, (20, H - 37))
         draw_panel(o, v, gap, zone, inside, sc, island_name, result)
