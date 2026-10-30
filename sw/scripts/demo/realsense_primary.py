@@ -36,6 +36,7 @@ ap.add_argument("--crop", type=float, default=0.6, help="화면 가운데 정사
 ap.add_argument("--record", default=None); ap.add_argument("--headless", action="store_true")
 ap.add_argument("--seconds", type=float, default=0, help="이 시간만 돌고 끝 (0 = 계속)")
 ap.add_argument("--per-image", type=float, default=2.0, help="사진 폴더 입력일 때 장당 초")
+ap.add_argument("--recapture", action="store_true", help="화면·종이 재촬영 보정: 판정 영역의 밝기 대비(CLAHE)·채널 정규화 (시연용, 일반 마른 노면에서 가끔 오경보)")
 ap.add_argument("--send", default=None, help="판정을 CARLA 시연(moza_demo --primary listen:PORT)으로 보낸다: HOST:PORT")
 a = ap.parse_args()
 
@@ -100,6 +101,11 @@ fuser = RiskFuser(ctx.weights, threshold=ctx.threshold)
 def infer(bgr):
     h, w = bgr.shape[:2]; s = int(min(h, w) * a.crop); y0, x0 = (h - s) // 2, (w - s) // 2
     roi = bgr[y0:y0 + s, x0:x0 + s]
+    if a.recapture:                                          # 재촬영으로 어둡고 뿌옇게 찍힌 사진의 질감을 되살린다 (카메라 자동 노출·화이트밸런스 보정과 같은 일)
+        lab = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB); l_, a_, b_ = cv2.split(lab)
+        l_ = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4)).apply(l_)
+        r_ = cv2.cvtColor(cv2.merge([l_, a_, b_]), cv2.COLOR_LAB2BGR).astype(np.float32)
+        roi = np.clip((r_ - r_.mean((0, 1))) / (r_.std((0, 1)) + 1e-3) * 48 + 120, 0, 255).astype(np.uint8)
     x = cv2.resize(roi, (224, 224), interpolation=cv2.INTER_AREA)[:, :, ::-1].astype(np.float32).transpose(2, 0, 1) / 255.0
     lg = sess.run(None, {iname: ((x - MEAN) / STD)[None]})[0][0]; e = np.exp(lg - lg.max()); p = e / e.sum()
     r = fuser.fuse(p.tolist(), spec=None, lane=None)
@@ -130,7 +136,7 @@ def render(bgr, p, risk, alarm, box, fps):
     d.text((X, y), f"위험도  {risk:.2f}   (경고 문턱 {fuser.threshold:.2f}, 기온 {a.temp:+.0f}°C)", font=FONT[22], fill=(255, 200, 120)); y += 36
     d.rectangle((X, y, X + PANEL - 60, y + 18), outline=(120, 120, 120)); d.rectangle((X, y, X + int((PANEL - 60) * min(1, risk)), y + 18), fill=(255, 170, 60))
     tx = X + int((PANEL - 60) * fuser.threshold); d.line((tx, y - 6, tx, y + 24), fill=(255, 255, 255), width=3); y += 44
-    d.text((X, h - 64), f"판정 영역 {a.crop:.2f} (+/- 키)", font=FONT[18], fill=(130, 130, 130))
+    d.text((X, h - 64), f"판정 영역 {a.crop:.2f} (+/- 키)   재촬영 보정 {'켬' if a.recapture else '끔'} (B 키)", font=FONT[18], fill=(130, 130, 130))
     d.text((X, h - 40), f"{fps:4.1f} fps · RoadNet onnx (CPU)", font=FONT[18], fill=(130, 130, 130))
     if alarm:
         msg = "블랙아이스 감지 — 감속하세요"
@@ -175,6 +181,7 @@ try:
             cv2.imshow("IcePredict 1st defense", out)
             k = cv2.waitKey(1) & 0xFF
             if k in (27, ord("q")): break
+            if k in (ord("b"), ord("B")): a.recapture = not a.recapture                # 재촬영 보정 켜기/끄기
             if k in (ord("+"), ord("=")): a.crop = min(1.0, a.crop + 0.05)       # 판정 영역을 카메라에 비친 사진 크기에 맞춘다
             if k in (ord("-"), ord("_")): a.crop = max(0.2, a.crop - 0.05)
         if a.seconds and time.time() - t_start > a.seconds: break
