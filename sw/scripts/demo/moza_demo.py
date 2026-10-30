@@ -170,7 +170,7 @@ class PiMainLink:
 class PrimaryLink:
     """파이 RealSense 1차 방어(realsense_primary.py --send)의 판정 PRI1 을 받는다. 경고 3 연속이면 확정."""
     def __init__(self, addr):
-        self.s = None; self.risk = -1.0; self.alarm_n = 0; self.t_rx = 0.0; self.thr = 0.6; self.jpg = None; self.surf = None; self._jpg_used = None
+        self.s = None; self.risk = -1.0; self.alarm_n = 0; self.t_rx = 0.0; self.thr = 0.6; self.jpg = None; self.surf = None; self._jpg_used = None; self.probs = None
         if addr == "none": return
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); self.s.bind(("0.0.0.0", int(addr.rsplit(":", 1)[1]))); self.s.setblocking(False)
     def poll(self):
@@ -178,7 +178,8 @@ class PrimaryLink:
         try:
             while True:
                 b, _ = self.s.recvfrom(65535)
-                if b[:4] == b"PIM1": self.jpg = b[4:]; continue                 # 카메라 화면 (작은 JPEG)
+                if b[:4] == b"PIM1": self.jpg = b[4:]; continue                 # 카메라 화면 (JPEG)
+                if b[:4] == b"PRI2" and len(b) >= 29: self.probs = struct.unpack("<4f", b[4:20]); continue   # 마른·젖은·블랙아이스·포트홀 확률
                 if b[:4] != b"PRI1" or len(b) < 17: continue
                 self.risk, _pice, self.thr, al = struct.unpack("<fffB", b[4:17]); self.t_rx = time.time()
                 self.alarm_n = self.alarm_n + 1 if al else 0
@@ -408,8 +409,7 @@ def run_scene():
             if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE): return "quit", sc, ev, logf
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_r: return "restart", sc, ev, logf
-                if a.scenes and e.key in (pygame.K_1, pygame.K_KP1): set_scene("first"); return "restart", sc, ev, logf
-                if a.scenes and e.key in (pygame.K_2, pygame.K_KP2): set_scene("second"); return "restart", sc, ev, logf
+                if a.scenes and e.key in SCENE_KEYS: state["scene"] = None; state["next_key"] = e.key; return "restart", sc, ev, logf
                 if e.key == pygame.K_d: state["defense"] = not state["defense"]; return "restart", sc, ev, logf
                 if e.key == pygame.K_a: state["cruise"] = not state["cruise"]
                 if e.key == pygame.K_v: state["view"] = "chase" if state["view"] == "driver" else "driver"; sc.use_view(state["view"])
@@ -630,33 +630,80 @@ def draw_panel(o, v, gap, zone, inside, sc, island_name, result):
     put(f"2차 방어 코어 왕복 {rtt:4.1f} ms   무응답 {getattr(env, 'n_timeout', 0)}" + ("" if rec is not None else f"   실시간 {RT[0]:.2f}×"), f14, (150, 150, 150), 22)
     put(f"파이 메인 프로그램: {'정지' if o.get('degraded') else '동작'}", f18, (255, 120, 120) if o.get("degraded") else (150, 220, 150), 30)
     ps = prim.surface() if prim.s is not None and state["prim_enabled"] else None
-    if ps is not None and y + ps.get_height() + 40 >= H - 120:     # 자리가 모자라면 줄인다
+    if ps is not None and ps.get_width() > PANEL - 60:             # 패널 폭에 맞춘다 (RealSense 는 640 px 로 보낸다)
+        k_ = (PANEL - 60) / ps.get_width(); ps = pygame.transform.smoothscale(ps, (int(ps.get_width() * k_), int(ps.get_height() * k_)))
+    if ps is not None and y + ps.get_height() + 150 >= H - 120:    # 자리가 모자라면 줄인다 (아래 확률 막대 자리 포함)
         k_ = max(0.2, (H - 160 - y) / ps.get_height()); ps = pygame.transform.smoothscale(ps, (int(ps.get_width() * k_), int(ps.get_height() * k_)))
     if ps is not None:                                              # 1차 방어 카메라(RealSense) 화면
         y += 6; put(f"1차 카메라 ({a.primary_label}) 화면", f14, (200, 200, 200), 22); px = x0 + (PANEL - ps.get_width()) // 2
         pygame.draw.rect(screen, (255, 120, 0) if prim.risk >= prim.thr else (90, 90, 90), (px - 3, y - 3, ps.get_width() + 6, ps.get_height() + 6))
         screen.blit(ps, (px, y)); y += ps.get_height() + 10
+        if prim.probs is not None:                                  # 4분류 확률 막대 — 사진이 맞게 판정되는지 보여 준다
+            for nm_, pv_, col_ in zip(("마른 노면", "젖은 노면", "블랙아이스", "포트홀"), prim.probs,
+                                      ((150, 200, 150), (120, 170, 230), (255, 110, 90), (190, 170, 130))):
+                screen.blit(f14.render(f"{nm_} {pv_ * 100:4.1f} %", True, col_), (x0 + 20, y))
+                pygame.draw.rect(screen, (60, 60, 64), (x0 + 150, y + 4, PANEL - 180, 12)); pygame.draw.rect(screen, col_, (x0 + 150, y + 4, int((PANEL - 180) * pv_), 12)); y += 22
     y = H - 120
-    for k in ("C 영점  D 2차 방어  A 크루즈  R 다시", ("1 1차 장면  2 2차 장면  K 파이 메인 죽이기" if a.scenes else "K 파이 메인 죽이기  V 시점  I 빙판  T 3인칭 창")):
+    for k in ("C 영점  D 2차 방어  A 크루즈  R 다시", ("1 노면 판정  2 1차 주행  3 2차 방어  K 파이 메인" if a.scenes else "K 파이 메인 죽이기  V 시점  I 빙판  T 3인칭 창")):
         put(k, f14, (130, 130, 130), 22)
     put("크루즈 " + ("ON" if state["cruise"] else "OFF"), f18, (180, 180, 180), 24)
 
 
-def wait_scene_key():
-    """결선 시연 대기 화면 — 1/2 를 누를 때까지 아무것도 출발하지 않는다."""
+SCENE_KEYS = (pygame.K_1, pygame.K_KP1, pygame.K_2, pygame.K_KP2, pygame.K_3, pygame.K_KP3)
+
+
+def surface_scene():
+    """1 키 — RealSense 노면 판정: 카메라 화면을 크게, 4분류 확률 막대와 경고를 띄운다 (차는 달리지 않는다). 2/3/ESC 로 나간다."""
+    names = (("마른 노면", (150, 200, 150)), ("젖은 노면", (120, 170, 230)), ("블랙아이스", (255, 110, 90)), ("포트홀", (190, 170, 130)))
     while True:
-        screen.fill((14, 18, 28))
-        for k_, (txt_, f_, col_) in enumerate([("IcePredict 시연", f44, (240, 240, 240)),
-                                              ("1  —  1차 방어: 카메라(RealSense)가 빙판을 보면 미리 선다", f30, (110, 190, 255)),
-                                              ("2  —  2차 방어: 노면 확인 탭으로 마찰을 재서 제때 선다 (D 로 OFF/ON, K 고장 격리)", f30, (255, 150, 120)),
-                                              ("ESC 끝", f22, (150, 150, 150))]):
-            s_ = f_.render(txt_, True, col_); screen.blit(s_, ((W - s_.get_width()) // 2, H // 2 - 150 + k_ * 80))
+        prim.poll(); screen.fill((14, 18, 28))
+        t_ = f30.render("1차 방어 — RealSense 노면 판정 (실제 도로 사진)", True, (240, 240, 240)); screen.blit(t_, (40, 24))
+        ps = prim.surface()
+        if ps is not None:
+            k_ = min(1000 / ps.get_width(), 680 / ps.get_height()); big = pygame.transform.smoothscale(ps, (int(ps.get_width() * k_), int(ps.get_height() * k_)))
+            hot = prim.risk >= prim.thr
+            pygame.draw.rect(screen, (255, 90, 60) if hot else (90, 90, 96), (36, 86, big.get_width() + 8, big.get_height() + 8)); screen.blit(big, (40, 90))
+        else:
+            screen.blit(f22.render("RealSense 신호 없음 — 파이에서 venue_pi.sh 확인", True, (200, 120, 120)), (40, 120))
+        x_ = 1080; y_ = 110
+        if prim.probs is not None:
+            for (nm_, col_), pv_ in zip(names, prim.probs):
+                screen.blit(f30.render(f"{nm_}", True, col_), (x_, y_)); screen.blit(f30.render(f"{pv_ * 100:5.1f} %", True, (240, 240, 240)), (x_ + 300, y_))
+                pygame.draw.rect(screen, (50, 50, 56), (x_, y_ + 44, 460, 18)); pygame.draw.rect(screen, col_, (x_, y_ + 44, int(460 * pv_), 18)); y_ += 100
+        if prim.live:
+            screen.blit(f22.render(f"위험도 {prim.risk:.2f}   (경고 문턱 {prim.thr:.2f})", True, (255, 200, 120)), (x_, y_ + 10))
+            if prim.risk >= prim.thr:
+                b_ = f44.render("블랙아이스 감지 — 감속하세요", True, (255, 255, 255)); pygame.draw.rect(screen, (200, 30, 30), (x_ - 10, y_ + 60, b_.get_width() + 20, b_.get_height() + 16)); screen.blit(b_, (x_, y_ + 68))
+        screen.blit(f18.render("2 — 1차 방어 주행    3 — 2차 방어    ESC 끝", True, (150, 150, 150)), (40, H - 40))
         pygame.display.flip()
         for e in pygame.event.get():
-            if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE): return False
-            if e.type == pygame.KEYDOWN and e.key in (pygame.K_1, pygame.K_KP1): set_scene("first"); return True
-            if e.type == pygame.KEYDOWN and e.key in (pygame.K_2, pygame.K_KP2): set_scene("second"); return True
-        world.tick(); time.sleep(0.02)
+            if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE): return None
+            if e.type == pygame.KEYDOWN and e.key in SCENE_KEYS and e.key not in (pygame.K_1, pygame.K_KP1): return e.key
+        world.tick(); time.sleep(0.03)
+
+
+def wait_scene_key():
+    """결선 시연: 대기 화면(또는 바로 넘어온 키)에서 장면을 고른다. 1 노면 판정 · 2 1차 방어 주행 · 3 2차 방어."""
+    key = state.pop("next_key", None)
+    while True:
+        if key is None:
+            screen.fill((14, 18, 28))
+            for k_, (txt_, f_, col_) in enumerate([("IcePredict 시연", f44, (240, 240, 240)),
+                                                  ("1  —  RealSense 노면 판정 (사진을 비추면 노면 확률)", f30, (180, 220, 255)),
+                                                  ("2  —  1차 방어: 카메라가 빙판을 보면 미리 선다", f30, (110, 190, 255)),
+                                                  ("3  —  2차 방어: 탭으로 마찰을 재서 제때 선다 (D OFF/ON · K 고장 격리)", f30, (255, 150, 120)),
+                                                  ("ESC 끝", f22, (150, 150, 150))]):
+                s_ = f_.render(txt_, True, col_); screen.blit(s_, ((W - s_.get_width()) // 2, H // 2 - 190 + k_ * 80))
+            pygame.display.flip()
+            for e in pygame.event.get():
+                if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE): return False
+                if e.type == pygame.KEYDOWN and e.key in SCENE_KEYS: key = e.key
+            world.tick(); time.sleep(0.02); continue
+        if key in (pygame.K_1, pygame.K_KP1):
+            key = surface_scene()
+            if key is None: return False
+            continue
+        set_scene("first" if key in (pygame.K_2, pygame.K_KP2) else "second"); return True
 
 
 try:
@@ -673,8 +720,8 @@ try:
                     if e.type == pygame.KEYDOWN and e.key in (pygame.K_r, pygame.K_d):
                         if e.key == pygame.K_d: state["defense"] = not state["defense"]
                         what = "restart"; waiting = False
-                    if a.scenes and e.type == pygame.KEYDOWN and e.key in (pygame.K_1, pygame.K_KP1, pygame.K_2, pygame.K_KP2):
-                        set_scene("first" if e.key in (pygame.K_1, pygame.K_KP1) else "second"); what = "restart"; waiting = False
+                    if a.scenes and e.type == pygame.KEYDOWN and e.key in SCENE_KEYS:
+                        state["scene"] = None; state["next_key"] = e.key; what = "restart"; waiting = False
                 world.tick(); time.sleep(0.02)
         sc.destroy(); state["killed"] = False; state["cruise"] = a.auto
         if what == "quit": break

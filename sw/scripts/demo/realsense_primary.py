@@ -160,11 +160,13 @@ try:
         if fr is None: break
         p, risk, alarm, box = infer(fr)                         # 판정은 원래 해상도로
         if sendq:
-            try: sendq[0].sendto(b"PRI1" + struct.pack("<fffB", risk, float(p[ICE]), fuser.threshold, int(bool(alarm))), sendq[1])
+            try:
+                sendq[0].sendto(b"PRI1" + struct.pack("<fffB", risk, float(p[ICE]), fuser.threshold, int(bool(alarm))), sendq[1])
+                sendq[0].sendto(b"PRI2" + struct.pack("<4fffB", *[float(x) for x in p[:4]], risk, fuser.threshold, int(bool(alarm))), sendq[1])   # 4분류 확률 전부 (시연 화면 막대)
             except OSError: pass
             if n % 2 == 0:                                       # 카메라 화면도 작게 (CARLA 화면 왼쪽 아래에 띄운다)
                 x0_, y0_, s_ = box; th = fr.copy(); cv2.rectangle(th, (x0_, y0_), (x0_ + s_, y0_ + s_), (0, 0, 255) if alarm else (255, 255, 255), 6)
-                k_th = min(320 / fr.shape[1], 200 / fr.shape[0])                     # 320×200 안에 (세로 사진도)
+                k_th = min(640 / fr.shape[1], 400 / fr.shape[0])                     # 640×400 안에 (세로 사진도, 시연 화면에 크게 띄운다)
                 th = cv2.resize(th, (int(fr.shape[1] * k_th), int(fr.shape[0] * k_th)), interpolation=cv2.INTER_AREA)
                 ok_, jp = cv2.imencode(".jpg", th, [cv2.IMWRITE_JPEG_QUALITY, 70])
                 if ok_ and jp.nbytes < 60000:

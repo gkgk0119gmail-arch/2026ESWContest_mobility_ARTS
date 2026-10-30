@@ -26,7 +26,7 @@ def shade(cell, hexcol):
     tc = cell._tc.get_or_add_tcPr(); s = OxmlElement("w:shd"); s.set(qn("w:val"), "clear"); s.set(qn("w:fill"), hexcol); tc.append(s)
 
 para("IcePredict 결선 발표 대본 — 10분 (발표 약 5분 + 시연 약 5분)", 16, True, (0, 44, 95), 6)
-para("준비: 랜선(파이 ↔ 데스크톱 위쪽 포트) → 파이 터미널에서 sw/scripts/demo/venue_pi.sh (화면에 보이게) → 데스크톱 venue_desktop.sh first 로 시작. "
+para("준비: 랜선(파이 ↔ 데스크톱 위쪽 포트) → 파이 터미널에서 sw/scripts/demo/venue_pi.sh (화면에 보이게) → 데스크톱 venue_desktop.sh (대기 화면, 발표 내내 켜 둔다: 1 노면 판정 · 2 1차 주행 · 3 2차 방어). "
      "아이패드 사진은 전체 화면, 밝기 최대. RealSense 창 '재촬영 보정'은 끔.", 10, False, (80, 80, 80), 8)
 t = doc.add_table(rows=1, cols=4); t.style = "Table Grid"
 W = [Cm(2.6), Cm(2.0), Cm(7.2), Cm(14.9)]
@@ -46,6 +46,6 @@ t.autofit = False
 tblPr = t._tbl.tblPr; lay = OxmlElement("w:tblLayout"); lay.set(qn("w:type"), "fixed"); tblPr.append(lay)
 for gc, w in zip(t._tbl.tblGrid.findall(qn("w:gridCol")), W): gc.set(qn("w:w"), str(int(w.cm * 567)))   # LibreOffice 는 gridCol 너비를 본다
 para("", after=2)
-para("키: C 휠 영점 · D 2차 방어 켜기/끄기 · R 다시 · K 파이 메인 프로그램 죽이기 · I 빙판 표시 · T 3인칭 창 · (RealSense 창) +/− 판정 네모, B 재촬영 보정", 9.5, False, (80, 80, 80))
+para("키: 1 노면 판정 · 2 1차 주행 · 3 2차 방어 · C 휠 영점 · D 2차 방어 켜기/끄기 · R 다시 · K 파이 메인 프로그램 죽이기 · I 빙판 표시 · T 3인칭 창 · (RealSense 창) +/− 판정 네모, B 재촬영 보정", 9.5, False, (80, 80, 80))
 para("비상: 시연이 안 되면 제출 영상(IcePredict_시연영상_최종.mp4)을 튼다. 2차 방어가 '응답 없음'이면 랜선·venue_pi.sh 확인.", 9.5, False, (80, 80, 80))
 doc.save(OUT); print("저장", OUT)
